@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ApiInfoResponse, ApiResponse } from '@/types';
+import { authRoutes } from '../modules/auth/auth.routes';
+import { Database } from '../infrastructure/database';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -93,6 +95,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     };
 
     return response;
+  });
+
+  // Register authentication routes
+  const database = new Database();
+  await fastify.register(authRoutes, {
+    prefix: '/v1/auth',
+    database
   });
 }
 
