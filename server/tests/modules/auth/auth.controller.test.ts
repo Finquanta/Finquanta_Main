@@ -1,16 +1,27 @@
-import { buildTestServer } from '../../../src/tests/server';
-import { FastifyInstance } from 'fastify';
+import { buildNativeTestServer } from '../../../src/tests/server-native';
 import request from 'supertest';
 
 describe('AuthController', () => {
-  let server: FastifyInstance;
+  let server: any;
+  let baseUrl: string;
+  let close: () => Promise<void>;
+  let mockDatabase: any;
 
   beforeAll(async () => {
-    server = await buildTestServer();
+    const testServer = await buildNativeTestServer();
+    server = testServer.server;
+    baseUrl = `http://localhost:${testServer.port}`;
+    close = testServer.close;
+    mockDatabase = testServer.database;
   });
 
   afterAll(async () => {
-    await server.close();
+    await close();
+  });
+
+  beforeEach(async () => {
+    // Clear the mock database before each test to ensure clean state
+    mockDatabase.clearUsers();
   });
 
   describe('POST /api/v1/auth/register', () => {
@@ -22,7 +33,7 @@ describe('AuthController', () => {
     };
 
     it('should register a new user successfully', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(validUser)
         .expect(201);
@@ -36,13 +47,13 @@ describe('AuthController', () => {
 
     it('should reject duplicate email registration', async () => {
       // First registration should succeed
-      await request(server.server)
+      await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(validUser)
         .expect(201);
 
       // Second registration with same email should fail
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(validUser)
         .expect(409);
@@ -57,7 +68,7 @@ describe('AuthController', () => {
         email: 'invalid-email'
       };
 
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(invalidUser)
         .expect(400);
@@ -71,7 +82,7 @@ describe('AuthController', () => {
         password: '123' // Too short and weak
       };
 
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(invalidUser)
         .expect(400);
@@ -85,7 +96,7 @@ describe('AuthController', () => {
         // Missing password, firstName, lastName
       };
 
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(incompleteUser)
         .expect(400);
@@ -104,13 +115,13 @@ describe('AuthController', () => {
 
     beforeEach(async () => {
       // Register a user for login tests
-      await request(server.server)
+      await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(testUser);
     });
 
     it('should login with valid credentials', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
@@ -126,7 +137,7 @@ describe('AuthController', () => {
     });
 
     it('should reject login with invalid email', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/login')
         .send({
           email: 'nonexistent@example.com',
@@ -139,7 +150,7 @@ describe('AuthController', () => {
     });
 
     it('should reject login with invalid password', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
@@ -152,7 +163,7 @@ describe('AuthController', () => {
     });
 
     it('should reject login with missing credentials', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/login')
         .send({
           email: testUser.email
@@ -176,7 +187,7 @@ describe('AuthController', () => {
         lastName: 'User'
       };
 
-      const registerResponse = await request(server.server)
+      const registerResponse = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(testUser);
 
@@ -184,7 +195,7 @@ describe('AuthController', () => {
     });
 
     it('should refresh tokens with valid refresh token', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/refresh')
         .send({ refreshToken })
         .expect(200);
@@ -196,7 +207,7 @@ describe('AuthController', () => {
     });
 
     it('should reject refresh with invalid token', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/refresh')
         .send({ refreshToken: 'invalid-refresh-token' })
         .expect(401);
@@ -206,7 +217,7 @@ describe('AuthController', () => {
     });
 
     it('should reject refresh with missing token', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/refresh')
         .send({})
         .expect(400);
@@ -217,7 +228,7 @@ describe('AuthController', () => {
 
   describe('Authentication Endpoints Security', () => {
     it('should reject malformed JSON requests', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/login')
         .set('Content-Type', 'application/json')
         .send('{"invalid": json}') // Malformed JSON
@@ -227,7 +238,7 @@ describe('AuthController', () => {
     });
 
     it('should handle empty request body', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send({})
         .expect(400);
@@ -236,7 +247,7 @@ describe('AuthController', () => {
     });
 
     it('should have proper CORS headers', async () => {
-      const response = await request(server.server)
+      const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send({
           email: 'cors@example.com',

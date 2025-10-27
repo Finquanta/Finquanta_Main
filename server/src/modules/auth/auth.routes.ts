@@ -12,9 +12,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
   const authService = new AuthService(database);
   const authController = new AuthController(authService);
 
+  // Routes without schemas for debugging
   fastify.post('/register', authController.register.bind(authController));
-
   fastify.post('/login', authController.login.bind(authController));
-
   fastify.post('/refresh', authController.refreshToken.bind(authController));
 }
