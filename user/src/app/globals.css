@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 142.1 76.2% 36.3%;
+    --radius: 0.5rem;
+
+    /* Dashboard specific colors */
+    --dashboard-bg: #f2f3f4;
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
+    
+    /* Brand colors */
+    --brand-primary: #150578;
+    --brand-orange: #ff8600;
+    
+    /* Payroll specific colors */
+    --payroll-primary: #150578;
+    --payroll-orange: #ff8600;
+    --payroll-blue: #3981f7;
+    --payroll-light-blue: #51c6fb;
+    --payroll-success: #0aaf60;
+    --payroll-warning: #faa745;
+    
+    /* Chart colors */
+    --chart-line: #3b82f6;
+    --chart-grid: #f3f4f6;
+    --chart-highlight: #1f2937;
+    --chart-tooltip-bg: #1f2937;
+    
+    /* Status colors */
+    --status-paid-bg: #ceefdf;
+    --status-paid-text: #0aaf60;
+    --status-pending-bg: #feedda;
+    --status-pending-text: #faa745;
+    
+    /* Card styling */
+    --card-radius: 16px;
+    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    
+    /* Typography */
+    --font-display: 'TT Hoves', 'Inter', sans-serif;
+    
+    /* Status colors */
+    --success-color: #63d51d;
+    --error-color: #ff8600;
+    --warning-color: #f97316;
+    
+    /* Text colors */
+    --text-primary: #1b263b;
+    --text-secondary: #778da9;
+    --text-muted: #9ca3af;
+    
+    /* Chart colors */
+    --chart-primary: #150578;
+    --chart-secondary: #ff8600;
+    --chart-accent-1: #1e1b4b;
+    --chart-accent-2: #0f766e;
+    --chart-accent-3: #f97316;
+    --chart-accent-4: #06b6d4;
+    
+    /* Summary card specific colors */
+    --balance-bg: #1a1d1f;
+    --balance-icon-bg: #f0f9ff;
+    --income-bg: #e8ddfa; 
+    --income-icon-bg: #faf5ff;
+    --expense-bg: #2ab41b;
+    --expense-icon-bg: #f0f9ff;
+    
+    /* Table colors */
+    --table-tag-bg: #b1e5fc;
+    --table-header-bg: #fcfcfc;
+    --table-border: #efefef;
+    
+    /* Transaction type colors */
+    --type-sale-bg: #dcfce7;
+    --type-sale-text: #166534;
+    --type-service-bg: #dbeafe;
+    --type-service-text: #1e40af;
+    --type-investment-bg: #fed7aa;
+    --type-investment-text: #ea580c;
+    --type-rent-bg: #dcfce7;
+    --type-rent-text: #166534;
+    --type-utilities-bg: #dbeafe;
+    --type-utilities-text: #1e40af;
+    --type-deposited-bg: #dcfce7;
+    --type-deposited-text: #166534;
+    --type-withdrawal-bg: #fed7aa;
+    --type-withdrawal-text: #ea580c;
+
+    /* Settings page specific colors */
+    --settings-bg: #f2f3f4;
+    --settings-menu-bg: #e7e7e7;
+    --toggle-on: #150578;
+    --toggle-off: #e5e7eb;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142.4 71.8% 29.2%;
+  }
+
+  * {
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  /* Dashboard specific utilities */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 20% 45% 30%;
+    gap: 1rem;
+    height: 100%;
+    overflow: hidden;
+    padding: 1rem;
+    background-color: var(--dashboard-bg);
+  }
+
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  /* Custom utilities for settings design */
+  @utility settings-layout {
+    display: grid;
+    grid-template-columns: 275px 1fr 1fr;
+    gap: 0;
+    min-height: 100vh;
+    background-color: var(--settings-bg);
+  }
+
+  @utility settings-card {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  @utility brand-text-primary {
+    color: var(--brand-primary);
+    font-weight: 700;
+  }
+
+  @utility brand-text-orange {
+    color: var(--brand-orange);
+  }
+
+  @utility settings-menu-bg {
+    background-color: var(--settings-menu-bg);
+  }
+}

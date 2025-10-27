@@ -1,0 +1,101 @@
+﻿Prompts for AI Agent: Building the Dashboard UI
+Objective: Create a multi-page dashboard application using Next.js, TypeScript, and Tailwind CSS. The structure will use a shared layout for navigation and header elements, with page-specific content rendered dynamically.
+Part 1: Create the Shared Layout
+This layout will be the foundation for all pages within the (user_dashboard) route group.
+Step 1.1: Create the Main Layout File
+1. File Location: app/(user_dashboard)/layout.tsx
+2. Objective: Define the primary structure that holds the side navigation, top bar, and the main content area for all pages.
+3. Instructions:
+   * Create a root div with a flex layout.
+   * Import the SideNav component (which you'll create next). Render it on the left. It should have a fixed width (e.g., w-64) and be sticky.
+   * Create a main content container (<main>) that will take up the remaining width (flex-1). This container should have a light gray background (bg-gray-50).
+   * Inside the <main> container, import and render the TopBar component (which you'll also create).
+   * Below the TopBar, render the children prop. This is where the content of your individual pages (dashboard/page.tsx, settings/page.tsx, etc.) will be displayed.
+   * Ensure the main content area is scrollable if its content exceeds the viewport height.
+// app/(user_dashboard)/layout.tsx
+import React from 'react';
+import SideNav from './components/SideNav';
+import TopBar from './components/TopBar';
+
+export default function DashboardLayout({
+ children,
+}: {
+ children: React.ReactNode;
+}) {
+ return (
+   <div className="flex h-screen bg-gray-50">
+     <SideNav />
+     <main className="flex-1 flex flex-col overflow-hidden">
+       <TopBar />
+       <div className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+         {children}
+       </div>
+     </main>
+   </div>
+ );
+}
+
+Step 1.2: Create the Reusable Side Navigation
+1. File Location: app/(user_dashboard)/components/SideNav.tsx
+2. Objective: Build the primary navigation menu displayed on the left side of all pages.
+3. Instructions:
+   * Use the usePathname hook from next/navigation to determine the active link.
+   * The component's root should be a div with a white background, a right border, and a flex flex-col layout.
+   * Top Section:
+      * Add the "Fund Flow AI" logo/title at the top with padding.
+      * Create a list of navigation links based on the screenshots (Dashboard, Portfolio overview, Statistics, etc.).
+      * Each link should be a Next.js <Link> component containing an icon from lucide-react and the link's name.
+      * The active link should have a distinct style (e.g., bg-gray-100 and text-blue-600).
+   * Bottom Section:
+      * Use mt-auto on a container to push this section to the bottom.
+      * Add the secondary links ("Profile Settings", "Information", "Security terms") similarly, with icons and text.
+Step 1.3: Create the Reusable Top Bar
+1. File Location: app/(user_dashboard)/components/TopBar.tsx
+2. Objective: Build the header component that displays user info, search, and notifications.
+3. Instructions:
+   * The root element should be a header or div with a white background and a bottom border. Use flex items-center justify-between and add padding (px-6 py-4).
+   * Left Side: Create a flex container for the user's name ("Khalifa Hm"), bank account info, and a dropdown chevron icon (ChevronDown from lucide-react).
+   * Right Side: Create a flex container with a gap for the remaining items:
+      * A search input field styled with a search icon inside.
+      * A notification bell icon (Bell from lucide-react), optionally with a status dot.
+      * A user avatar (can be a simple div with initials for now).
+      * A right arrow icon (ArrowRight from lucide-react).
+Part 2: Create Page-Specific Content
+Now, create the unique content for each page. These page components will be rendered as children inside your new layout.
+Step 2.1: Updated Prompt for Dashboard Page
+1. File Location: app/(user_dashboard)/dashboard/page.tsx
+2. Objective: Create the main content for the dashboard, consisting of various summary cards and charts.
+3. Instructions:
+   * The page should export a default function DashboardPage.
+   * The root element will be a CSS grid container to arrange the cards: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6.
+   * Create Reusable Components: First, create the necessary Card and dashboard-specific card components (SummaryCard, TotalExpensesCard, ChartCard, etc.) as described in the original "Dashboard" prompt. These can live in app/(user_dashboard)/components/dashboard/.
+   * Assemble the Page: Import the card components, create mock data for them, and arrange them within the grid layout. Use col-span and row-span utilities to match the design in dashboard.png.
+Step 2.2: Updated Prompt for Bookkeeping Page
+1. File Location: app/(user_dashboard)/bookkeeping/page.tsx
+2. Objective: Build the content for the bookkeeping page, including summary cards and data tables.
+3. Instructions:
+   * The page should export a default function BookkeepingPage.
+   * The root element should be a div with a flex flex-col gap-8 layout.
+   * At the top, create a div with flex gap-6 to hold the three summary cards ("Balance", "Income", "Expense").
+   * Create and use the SummaryCard and ManagementTable components as described in the original "Bookkeeping" prompt. These can live in app/(user_dashboard)/components/bookkeeping/.
+   * Render three instances of the ManagementTable for Income, Expenses, and Transactions, passing the appropriate mock data and props.
+Step 2.3: Updated Prompt for Payroll Page
+1. File Location: app/(user_dashboard)/payroll/page.tsx
+2. Objective: Construct the content for the payroll page.
+3. Instructions:
+   * The page should export a default function PayrollPage.
+   * The root element should be a two-column grid: grid grid-cols-1 lg:grid-cols-3 gap-8.
+   * Left Column (lg:col-span-2): This will contain the "Total Outstanding" chart and the "Transaction History" list.
+   * Right Column (lg:col-span-1): This will be a vertical stack (flex flex-col gap-6) of the "Payroll Summary", "Previous/Upcoming Payroll", and "Client" cards.
+   * Create and use the specific components (OutstandingChart, TransactionHistory, PayrollSummaryCard, etc.) as detailed in the original "Payroll" prompt. Place them in app/(user_dashboard)/components/payroll/.
+Step 2.4: Updated Prompt for Settings Page
+1. File Location: app/(user_dashboard)/settings/page.tsx
+2. Objective: Build the settings interface. Note: The left-side navigation is already handled by SideNav.tsx. This prompt now focuses on the content area only.
+3. Instructions:
+   * The page should export a default function SettingsPage.
+   * The root element should be a div.
+   * The design shows a sub-navigation within the settings page itself. You will replicate this. The layout should be a two-column grid: grid grid-cols-1 md:grid-cols-3 gap-8.
+   * Left Column (md:col-span-1): Create a SettingsMenu component (app/(user_dashboard)/components/settings/SettingsMenu.tsx). This component will list the different setting categories ("Access and permission", "Notification preference", etc.) and will manage which settings view is active. This is different from the main SideNav.
+   * Right Column (md:col-span-2): Conditionally render the content for the selected setting category. For example, if "Notification preference" is selected, render the NotificationSettings component.
+   * Create the NotificationSettings component and the reusable Switch component as described in the original "Settings" prompt.
+   * Use useState within SettingsPage to manage which setting category is currently selected and to hold the state for the various notification toggles.
