@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fiscal AI Server API - Swagger UI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .swagger-ui .topbar {
+            display: none;
+        }
+        .swagger-ui .info .title {
+            color: #2c3e50;
+        }
+        .custom-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .custom-header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .custom-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .server-info {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px;
+        }
+        .server-info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .server-info code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .auth-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px;
+        }
+        .auth-info h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .example-requests {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px;
+        }
+        .example-requests h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+        .example-requests pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-header">
+        <h1>Fiscal AI Server API</h1>
+        <p>Comprehensive financial management API documentation</p>
+    </div>
+
+    <div class="server-info">
+        <h3>🚀 Quick Start</h3>
+        <p><strong>Base URL:</strong> <code>http://localhost:3001/api/v1</code></p>
+        <p><strong>Authentication:</strong> Bearer Token (JWT)</p>
+        <p><strong>API Version:</strong> 1.0.0</p>
+    </div>
+
+    <div class="auth-info">
+        <h3>🔐 Authentication</h3>
+        <p>To use authenticated endpoints:</p>
+        <ol>
+            <li>Register a new account: <code>POST /auth/register</code></li>
+            <li>Login to get tokens: <code>POST /auth/login</code></li>
+            <li>Include the access token in the Authorization header: <code>Authorization: Bearer &lt;your-token&gt;</code></li>
+        </ol>
+        <p><strong>Note:</strong> Access tokens expire after 15 minutes. Use the refresh token to get new access tokens.</p>
+    </div>
+
+    <div class="example-requests">
+        <h3>📝 Example Requests</h3>
+
+        <h4>1. Register User</h4>
+        <pre><code>curl -X POST "http://localhost:3001/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!",
+    "firstName": "John",
+    "lastName": "Doe"
+  }'</code></pre>
+
+        <h4>2. Login</h4>
+        <pre><code>curl -X POST "http://localhost:3001/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!"
+  }'</code></pre>
+
+        <h4>3. Create Transaction</h4>
+        <pre><code>curl -X POST "http://localhost:3001/api/v1/financial/transactions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "type": "income",
+    "category": "Salary",
+    "amount": 5000.00,
+    "description": "Monthly salary",
+    "date": "2024-01-15"
+  }'</code></pre>
+
+        <h4>4. Get Transactions</h4>
+        <pre><code>curl -X GET "http://localhost:3001/api/v1/financial/transactions?limit=10&type=income" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</code></pre>
+    </div>
+
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = () => {
+            const ui = SwaggerUIBundle({
+                url: './openapi.json',
+                dom_id: '#swagger-ui',
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                deepLinking: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                tryItOutEnabled: true,
+                requestInterceptor: (request) => {
+                    // Add default headers for all requests
+                    if (!request.headers['Content-Type']) {
+                        request.headers['Content-Type'] = 'application/json';
+                    }
+                    return request;
+                },
+                responseInterceptor: (response) => {
+                    // Log responses for debugging
+                    console.log('API Response:', response);
+                    return response;
+                },
+                onComplete: () => {
+                    console.log("Swagger UI loaded successfully");
+                },
+                docExpansion: "list",
+                operationsSorter: "alpha",
+                tagsSorter: "alpha",
+                filter: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch']
+            });
+
+            // Custom styling for authorization
+            setTimeout(() => {
+                const authButton = document.querySelector('.auth-wrapper .authorize');
+                if (authButton) {
+                    authButton.style.background = '#28a745';
+                    authButton.style.color = 'white';
+                    authButton.style.border = 'none';
+                    authButton.style.padding = '8px 16px';
+                    authButton.style.borderRadius = '4px';
+                    authButton.style.cursor = 'pointer';
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

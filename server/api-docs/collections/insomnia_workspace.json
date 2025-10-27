@@ -1,0 +1,403 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2024-01-15T10:30:00.000Z",
+  "__export_source": "fiscal-ai-docs-generator",
+  "_resources": [
+    {
+      "_id": "wrk_fiscal-ai-server",
+      "_type": "workspace",
+      "name": "Fiscal AI Server API",
+      "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures",
+      "workspace": {
+        "name": "Fiscal AI Server API",
+        "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures",
+        "baseEnvironmentId": "env_main",
+        "baseId": "wrk_fiscal-ai-server"
+      }
+    },
+    {
+      "_id": "env_main",
+      "_type": "environment",
+      "name": "Main Environment",
+      "data": [
+        {
+          "key": "baseUrl",
+          "value": "http://localhost:3001/api/v1",
+          "description": "Base URL for the API"
+        },
+        {
+          "key": "access_token",
+          "value": "",
+          "description": "JWT access token obtained from login"
+        },
+        {
+          "key": "refresh_token",
+          "value": "",
+          "description": "JWT refresh token for token renewal"
+        },
+        {
+          "key": "user_email",
+          "value": "john.doe@example.com",
+          "description": "Test user email"
+        },
+        {
+          "key": "user_password",
+          "value": "SecurePass123!",
+          "description": "Test user password"
+        },
+        {
+          "key": "transaction_id",
+          "value": "",
+          "description": "ID of a created transaction for testing"
+        }
+      ],
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1000000000
+    },
+    {
+      "_id": "spc_health",
+      "_type": "request_group",
+      "name": "Health Checks",
+      "description": "System health monitoring endpoints",
+      "environment": {},
+      "metaSortKey": -1000000000,
+      "children": [
+        {
+          "_id": "req_health_basic",
+          "_type": "request",
+          "parentId": "spc_health",
+          "name": "Basic Health Check",
+          "url": "{{baseUrl}}/../health",
+          "method": "GET",
+          "headers": [],
+          "body": {},
+          "description": "Returns the basic health status of the API server"
+        },
+        {
+          "_id": "req_health_detailed",
+          "_type": "request",
+          "parentId": "spc_health",
+          "name": "Detailed Health Check",
+          "url": "{{baseUrl}}/../health/detailed",
+          "method": "GET",
+          "headers": [],
+          "body": {},
+          "description": "Returns detailed health information including system resources"
+        }
+      ]
+    },
+    {
+      "_id": "spc_api_info",
+      "_type": "request_group",
+      "name": "API Information",
+      "description": "API information and version endpoints",
+      "environment": {},
+      "metaSortKey": -900000000,
+      "children": [
+        {
+          "_id": "req_api_info",
+          "_type": "request",
+          "parentId": "spc_api_info",
+          "name": "Get API Information",
+          "url": "{{baseUrl}}/../api",
+          "method": "GET",
+          "headers": [],
+          "body": {},
+          "description": "Returns basic information about the API"
+        },
+        {
+          "_id": "req_api_version",
+          "_type": "request",
+          "parentId": "spc_api_info",
+          "name": "Get API Version",
+          "url": "{{baseUrl}}/../api/version",
+          "method": "GET",
+          "headers": [],
+          "body": {},
+          "description": "Returns the current version of the API"
+        },
+        {
+          "_id": "req_api_test",
+          "_type": "request",
+          "parentId": "spc_api_info",
+          "name": "Test Endpoint",
+          "url": "{{baseUrl}}/../api/test",
+          "method": "GET",
+          "headers": [],
+          "body": {},
+          "description": "Development test endpoint for connectivity testing"
+        }
+      ]
+    },
+    {
+      "_id": "spc_auth",
+      "_type": "request_group",
+      "name": "Authentication",
+      "description": "User authentication and token management",
+      "environment": {},
+      "metaSortKey": -800000000,
+      "children": [
+        {
+          "_id": "req_auth_register",
+          "_type": "request",
+          "parentId": "spc_auth",
+          "name": "Register User",
+          "url": "{{baseUrl}}/auth/register",
+          "method": "POST",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+          },
+          "description": "Create a new user account with email and password"
+        },
+        {
+          "_id": "req_auth_login",
+          "_type": "request",
+          "parentId": "spc_auth",
+          "name": "Login User",
+          "url": "{{baseUrl}}/auth/login",
+          "method": "POST",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+          },
+          "description": "Authenticate user and return JWT tokens"
+        },
+        {
+          "_id": "req_auth_refresh",
+          "_type": "request",
+          "parentId": "spc_auth",
+          "name": "Refresh Access Token",
+          "url": "{{baseUrl}}/auth/refresh",
+          "method": "POST",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+          },
+          "description": "Refresh JWT access token using refresh token"
+        }
+      ]
+    },
+    {
+      "_id": "spc_transactions",
+      "_type": "request_group",
+      "name": "Financial Transactions",
+      "description": "Financial transaction management and analytics",
+      "environment": {},
+      "metaSortKey": -700000000,
+      "children": [
+        {
+          "_id": "req_transaction_create_income",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Create Income Transaction",
+          "url": "{{baseUrl}}/financial/transactions",
+          "method": "POST",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Fiscal AI\"\n  }\n}"
+          },
+          "description": "Create a new income transaction"
+        },
+        {
+          "_id": "req_transaction_create_expense",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Create Expense Transaction",
+          "url": "{{baseUrl}}/financial/transactions",
+          "method": "POST",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"type\": \"expense\",\n  \"category\": \"Office Supplies\",\n  \"amount\": 125.50,\n  \"description\": \"Stationery and office supplies\",\n  \"date\": \"2024-01-14\",\n  \"metadata\": {\n    \"vendor\": \"Office Depot\",\n    \"receipt\": \"REC-12345\"\n  }\n}"
+          },
+          "description": "Create a new expense transaction"
+        },
+        {
+          "_id": "req_transaction_get_all",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Get All Transactions",
+          "url": "{{baseUrl}}/financial/transactions?limit=20&offset=0&sortBy=date&sortOrder=desc",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Retrieve user's financial transactions with pagination"
+        },
+        {
+          "_id": "req_transaction_get_income",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Get Income Transactions Only",
+          "url": "{{baseUrl}}/financial/transactions?type=income&limit=10",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Retrieve only income transactions"
+        },
+        {
+          "_id": "req_transaction_get_expense",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Get Expense Transactions Only",
+          "url": "{{baseUrl}}/financial/transactions?type=expense&limit=10",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Retrieve only expense transactions"
+        },
+        {
+          "_id": "req_transaction_get_by_id",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Get Transaction by ID",
+          "url": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Retrieve a specific transaction by its ID"
+        },
+        {
+          "_id": "req_transaction_update",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Update Transaction",
+          "url": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+          "method": "PUT",
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {
+            "mimeType": "application/json",
+            "text": "{\n  \"description\": \"Updated transaction description\",\n  \"amount\": 5500.00,\n  \"metadata\": {\n    \"updated\": true,\n    \"reason\": \"Salary adjustment\"\n  }\n}"
+          },
+          "description": "Update an existing transaction"
+        },
+        {
+          "_id": "req_transaction_delete",
+          "_type": "request",
+          "parentId": "spc_transactions",
+          "name": "Delete Transaction",
+          "url": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+          "method": "DELETE",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Delete a transaction permanently"
+        }
+      ]
+    },
+    {
+      "_id": "spc_analytics",
+      "_type": "request_group",
+      "name": "Financial Analytics",
+      "description": "Financial summary and analytics endpoints",
+      "environment": {},
+      "metaSortKey": -600000000,
+      "children": [
+        {
+          "_id": "req_summary_current_month",
+          "_type": "request",
+          "parentId": "spc_analytics",
+          "name": "Get Financial Summary - Current Month",
+          "url": "{{baseUrl}}/financial/summary?startDate=2024-01-01&endDate=2024-01-31",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Get financial summary for January 2024"
+        },
+        {
+          "_id": "req_summary_custom_range",
+          "_type": "request",
+          "parentId": "spc_analytics",
+          "name": "Get Financial Summary - Custom Range",
+          "url": "{{baseUrl}}/financial/summary?startDate=2023-12-01&endDate=2023-12-31",
+          "method": "GET",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{access_token}}"
+            }
+          ],
+          "body": {},
+          "description": "Get financial summary for December 2023"
+        }
+      ]
+    }
+  ]
+}

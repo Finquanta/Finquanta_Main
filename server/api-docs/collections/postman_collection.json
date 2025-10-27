@@ -1,0 +1,675 @@
+{
+  "info": {
+    "name": "Fiscal AI Server API",
+    "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures\n\n## Authentication\n\nThis API uses JWT (JSON Web Token) authentication. Include the token in the `Authorization` header:\n\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## Getting Started\n\n1. **Register a new user account**\n2. **Login to receive access and refresh tokens**\n3. **Include the access token in API requests**\n4. **Refresh tokens when they expire**",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "fiscal-ai-server-api-v1",
+    "_exporter_id": "fiscal-ai-docs-generator"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1",
+      "type": "string",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token obtained from login"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT refresh token for token renewal"
+    },
+    {
+      "key": "user_email",
+      "value": "john.doe@example.com",
+      "type": "string",
+      "description": "Test user email"
+    },
+    {
+      "key": "user_password",
+      "value": "SecurePass123!",
+      "type": "string",
+      "description": "Test user password"
+    },
+    {
+      "key": "transaction_id",
+      "value": "",
+      "type": "string",
+      "description": "ID of a created transaction for testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "description": "System health monitoring endpoints",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health",
+              "host": ["{{baseUrl}}"],
+              "path": ["..", "health"]
+            },
+            "description": "Returns the basic health status of the API server"
+          },
+          "response": []
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health/detailed",
+              "host": ["{{baseUrl}}"],
+              "path": ["..", "health", "detailed"]
+            },
+            "description": "Returns detailed health information including system resources"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API Information",
+      "description": "API information and version endpoints",
+      "item": [
+        {
+          "name": "Get API Information",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../api",
+              "host": ["{{baseUrl}}"],
+              "path": ["..", "api"]
+            },
+            "description": "Returns basic information about the API"
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../api/version",
+              "host": ["{{baseUrl}}"],
+              "path": ["..", "api", "version"]
+            },
+            "description": "Returns the current version of the API"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../api/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["..", "api", "test"]
+            },
+            "description": "Development test endpoint for connectivity testing"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "description": "User authentication and token management",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Create a new user account with email and password"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data) {",
+                  "        pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', response.data.refreshToken);",
+                  "        console.log('Tokens stored successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticate user and return JWT tokens"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data) {",
+                  "        pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', response.data.refreshToken);",
+                  "        console.log('Login successful, tokens stored');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Refresh Access Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Refresh JWT access token using refresh token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data) {",
+                  "        pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "        if (response.data.refreshToken) {",
+                  "            pm.collectionVariables.set('refresh_token', response.data.refreshToken);",
+                  "        }",
+                  "        console.log('Token refreshed successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Financial Transactions",
+      "description": "Financial transaction management and analytics",
+      "item": [
+        {
+          "name": "Create Income Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Fiscal AI\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"]
+            },
+            "description": "Create a new income transaction"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data && response.data.id) {",
+                  "        pm.collectionVariables.set('transaction_id', response.data.id);",
+                  "        console.log('Transaction created with ID:', response.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Expense Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"expense\",\n  \"category\": \"Office Supplies\",\n  \"amount\": 125.50,\n  \"description\": \"Stationery and office supplies\",\n  \"date\": \"2024-01-14\",\n  \"metadata\": {\n    \"vendor\": \"Office Depot\",\n    \"receipt\": \"REC-12345\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"]
+            },
+            "description": "Create a new expense transaction"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions?limit=20&offset=0&sortBy=date&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of transactions to return"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Number of transactions to skip"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "date",
+                  "description": "Sort field"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Sort order"
+                }
+              ]
+            },
+            "description": "Retrieve user's financial transactions with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Income Transactions Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions?type=income&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "income",
+                  "description": "Filter by transaction type"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of transactions to return"
+                }
+              ]
+            },
+            "description": "Retrieve only income transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Expense Transactions Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions?type=expense&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense",
+                  "description": "Filter by transaction type"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of transactions to return"
+                }
+              ]
+            },
+            "description": "Retrieve only expense transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transactions by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions?startDate=2024-01-01&endDate=2024-01-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01",
+                  "description": "Filter by start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-01-31",
+                  "description": "Filter by end date (YYYY-MM-DD)"
+                }
+              ]
+            },
+            "description": "Retrieve transactions for a specific date range"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions", "{{transaction_id}}"]
+            },
+            "description": "Retrieve a specific transaction by its ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Transaction",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated transaction description\",\n  \"amount\": 5500.00,\n  \"metadata\": {\n    \"updated\": true,\n    \"reason\": \"Salary adjustment\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions", "{{transaction_id}}"]
+            },
+            "description": "Update an existing transaction"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Transaction",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/transactions/{{transaction_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "transactions", "{{transaction_id}}"]
+            },
+            "description": "Delete a transaction permanently"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Financial Analytics",
+      "description": "Financial summary and analytics endpoints",
+      "item": [
+        {
+          "name": "Get Financial Summary - Current Month",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/summary?startDate=2024-01-01&endDate=2024-01-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "summary"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01",
+                  "description": "Start date for summary period"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-01-31",
+                  "description": "End date for summary period"
+                }
+              ]
+            },
+            "description": "Get financial summary for January 2024"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Financial Summary - Custom Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/financial/summary?startDate=2023-12-01&endDate=2023-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["financial", "summary"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2023-12-01",
+                  "description": "Start date for summary period"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2023-12-31",
+                  "description": "End date for summary period"
+                }
+              ]
+            },
+            "description": "Get financial summary for December 2023"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// This script runs before each request",
+          "// You can add common pre-request logic here",
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// This script runs after each request",
+          "// Common response validation",
+          "if (pm.response.code >= 400) {",
+          "    console.log('Request failed with status:', pm.response.code);",
+          "    console.log('Response body:', pm.response.text());",
+          "}",
+          ""
+        ]
+      }
+    }
+  ]
+}

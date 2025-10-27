@@ -1,0 +1,357 @@
+meta {
+  name: "Fiscal AI Server API"
+  description: "Comprehensive financial management API for tracking income, expenses, and generating financial insights.
+
+  ## Features
+  - JWT-based authentication system
+  - Financial transaction management (CRUD operations)
+  - Advanced filtering and search capabilities
+  - Financial summary and analytics
+  - Real-time WebSocket notifications
+  - Comprehensive error handling
+  - Rate limiting and security measures
+
+  ## Authentication
+
+  This API uses JWT (JSON Web Token) authentication. Include the token in the Authorization header:
+
+  Authorization: Bearer <your-jwt-token>
+
+  ## Getting Started
+
+  1. Register a new user account
+  2. Login to receive access and refresh tokens
+  3. Include the access token in API requests
+  4. Refresh tokens when they expire"
+  type: "collection"
+  environment: {
+    baseUrl: "http://localhost:3001/api/v1",
+    access_token: "",
+    refresh_token: "",
+    user_email: "john.doe@example.com",
+    user_password: "SecurePass123!",
+    transaction_id: ""
+  }
+}
+
+group {
+  name: "Health Checks"
+  description: "System health monitoring endpoints"
+}
+
+request {
+  name: "Basic Health Check"
+  description: "Returns the basic health status of the API server"
+  method: "GET"
+  url: "{{baseUrl}}/../health"
+  headers: {}
+  body: {}
+}
+
+request {
+  name: "Detailed Health Check"
+  description: "Returns detailed health information including system resources"
+  method: "GET"
+  url: "{{baseUrl}}/../health/detailed"
+  headers: {}
+  body: {}
+}
+
+group {
+  name: "API Information"
+  description: "API information and version endpoints"
+}
+
+request {
+  name: "Get API Information"
+  description: "Returns basic information about the API"
+  method: "GET"
+  url: "{{baseUrl}}/../api"
+  headers: {}
+  body: {}
+}
+
+request {
+  name: "Get API Version"
+  description: "Returns the current version of the API"
+  method: "GET"
+  url: "{{baseUrl}}/../api/version"
+  headers: {}
+  body: {}
+}
+
+request {
+  name: "Test Endpoint"
+  description: "Development test endpoint for connectivity testing"
+  method: "GET"
+  url: "{{baseUrl}}/../api/test"
+  headers: {}
+  body: {}
+}
+
+group {
+  name: "Authentication"
+  description: "User authentication and token management"
+}
+
+request {
+  name: "Register User"
+  description: "Create a new user account with email and password"
+  method: "POST"
+  url: "{{baseUrl}}/auth/register"
+  headers: {
+    "Content-Type": "application/json"
+  }
+  body: {
+    json: {
+      "email": "{{user_email}}",
+      "password": "{{user_password}}",
+      "firstName": "John",
+      "lastName": "Doe"
+    }
+  }
+  script: {
+    post_response: "if (res.status === 201) {\n  const data = res.body;\n  if (data.success && data.data) {\n    bru.setEnvVar('access_token', data.data.accessToken);\n    bru.setEnvVar('refresh_token', data.data.refreshToken);\n    console.log('Tokens stored successfully');\n  }\n}"
+  }
+}
+
+request {
+  name: "Login User"
+  description: "Authenticate user and return JWT tokens"
+  method: "POST"
+  url: "{{baseUrl}}/auth/login"
+  headers: {
+    "Content-Type": "application/json"
+  }
+  body: {
+    json: {
+      "email": "{{user_email}}",
+      "password": "{{user_password}}"
+    }
+  }
+  script: {
+    post_response: "if (res.status === 200) {\n  const data = res.body;\n  if (data.success && data.data) {\n    bru.setEnvVar('access_token', data.data.accessToken);\n    bru.setEnvVar('refresh_token', data.data.refreshToken);\n    console.log('Login successful, tokens stored');\n  }\n}"
+  }
+}
+
+request {
+  name: "Refresh Access Token"
+  description: "Refresh JWT access token using refresh token"
+  method: "POST"
+  url: "{{baseUrl}}/auth/refresh"
+  headers: {
+    "Content-Type": "application/json"
+  }
+  body: {
+    json: {
+      "refreshToken": "{{refresh_token}}"
+    }
+  }
+  script: {
+    post_response: "if (res.status === 200) {\n  const data = res.body;\n  if (data.success && data.data) {\n    bru.setEnvVar('access_token', data.data.accessToken);\n    if (data.data.refreshToken) {\n      bru.setEnvVar('refresh_token', data.data.refreshToken);\n    }\n    console.log('Token refreshed successfully');\n  }\n}"
+  }
+}
+
+group {
+  name: "Financial Transactions"
+  description: "Financial transaction management and analytics"
+}
+
+request {
+  name: "Create Income Transaction"
+  description: "Create a new income transaction"
+  method: "POST"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer {{access_token}}"
+  }
+  body: {
+    json: {
+      "type": "income",
+      "category": "Salary",
+      "subcategory": "Monthly Salary",
+      "amount": 5000.00,
+      "description": "Monthly salary payment",
+      "date": "2024-01-15",
+      "invoice": "INV-2024-001",
+      "metadata": {
+        "department": "Engineering",
+        "project": "Fiscal AI"
+      }
+    }
+  }
+  script: {
+    post_response: "if (res.status === 201) {\n  const data = res.body;\n  if (data.success && data.data && data.data.id) {\n    bru.setEnvVar('transaction_id', data.data.id);\n    console.log('Transaction created with ID:', data.data.id);\n  }\n}"
+  }
+}
+
+request {
+  name: "Create Expense Transaction"
+  description: "Create a new expense transaction"
+  method: "POST"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer {{access_token}}"
+  }
+  body: {
+    json: {
+      "type": "expense",
+      "category": "Office Supplies",
+      "amount": 125.50,
+      "description": "Stationery and office supplies",
+      "date": "2024-01-14",
+      "metadata": {
+        "vendor": "Office Depot",
+        "receipt": "REC-12345"
+      }
+    }
+  }
+}
+
+request {
+  name: "Get All Transactions"
+  description: "Retrieve user's financial transactions with pagination"
+  method: "GET"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    limit: "20",
+    offset: "0",
+    sortBy: "date",
+    sortOrder: "desc"
+  }
+  body: {}
+}
+
+request {
+  name: "Get Income Transactions Only"
+  description: "Retrieve only income transactions"
+  method: "GET"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    type: "income",
+    limit: "10"
+  }
+  body: {}
+}
+
+request {
+  name: "Get Expense Transactions Only"
+  description: "Retrieve only expense transactions"
+  method: "GET"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    type: "expense",
+    limit: "10"
+  }
+  body: {}
+}
+
+request {
+  name: "Get Transactions by Date Range"
+  description: "Retrieve transactions for a specific date range"
+  method: "GET"
+  url: "{{baseUrl}}/financial/transactions"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    startDate: "2024-01-01",
+    endDate: "2024-01-31"
+  }
+  body: {}
+}
+
+request {
+  name: "Get Transaction by ID"
+  description: "Retrieve a specific transaction by its ID"
+  method: "GET"
+  url: "{{baseUrl}}/financial/transactions/{{transaction_id}}"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  body: {}
+}
+
+request {
+  name: "Update Transaction"
+  description: "Update an existing transaction"
+  method: "PUT"
+  url: "{{baseUrl}}/financial/transactions/{{transaction_id}}"
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer {{access_token}}"
+  }
+  body: {
+    json: {
+      "description": "Updated transaction description",
+      "amount": 5500.00,
+      "metadata": {
+        "updated": true,
+        "reason": "Salary adjustment"
+      }
+    }
+  }
+}
+
+request {
+  name: "Delete Transaction"
+  description: "Delete a transaction permanently"
+  method: "DELETE"
+  url: "{{baseUrl}}/financial/transactions/{{transaction_id}}"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  body: {}
+}
+
+group {
+  name: "Financial Analytics"
+  description: "Financial summary and analytics endpoints"
+}
+
+request {
+  name: "Get Financial Summary - Current Month"
+  description: "Get financial summary for January 2024"
+  method: "GET"
+  url: "{{baseUrl}}/financial/summary"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    startDate: "2024-01-01",
+    endDate: "2024-01-31"
+  }
+  body: {}
+}
+
+request {
+  name: "Get Financial Summary - Custom Range"
+  description: "Get financial summary for December 2023"
+  method: "GET"
+  url: "{{baseUrl}}/financial/summary"
+  headers: {
+    "Authorization": "Bearer {{access_token}}"
+  }
+  query: {
+    startDate: "2023-12-01",
+    endDate: "2023-12-31"
+  }
+  body: {}
+}
+
+tests {
+  "Status code is successful": "res.status >= 200 && res.status < 300"
+  "Response has proper structure": "res.body.hasOwnProperty('success')"
+  "Response timestamp is present": "res.body.hasOwnProperty('timestamp')"
+}

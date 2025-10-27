@@ -1,0 +1,1223 @@
+openapi: 3.0.3
+info:
+  title: Fiscal AI Server API
+  version: 1.0.0
+  description: |
+    Comprehensive financial management API for tracking income, expenses, and generating financial insights.
+
+    ## Features
+    - JWT-based authentication system
+    - Financial transaction management (CRUD operations)
+    - Advanced filtering and search capabilities
+    - Financial summary and analytics
+    - Real-time WebSocket notifications
+    - Comprehensive error handling
+    - Rate limiting and security measures
+
+    ## Authentication
+
+    This API uses JWT (JSON Web Token) authentication. Include the token in the `Authorization` header:
+
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+
+    ## Getting Started
+
+    1. **Register a new user account**
+    2. **Login to receive access and refresh tokens**
+    3. **Include the access token in API requests**
+    4. **Refresh tokens when they expire**
+
+    ## Base URL
+
+    - Production: `https://api.fiscalai.com/v1`
+    - Staging: `https://staging-api.fiscalai.com/v1`
+    - Development: `http://localhost:3001/api/v1`
+  contact:
+    name: Fiscal AI Support
+    email: support@fiscalai.com
+    url: https://fiscalai.com/support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.fiscalai.com/v1
+    description: Production server
+  - url: https://staging-api.fiscalai.com/v1
+    description: Staging server
+  - url: http://localhost:3001/api/v1
+    description: Development server
+
+tags:
+  - name: Health
+    description: System health check endpoints
+  - name: Info
+    description: API information and version endpoints
+  - name: Authentication
+    description: User authentication and token management
+  - name: Financial
+    description: Financial transaction management and analytics
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health check
+      description: Returns the basic health status of the API server
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                timestamp: '2024-01-15T10:30:00Z'
+                uptime: 3600
+
+  /health/detailed:
+    get:
+      tags: [Health]
+      summary: Detailed health check
+      description: Returns detailed health information including system resources
+      operationId: getDetailedHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+
+  /api:
+    get:
+      tags: [Info]
+      summary: Get API information
+      description: Returns basic information about the API
+      operationId: getApiInfo
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInfoResponse'
+
+  /api/version:
+    get:
+      tags: [Info]
+      summary: Get API version
+      description: Returns the current version of the API
+      operationId: getApiVersion
+      responses:
+        '200':
+          description: API version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiVersionResponse'
+
+  /api/test:
+    get:
+      tags: [Info]
+      summary: Test endpoint
+      description: Development test endpoint for connectivity testing
+      operationId: testEndpoint
+      responses:
+        '200':
+          description: Test successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResponse'
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      description: Create a new user account with email and password
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              standard:
+                summary: Standard user registration
+                value:
+                  email: 'john.doe@example.com'
+                  password: 'SecurePass123!'
+                  firstName: 'John'
+                  lastName: 'Doe'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                success: true
+                data:
+                  user:
+                    id: '550e8400-e29b-41d4-a716-446655440000'
+                    email: 'john.doe@example.com'
+                    firstName: 'John'
+                    lastName: 'Doe'
+                    role: 'user'
+                  accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                  refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                timestamp: '2024-01-15T10:30:00Z'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    success: false
+                    error: 'Email already exists'
+                    timestamp: '2024-01-15T10:30:00Z'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user and return JWT tokens
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              standard:
+                summary: Standard user login
+                value:
+                  email: 'john.doe@example.com'
+                  password: 'SecurePass123!'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Refresh JWT access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /financial/transactions:
+    get:
+      tags: [Financial]
+      summary: Get user transactions
+      description: Retrieve user's financial transactions with filtering and pagination
+      operationId: getTransactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Filter by transaction type
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            maxLength: 100
+        - name: subcategory
+          in: query
+          description: Filter by subcategory
+          schema:
+            type: string
+            maxLength: 100
+        - name: startDate
+          in: query
+          description: Filter by start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter by end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          description: Filter by transaction status
+          schema:
+            $ref: '#/components/schemas/TransactionStatus'
+        - name: invoice
+          in: query
+          description: Filter by invoice number
+          schema:
+            type: string
+            maxLength: 100
+        - name: limit
+          in: query
+          description: Number of transactions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 20
+        - name: offset
+          in: query
+          description: Number of transactions to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: ['date', 'amount', 'category', 'createdAt']
+            default: 'date'
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: ['asc', 'desc']
+            default: 'desc'
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionListResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags: [Financial]
+      summary: Create transaction
+      description: Create a new financial transaction
+      operationId: createTransaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+            examples:
+              income:
+                summary: Income transaction
+                value:
+                  type: 'income'
+                  category: 'Salary'
+                  subcategory: 'Monthly Salary'
+                  amount: 5000.00
+                  description: 'Monthly salary payment'
+                  date: '2024-01-15'
+                  invoice: 'INV-2024-001'
+                  metadata:
+                    department: 'Engineering'
+                    project: 'Fiscal AI'
+              expense:
+                summary: Expense transaction
+                value:
+                  type: 'expense'
+                  category: 'Office Supplies'
+                  amount: 125.50
+                  description: 'Stationery and office supplies'
+                  date: '2024-01-14'
+                  metadata:
+                    vendor: 'Office Depot'
+                    receipt: 'REC-12345'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Invalid transaction data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /financial/transactions/{id}:
+    get:
+      tags: [Financial]
+      summary: Get transaction by ID
+      description: Retrieve a specific transaction by its ID
+      operationId: getTransactionById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags: [Financial]
+      summary: Update transaction
+      description: Update an existing transaction
+      operationId: updateTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid transaction data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Financial]
+      summary: Delete transaction
+      description: Delete a transaction permanently
+      operationId: deleteTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /financial/summary:
+    get:
+      tags: [Financial]
+      summary: Get financial summary
+      description: Retrieve financial summary for a specific date range
+      operationId: getFinancialSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          description: Start date for summary period (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          description: End date for summary period (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Financial summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialSummaryResponse'
+        '400':
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # Base Schemas
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the request was successful
+        data:
+          type: object
+          description: Response data payload
+        error:
+          type: string
+          description: Error message (if success is false)
+        message:
+          type: string
+          description: General message
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error description
+          example: 'Invalid request data'
+        message:
+          type: string
+          description: Additional error context
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+
+    # Health & Info Schemas
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ['ok', 'error']
+          example: 'ok'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 3600
+
+    DetailedHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthResponse'
+        - type: object
+          properties:
+            memory:
+              type: object
+              properties:
+                used:
+                  type: number
+                  description: Memory usage in MB
+                total:
+                  type: number
+                  description: Total memory in MB
+            cpu:
+              type: object
+              properties:
+                usage:
+                  type: number
+                  description: CPU usage percentage
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: ['connected', 'disconnected']
+                latency:
+                  type: number
+                  description: Database latency in ms
+
+    ApiInfoResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Fiscal AI Server API'
+        version:
+          type: string
+          example: '1.0.0'
+        status:
+          type: string
+          example: 'running'
+
+    ApiVersionResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          example: '1.0.0'
+        buildTime:
+          type: string
+          format: date-time
+          example: '2024-01-15T08:00:00Z'
+        gitCommit:
+          type: string
+          example: 'abc123def456'
+
+    TestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 'Test endpoint working'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+
+    # User & Authentication Schemas
+    UserRole:
+      type: string
+      enum: ['user', 'admin', 'super_admin']
+      description: User role in the system
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: 'john.doe@example.com'
+        firstName:
+          type: string
+          description: User first name
+          example: 'John'
+        lastName:
+          type: string
+          description: User last name
+          example: 'Doe'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: '2024-01-01T10:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: '2024-01-15T09:30:00Z'
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: 'john.doe@example.com'
+        password:
+          type: string
+          minLength: 8
+          description: User password (min 8 characters, must include uppercase, lowercase, number, and special character)
+          example: 'SecurePass123!'
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: User first name
+          example: 'John'
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: User last name
+          example: 'Doe'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: 'john.doe@example.com'
+        password:
+          type: string
+          description: User password
+          example: 'SecurePass123!'
+
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/User'
+                accessToken:
+                  type: string
+                  description: JWT access token (valid for 15 minutes)
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwiaWF0IjoxNjQyMjQ0NjAwLCJleHAiOjE2NDIyNDU1MDB9.signature'
+                refreshToken:
+                  type: string
+                  description: JWT refresh token (valid for 7 days)
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTY0MjI0NDYwMCwiZXhwIjoxNjQyODQ5NDAwfQ.signature'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+    RefreshTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+                  description: New JWT access token
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                refreshToken:
+                  type: string
+                  description: New JWT refresh token
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+    # Transaction Schemas
+    TransactionType:
+      type: string
+      enum: ['income', 'expense']
+      description: Type of financial transaction
+
+    TransactionStatus:
+      type: string
+      enum: ['pending', 'completed', 'failed']
+      description: Status of the transaction
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique transaction identifier
+          example: '550e8400-e29b-41d4-a716-446655440001'
+        userId:
+          type: string
+          format: uuid
+          description: User ID who owns this transaction
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          type: string
+          description: Transaction category
+          example: 'Salary'
+        subcategory:
+          type: string
+          description: Transaction subcategory
+          example: 'Monthly Salary'
+        amount:
+          type: string
+          description: Transaction amount as decimal string for precision
+          example: '5000.00'
+        description:
+          type: string
+          description: Transaction description
+          example: 'Monthly salary payment'
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: '2024-01-15'
+        invoice:
+          type: string
+          description: Invoice number
+          example: 'INV-2024-001'
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional transaction metadata
+          example:
+            department: 'Engineering'
+            project: 'Fiscal AI'
+        createdAt:
+          type: string
+          format: date-time
+          description: Transaction creation timestamp
+          example: '2024-01-15T10:30:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: '2024-01-15T10:30:00Z'
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - type
+        - category
+        - amount
+        - date
+      properties:
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Transaction category
+          example: 'Salary'
+        subcategory:
+          type: string
+          maxLength: 100
+          description: Transaction subcategory
+          example: 'Monthly Salary'
+        amount:
+          type: number
+          minimum: 0.01
+          description: Transaction amount
+          example: 5000.00
+        description:
+          type: string
+          maxLength: 500
+          description: Transaction description
+          example: 'Monthly salary payment'
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: '2024-01-15'
+        invoice:
+          type: string
+          maxLength: 100
+          description: Invoice number
+          example: 'INV-2024-001'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional transaction metadata
+          example:
+            department: 'Engineering'
+            project: 'Fiscal AI'
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Transaction category
+        subcategory:
+          type: string
+          maxLength: 100
+          description: Transaction subcategory
+        amount:
+          type: number
+          minimum: 0.01
+          description: Transaction amount
+        description:
+          type: string
+          maxLength: 500
+          description: Transaction description
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+        invoice:
+          type: string
+          maxLength: 100
+          description: Invoice number
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional transaction metadata
+
+    TransactionFilters:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          type: string
+          description: Filter by category
+        subcategory:
+          type: string
+          description: Filter by subcategory
+        startDate:
+          type: string
+          format: date
+          description: Filter by start date (YYYY-MM-DD)
+        endDate:
+          type: string
+          format: date
+          description: Filter by end date (YYYY-MM-DD)
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        invoice:
+          type: string
+          description: Filter by invoice number
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Number of transactions to return
+        offset:
+          type: integer
+          minimum: 0
+          description: Number of transactions to skip
+        sortBy:
+          type: string
+          enum: ['date', 'amount', 'category', 'createdAt']
+          description: Sort field
+        sortOrder:
+          type: string
+          enum: ['asc', 'desc']
+          description: Sort order
+
+    TransactionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Transaction'
+                totalCount:
+                  type: integer
+                  description: Total number of transactions matching filters
+                  example: 150
+                hasMore:
+                  type: boolean
+                  description: Whether more transactions are available
+                  example: true
+                filters:
+                  $ref: '#/components/schemas/TransactionFilters'
+
+    TransactionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Transaction'
+
+    DeleteResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            message:
+              type: string
+              description: Success message
+              example: 'Transaction deleted successfully'
+
+    # Financial Summary Schemas
+    FinancialSummary:
+      type: object
+      properties:
+        totalIncome:
+          type: string
+          description: Total income as decimal string
+          example: '8500.00'
+        totalExpenses:
+          type: string
+          description: Total expenses as decimal string
+          example: '3250.50'
+        netIncome:
+          type: string
+          description: Net income (income - expenses) as decimal string
+          example: '5249.50'
+        transactionCount:
+          type: integer
+          description: Total number of transactions in period
+          example: 45
+        periodStart:
+          type: string
+          format: date
+          description: Summary period start date
+          example: '2024-01-01'
+        periodEnd:
+          type: string
+          format: date
+          description: Summary period end date
+          example: '2024-01-31'
+
+    FinancialSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/FinancialSummary'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from login endpoint
+
+  # Example Objects for Documentation
+  examples:
+    incomeTransaction:
+      summary: Example income transaction
+      value:
+        id: '550e8400-e29b-41d4-a716-446655440001'
+        userId: '550e8400-e29b-41d4-a716-446655440000'
+        type: 'income'
+        category: 'Salary'
+        subcategory: 'Monthly Salary'
+        amount: '5000.00'
+        description: 'Monthly salary payment'
+        date: '2024-01-15'
+        invoice: 'INV-2024-001'
+        status: 'completed'
+        metadata:
+          department: 'Engineering'
+          project: 'Fiscal AI'
+        createdAt: '2024-01-15T10:30:00Z'
+        updatedAt: '2024-01-15T10:30:00Z'
+
+    expenseTransaction:
+      summary: Example expense transaction
+      value:
+        id: '550e8400-e29b-41d4-a716-446655440002'
+        userId: '550e8400-e29b-41d4-a716-446655440000'
+        type: 'expense'
+        category: 'Office Supplies'
+        amount: '125.50'
+        description: 'Stationery and office supplies'
+        date: '2024-01-14'
+        status: 'completed'
+        metadata:
+          vendor: 'Office Depot'
+          receipt: 'REC-12345'
+        createdAt: '2024-01-14T15:20:00Z'
+        updatedAt: '2024-01-14T15:20:00Z'
+
+# Webhook definitions for real-time notifications
+webhooks:
+  transactionCreated:
+    post:
+      summary: Transaction created notification
+      description: Sent when a new transaction is created
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: 'transaction.created'
+                data:
+                  $ref: '#/components/schemas/Transaction'
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Webhook processed successfully
+
+  transactionUpdated:
+    post:
+      summary: Transaction updated notification
+      description: Sent when a transaction is updated
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: 'transaction.updated'
+                data:
+                  $ref: '#/components/schemas/Transaction'
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Webhook processed successfully
+
+  transactionDeleted:
+    post:
+      summary: Transaction deleted notification
+      description: Sent when a transaction is deleted
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: 'transaction.deleted'
+                data:
+                  type: object
+                  properties:
+                    transactionId:
+                      type: string
+                      format: uuid
+                    userId:
+                      type: string
+                      format: uuid
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Webhook processed successfully
