@@ -52,13 +52,13 @@ export default function SettingsPage() {
       return (
         <div className="bg-white p-6 h-full flex items-center justify-center overflow-hidden">
           <h2 className="text-2xl font-bold text-red-600 mb-4 flex items-center gap-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-                Logging Out...
-              </h2>
-            <p className="text-center text-sm text-[#778da9]">
-              Thank you for using Fund Flow AI. You are being securely logged out.
-            </p>
-          </div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            Logging Out...
+          </h2>
+          <p className="text-center text-sm text-[#778da9]">
+            Thank you for using Fund Flow AI. You are being securely logged out.
+          </p>
+        </div>
       );
     }
 
@@ -86,7 +86,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <div className="grid grid-cols-[1fr_1fr] bg-[#f2f3f4] h-[calc(100%)] overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 bg-[#f2f3f4] h-[calc(100%)] overflow-hidden">
         {/* Middle Column - Settings Menu */}
         <div className="h-full overflow-y-auto">
           <SettingsMenu

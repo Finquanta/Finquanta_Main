@@ -65,10 +65,13 @@ const mockSupportTickets: SupportTicket[] = [
   {
     id: 'ticket-001',
     subject: 'Unable to connect bank account',
+    description: 'I cannot connect my bank account to the dashboard.',
     status: 'resolved',
     priority: 'medium',
     createdAt: new Date('2024-01-10'),
+    updatedAt: new Date('2024-01-13'),
     lastResponse: new Date('2024-01-12'),
+    responses: [],
     messages: [
       { sender: 'support', content: 'Please try clearing your browser cache and attempting the connection again.', timestamp: new Date('2024-01-11') },
       { sender: 'user', content: 'I tried that and it still doesn\'t work.', timestamp: new Date('2024-01-12') },
@@ -78,9 +81,12 @@ const mockSupportTickets: SupportTicket[] = [
   {
     id: 'ticket-002',
     subject: 'Export function not working',
-    status: 'in_progress',
+    description: 'The export button is unresponsive.',
+    status: 'in-progress',
     priority: 'high',
     createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-16'),
+    responses: [],
     messages: [
       { sender: 'user', content: 'When I click export, nothing happens.', timestamp: new Date('2024-01-15') },
       { sender: 'support', content: 'We\'re investigating this issue. Can you tell me what browser you\'re using?', timestamp: new Date('2024-01-16') }
@@ -89,10 +95,13 @@ const mockSupportTickets: SupportTicket[] = [
   {
     id: 'ticket-003',
     subject: 'Request for invoice customization',
+    description: 'I would like to customize my invoice templates.',
     status: 'closed',
     priority: 'low',
     createdAt: new Date('2024-01-08'),
+    updatedAt: new Date('2024-01-09'),
     lastResponse: new Date('2024-01-09'),
+    responses: [],
     messages: [
       { sender: 'user', content: 'Can you add custom invoice templates?', timestamp: new Date('2024-01-08') },
       { sender: 'support', content: 'This feature is planned for our Q2 release. We\'ll notify you when it\'s available.', timestamp: new Date('2024-01-09') }
@@ -105,28 +114,34 @@ const mockBugReports: BugReport[] = [
     id: 'bug-001',
     title: 'Mobile dashboard layout broken',
     description: 'Dashboard cards overlapping on mobile devices',
-    status: 'fixed',
+    status: 'resolved',
     severity: 'medium',
     createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-12')
+    updatedAt: new Date('2024-01-12'),
+    steps: [],
+    screenshots: []
   },
   {
     id: 'bug-002',
     title: 'Export function fails with large datasets',
     description: 'Export fails when data exceeds 10,000 records',
-    status: 'under_review',
+    status: 'in-progress',
     severity: 'high',
     createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-20')
+    updatedAt: new Date('2024-01-20'),
+    steps: [],
+    screenshots: []
   },
   {
     id: 'bug-003',
     title: 'Email notifications not sending',
     description: 'Payment reminders not being delivered to Gmail addresses',
-    status: 'in_review',
+    status: 'open',
     severity: 'medium',
     createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-22')
+    updatedAt: new Date('2024-01-22'),
+    steps: [],
+    screenshots: []
   }
 ];
 
@@ -135,37 +150,41 @@ const mockFeatureRequests: FeatureRequest[] = [
     id: 'feature-001',
     title: 'Dark mode support',
     description: 'Add a dark theme option for the dashboard',
-    status: 'planned',
+    status: 'approved',
     votes: 245,
     createdAt: new Date('2023-12-01'),
-    hasVoted: false
+    updatedAt: new Date('2023-12-01'),
+    category: 'enhancement'
   },
   {
     id: 'feature-002',
     title: 'Advanced search filters',
     description: 'More granular filtering options for transactions',
-    status: 'planned',
+    status: 'approved',
     votes: 189,
     createdAt: new Date('2023-12-15'),
-    hasVoted: true
+    updatedAt: new Date('2023-12-15'),
+    category: 'enhancement'
   },
   {
     id: 'feature-003',
     title: 'Mobile app offline access',
     description: 'Access dashboard without internet connection',
-    status: 'under_review',
+    status: 'in-progress',
     votes: 156,
     createdAt: new Date('2024-01-10'),
-    hasVoted: false
+    updatedAt: new Date('2024-01-10'),
+    category: 'new_feature'
   },
   {
     id: 'feature-004',
     title: 'API rate limit increase',
     description: 'Higher API limits for enterprise customers',
-    status: 'implemented',
+    status: 'approved',
     votes: 342,
     createdAt: new Date('2024-01-20'),
-    hasVoted: true
+    updatedAt: new Date('2024-01-20'),
+    category: 'enhancement'
   }
 ];
 
@@ -182,9 +201,12 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
       const ticket: SupportTicket = {
         id: `ticket-${Date.now()}`,
         subject: newTicket.subject,
+        description: newTicket.description,
         status: 'open' as const,
         priority: newTicket.priority,
         createdAt: new Date(),
+        updatedAt: new Date(),
+        responses: [],
         messages: [
           {
             sender: 'user',
@@ -212,10 +234,12 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
         id: `bug-${Date.now()}`,
         title: newBugReport.title,
         description: newBugReport.description,
-        status: 'submitted' as const,
+        status: 'open' as const,
         severity: newBugReport.severity,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        steps: [],
+        screenshots: []
       };
 
       const updatedSettings = {
@@ -239,7 +263,8 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
         status: 'open' as const,
         votes: 0,
         createdAt: new Date(),
-        hasVoted: false
+        updatedAt: new Date(),
+        category: 'new_feature'
       };
 
       const updatedSettings = {
@@ -258,7 +283,7 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
     const updatedSettings = {
       ...settings,
       featureRequests: settings.featureRequests.map(req =>
-        req.id === featureId ? { ...req, votes: req.votes + 1, hasVoted: true } : req
+        req.id === featureId ? { ...req, votes: req.votes + 1 } : req
       )
     };
 

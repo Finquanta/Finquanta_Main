@@ -76,6 +76,9 @@ export interface LanguageSettings {
   timeZone: string;
   dateFormat: string;
   timeFormat: '12h' | '24h';
+  currency: string;
+  measurementSystem: 'metric' | 'imperial';
+  numberFormat: string;
 }
 
 export interface PrivacySettings {
@@ -92,6 +95,7 @@ export interface BackupSettings {
   backupFrequency: 'daily' | 'weekly' | 'monthly';
   backupRetention: number;
   backupHistory: BackupEntry[];
+  lastBackup?: Date;
 }
 
 export interface IntegrationSettings {
@@ -164,6 +168,8 @@ export interface SupportTicket {
   createdAt: Date;
   updatedAt: Date;
   responses: TicketResponse[];
+  lastResponse?: Date;
+  messages?: Array<{ sender: string; content: string; timestamp: Date }>;
 }
 
 export interface BugReport {
@@ -270,7 +276,10 @@ export const defaultSettings: UserSettings = {
     language: 'en',
     timeZone: 'UTC',
     dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12h'
+    timeFormat: '12h',
+    currency: 'USD',
+    measurementSystem: 'metric',
+    numberFormat: 'en-US'
   },
   privacy: {
     profileVisibility: 'private',

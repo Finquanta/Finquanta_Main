@@ -69,11 +69,11 @@
     --dashboard-bg: #f2f3f4;
     --card-bg: #ffffff;
     --card-border: #e5e7eb;
-    
+
     /* Brand colors */
     --brand-primary: #150578;
     --brand-orange: #ff8600;
-    
+
     /* Payroll specific colors */
     --payroll-primary: #150578;
     --payroll-orange: #ff8600;
@@ -81,36 +81,36 @@
     --payroll-light-blue: #51c6fb;
     --payroll-success: #0aaf60;
     --payroll-warning: #faa745;
-    
+
     /* Chart colors */
     --chart-line: #3b82f6;
     --chart-grid: #f3f4f6;
     --chart-highlight: #1f2937;
     --chart-tooltip-bg: #1f2937;
-    
+
     /* Status colors */
     --status-paid-bg: #ceefdf;
     --status-paid-text: #0aaf60;
     --status-pending-bg: #feedda;
     --status-pending-text: #faa745;
-    
+
     /* Card styling */
     --card-radius: 16px;
     --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    
+
     /* Typography */
     --font-display: 'TT Hoves', 'Inter', sans-serif;
-    
+
     /* Status colors */
     --success-color: #63d51d;
     --error-color: #ff8600;
     --warning-color: #f97316;
-    
+
     /* Text colors */
     --text-primary: #1b263b;
     --text-secondary: #778da9;
     --text-muted: #9ca3af;
-    
+
     /* Chart colors */
     --chart-primary: #150578;
     --chart-secondary: #ff8600;
@@ -118,20 +118,20 @@
     --chart-accent-2: #0f766e;
     --chart-accent-3: #f97316;
     --chart-accent-4: #06b6d4;
-    
+
     /* Summary card specific colors */
     --balance-bg: #1a1d1f;
     --balance-icon-bg: #f0f9ff;
-    --income-bg: #e8ddfa; 
+    --income-bg: #e8ddfa;
     --income-icon-bg: #faf5ff;
     --expense-bg: #2ab41b;
     --expense-icon-bg: #f0f9ff;
-    
+
     /* Table colors */
     --table-tag-bg: #b1e5fc;
     --table-header-bg: #fcfcfc;
     --table-border: #efefef;
-    
+
     /* Transaction type colors */
     --type-sale-bg: #dcfce7;
     --type-sale-text: #166534;
@@ -190,48 +190,111 @@
 }
 
 @layer utilities {
+
   /* Dashboard specific utilities */
   .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: 20% 45% 30%;
-    gap: 1rem;
-    height: 100%;
-    overflow: hidden;
-    padding: 1rem;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    height: auto;
+    overflow: visible;
+    padding: 0.25rem;
     background-color: var(--dashboard-bg);
+    max-width: 100vw;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Small mobile */
+  @media (max-width: 390px) {
+    .dashboard-grid {
+      gap: 0.25rem;
+      padding: 0.125rem;
+    }
+  }
+
+  /* Tablet: 2-column layout */
+  @media (min-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, 1fr);
+      height: 100%;
+      overflow: hidden;
+      padding: 0.75rem;
+      gap: 0.75rem;
+    }
+  }
+
+  /* Desktop: Original 4-column layout */
+  @media (min-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: 20% 45% 30%;
+      padding: 1rem;
+      gap: 1rem;
+    }
+  }
+
+  /* Mobile-specific constraints */
+  @media (max-width: 767px) {
+    .dashboard-grid {
+      max-width: 100vw;
+      min-width: 0;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0.25rem;
+      gap: 0.25rem;
+    }
   }
 
   .card-shadow {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
-  /* Custom utilities for settings design */
-  @utility settings-layout {
-    display: grid;
-    grid-template-columns: 275px 1fr 1fr;
-    gap: 0;
-    min-height: 100vh;
-    background-color: var(--settings-bg);
+  /* Mobile-specific utilities */
+  .mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
   }
 
-  @utility settings-card {
-    background-color: var(--card-bg);
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  .mobile-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 275px;
+    background-color: white;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
   }
 
-  @utility brand-text-primary {
-    color: var(--brand-primary);
-    font-weight: 700;
+  .mobile-drawer.open {
+    transform: translateX(0);
   }
 
-  @utility brand-text-orange {
-    color: var(--brand-orange);
-  }
-
-  @utility settings-menu-bg {
-    background-color: var(--settings-menu-bg);
+  /* Additional mobile constraints for cards */
+  @media (max-width: 767px) {
+    * {
+      max-width: 100vw;
+      box-sizing: border-box;
+    }
+    
+    body {
+      overflow-x: hidden;
+    }
+    
+    .bg-white {
+      max-width: 100vw;
+      overflow: hidden;
+    }
+    
+    /* Ensure all card content stays within viewport */
+    [class*="rounded"] {
+      max-width: 100vw;
+      overflow: hidden;
+      min-width: 0;
+    }
   }
 }

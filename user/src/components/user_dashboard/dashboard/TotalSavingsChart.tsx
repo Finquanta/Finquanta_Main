@@ -35,46 +35,46 @@ export default function TotalSavingsChart() {
           <ChevronDownIcon width={11} height={6} color="#778da9" />
         </div>
       </div>
-      
+
       <div className="flex-1 min-h-0">
         <ChartContainer config={chartConfig} className="w-full h-full overflow-hidden">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <XAxis 
-                dataKey="day" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 13, fill: '#778da9' }}
-                className="text-[13px] font-medium text-[#778da9]"
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 13, fill: '#778da9' }}
-                tickFormatter={(value) => `$${value}`}
-                className="text-[13px] font-medium text-[#778da9]"
-              />
-              <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value, name) => [`$${value}`, chartConfig[name as keyof typeof chartConfig]?.label]}
-                  labelFormatter={(label) => `Day: ${label}`}
-                />} 
-              />
-              <Bar 
-                dataKey="incomes" 
-                fill="#150578" 
-                radius={[2, 2, 0, 0]}
-                maxBarSize={12}
-              />
-              <Bar 
-                dataKey="expenses" 
-                fill="#ff8600" 
-                radius={[2, 2, 0, 0]}
-                maxBarSize={12}
-              />
-            </BarChart>
-          </ChartContainer>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 13, fill: '#778da9' }}
+              className="text-[13px] font-medium text-[#778da9]"
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 13, fill: '#778da9' }}
+              tickFormatter={(value) => `$${value}`}
+              className="text-[13px] font-medium text-[#778da9]"
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent
+                formatter={(value, name) => [`$${value}`, chartConfig[name as keyof typeof chartConfig]?.label]}
+                labelFormatter={(label) => `Day: ${label}`}
+              />}
+            />
+            <Bar
+              dataKey="incomes"
+              fill="#150578"
+              radius={[2, 2, 0, 0]}
+              maxBarSize={12}
+            />
+            <Bar
+              dataKey="expenses"
+              fill="#ff8600"
+              radius={[2, 2, 0, 0]}
+              maxBarSize={12}
+            />
+          </BarChart>
+        </ChartContainer>
       </div>
-      
+
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-[#dce4ee]">
         <div className="flex items-center gap-2">
