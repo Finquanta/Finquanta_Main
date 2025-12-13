@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/faq", label: "FAQs" },
   { href: "/newsletter", label: "Newsletter" },
   { href: "/community", label: "Community" },
+  { href: "/blog", label: "Blog" },
 ];
 
 const HamburgerMenu = () => {
