@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { LanguageSettings } from './types';
+import { LanguageSettings as LanguageSettingsType } from './types';
 import { Globe, Clock, Calendar, DollarSign, Ruler } from 'lucide-react';
 
 interface LanguageSettingsProps {
-  settings: LanguageSettings;
-  onSettingsChange: (settings: LanguageSettings) => void;
+  settings: LanguageSettingsType;
+  onSettingsChange: (settings: LanguageSettingsType) => void;
 }
 
 const languages = [

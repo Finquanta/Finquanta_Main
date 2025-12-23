@@ -107,10 +107,10 @@ export default function DocumentGrid({
   return (
     <div className="space-y-6">
       {/* Search and Filter Bar */}
-      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex-1 flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white p-4 rounded-lg border border-gray-200">
+        <div className="w-full lg:flex-1 flex flex-col sm:flex-row gap-4">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#778da9] w-4 h-4" />
             <input
               type="text"
@@ -121,40 +121,42 @@ export default function DocumentGrid({
             />
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value as DocumentCategory | 'all')}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
-          >
-            <option value="all">All Categories</option>
-            <option value={DocumentCategory.FINANCIAL}>Financial</option>
-            <option value={DocumentCategory.LEGAL}>Legal</option>
-            <option value={DocumentCategory.BUSINESS}>Business</option>
-            <option value={DocumentCategory.PERSONAL}>Personal</option>
-          </select>
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value as DocumentCategory | 'all')}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
+            >
+              <option value="all">All Categories</option>
+              <option value={DocumentCategory.FINANCIAL}>Financial</option>
+              <option value={DocumentCategory.LEGAL}>Legal</option>
+              <option value={DocumentCategory.BUSINESS}>Business</option>
+              <option value={DocumentCategory.PERSONAL}>Personal</option>
+            </select>
 
-          {/* Type Filter */}
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value as DocumentType | 'all')}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
-          >
-            <option value="all">All Types</option>
-            <option value={DocumentType.INVOICE}>Invoice</option>
-            <option value={DocumentType.RECEIPT}>Receipt</option>
-            <option value={DocumentType.CONTRACT}>Contract</option>
-            <option value={DocumentType.REPORT}>Report</option>
-            <option value={DocumentType.TAX_DOCUMENT}>Tax Document</option>
-            <option value={DocumentType.CERTIFICATE}>Certificate</option>
-            <option value={DocumentType.PROPOSAL}>Proposal</option>
-            <option value={DocumentType.PRESENTATION}>Presentation</option>
-            <option value={DocumentType.SPREADSHEET}>Spreadsheet</option>
-          </select>
+            {/* Type Filter */}
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value as DocumentType | 'all')}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
+            >
+              <option value="all">All Types</option>
+              <option value={DocumentType.INVOICE}>Invoice</option>
+              <option value={DocumentType.RECEIPT}>Receipt</option>
+              <option value={DocumentType.CONTRACT}>Contract</option>
+              <option value={DocumentType.REPORT}>Report</option>
+              <option value={DocumentType.TAX_DOCUMENT}>Tax Document</option>
+              <option value={DocumentType.CERTIFICATE}>Certificate</option>
+              <option value={DocumentType.PROPOSAL}>Proposal</option>
+              <option value={DocumentType.PRESENTATION}>Presentation</option>
+              <option value={DocumentType.SPREADSHEET}>Spreadsheet</option>
+            </select>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
           <button
             onClick={onUpload}
             className="flex items-center gap-2 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
@@ -187,7 +189,7 @@ export default function DocumentGrid({
       </div>
 
       {/* Results Summary and Sort */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="text-sm text-[#778da9]">
           Showing {filteredAndSortedDocuments.length} of {documents.length} documents
           {searchQuery && (
@@ -197,9 +199,9 @@ export default function DocumentGrid({
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {/* Sort Options */}
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-[#778da9]">Sort by:</span>
             <button
               onClick={() => handleSort('name')}
@@ -236,7 +238,7 @@ export default function DocumentGrid({
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 border border-gray-300 rounded-lg">
+          <div className="flex items-center gap-1 border border-gray-300 rounded-lg self-end sm:self-auto">
             <button
               onClick={() => {/* View mode controlled by parent */}}
               className={`p-2 rounded-l-lg transition-colors ${

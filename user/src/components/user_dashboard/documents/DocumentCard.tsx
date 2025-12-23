@@ -77,34 +77,36 @@ export default function DocumentCard({
     return (
       <div
         className={`
-          flex items-center p-4 bg-white border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors
+          flex flex-col sm:flex-row sm:items-center p-4 bg-white border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors gap-4 sm:gap-0
           ${isSelected ? 'border-[#150578] bg-[#f0f1ff]' : 'border-gray-200'}
         `}
         onClick={handleCardClick}
       >
-        <div className="mr-4">
-          <FileIcon fileType={document.fileType} size="medium" />
+        <div className="flex items-center flex-1 min-w-0">
+          <div className="mr-4">
+            <FileIcon fileType={document.fileType} size="medium" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h4 className="font-medium text-[#1b263b] truncate max-w-[200px] sm:max-w-none">{document.name}</h4>
+              {document.starred && (
+                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+              )}
+              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getShareStatusColor(document.shareStatus)}`}>
+                {document.shareStatus}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#778da9]">
+              <span className={getDocumentTypeColor(document.type)}>{document.type}</span>
+              <span>{formatFileSize(document.size)}</span>
+              <span>Modified {formatRelativeTime(document.modifiedDate)}</span>
+              <span className="hidden sm:inline">by {document.author}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-medium text-[#1b263b] truncate">{document.name}</h4>
-            {document.starred && (
-              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
-            )}
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getShareStatusColor(document.shareStatus)}`}>
-              {document.shareStatus}
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-[#778da9]">
-            <span className={getDocumentTypeColor(document.type)}>{document.type}</span>
-            <span>{formatFileSize(document.size)}</span>
-            <span>Modified {formatRelativeTime(document.modifiedDate)}</span>
-            <span>by {document.author}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-2 ml-0 sm:ml-4 self-end sm:self-center w-full sm:w-auto justify-end sm:justify-start border-t sm:border-t-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
           {onPreview && (
             <button
               onClick={(e) => handleActionClick(e, () => onPreview(document))}

@@ -479,7 +479,7 @@ export const useAppState = create<AppState & AppActions>()(
           loginAttempts: 0,
           isLoading: false,
           // Navigate to dashboard after login
-          currentRoute: "dashboard",
+          currentRoute: "dashboard" as RouteName,
           previousRoute: state.currentRoute,
           breadcrumbs: ["Dashboard"],
           lastToast: {
@@ -529,7 +529,7 @@ export const useAppState = create<AppState & AppActions>()(
           loginAttempts: 0,
           isLoading: false,
           // Navigate to dashboard after login (admin gets special breadcrumbs)
-          currentRoute: "dashboard",
+          currentRoute: "dashboard" as RouteName,
           previousRoute: state.currentRoute,
           breadcrumbs: ["Admin", "Dashboard"],
           lastToast: {
@@ -558,7 +558,7 @@ export const useAppState = create<AppState & AppActions>()(
           ...initialState,
           theme: currentTheme,
           devMode: currentDevMode,
-          currentRoute: "home",
+          currentRoute: "home" as RouteName,
           lastToast: {
             id: Math.random().toString(36).substr(2, 9),
             type: "info" as const,

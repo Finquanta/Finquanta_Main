@@ -11,7 +11,8 @@ export default function DashboardPage() {
   const { summaryCards } = mockRootProps;
 
   return (
-    <div className="dashboard-grid">
+    <div className="w-full max-w-full overflow-x-hidden min-w-0">
+      <div className="dashboard-grid w-full min-w-0">
       {/* Row 1: Top Summary Cards */}
       {summaryCards.map((card, index) => (
         <SummaryCard
@@ -24,27 +25,28 @@ export default function DashboardPage() {
           description={card.description}
         />
       ))}
-      
-      {/* Total Expenses - Spans rows 1 and 2 */}
-      <div className="row-span-2">
+
+      {/* Total Expenses - Spans rows 1 and 2 on desktop, normal on mobile */}
+      <div className="lg:row-span-2">
         <TotalExpensesCard />
       </div>
 
       {/* Row 2: Middle Row */}
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <TotalFinancesChart />
       </div>
       <div>
         <TotalSavingsChart />
       </div>
-      {/* Empty cell - occupied by Total Expenses spanning from row 1 */}
+      {/* Empty cell - occupied by Total Expenses spanning from row 1 on desktop */}
 
       {/* Row 3: Bottom Row */}
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <GoalsSection />
       </div>
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <StockMarketSection />
+      </div>
       </div>
     </div>
   );

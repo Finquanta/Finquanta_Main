@@ -35,6 +35,9 @@ export function NavBarComponent() {
             <Link href="/community" className="text-gray-700 hover:text-gray-900 text-base font-medium">
               Community
             </Link>
+            <Link href="/blog" className="text-gray-700 hover:text-gray-900 text-base font-medium">
+              Blog
+            </Link>
           </div>
 
           {/* Action Buttons */}
