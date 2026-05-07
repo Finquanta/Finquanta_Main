@@ -1,7 +1,7 @@
 # Authentication System Implementation Summary
 
 ## Overview
-This document summarizes the comprehensive authentication system implemented for the FiscalAI application, including route protection, context integration, and developer demos.
+This document summarizes the comprehensive authentication system implemented for the FinquantaAI application, including route protection, context integration, and developer demos.
 
 ## 🔐 Implemented Components
 
@@ -51,17 +51,17 @@ This document summarizes the comprehensive authentication system implemented for
 
 ### Available Demo Users:
 1. **Regular User**
-   - Email: `demo@fiscalai.com`
+   - Email: `demo@Finquantaai.com`
    - Password: `demopassword`
    - Role: `user`
 
 2. **Admin User**
-   - Email: `admin@fiscalai.com`
+   - Email: `admin@Finquantaai.com`
    - Password: `adminpassword`
    - Role: `admin`
 
 3. **Developer** (via context demo)
-   - Email: `dev@fiscalai.com`
+   - Email: `dev@Finquantaai.com`
    - Password: `devpassword`
    - Role: `developer`
 
@@ -184,7 +184,7 @@ function AdminComponent() {
 
 ### 2. Test Authentication Flow
 - Go to `/login`
-- Try demo credentials: `demo@fiscalai.com` / `demopassword`
+- Try demo credentials: `demo@Finquantaai.com` / `demopassword`
 - Should login and redirect to dashboard
 
 ### 3. Test Context Demo

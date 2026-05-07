@@ -1,6 +1,6 @@
 # App Context System
 
-This directory contains a comprehensive state management solution for the Fiscal AI application, built using Zustand and React Context. It provides centralized state management for authentication, navigation, UI state, admin functionality, financial data, and developer tools.
+This directory contains a comprehensive state management solution for the Finquanta AI application, built using Zustand and React Context. It provides centralized state management for authentication, navigation, UI state, admin functionality, financial data, and developer tools.
 
 ## Overview
 

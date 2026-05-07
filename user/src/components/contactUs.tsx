@@ -25,12 +25,12 @@ const ContactUsModal = ({ isOpen, onClose }: ContactUsModalProps) => {
         </button>
         {/* Logo */}
         <div className="flex flex-col items-center pt-8 pb-2">
-          <Image src="/images/fiscal_logo.png" alt="Fiscal AI Logo" width={80} height={40} className="mb-2" />
+          <Image src="/images/Finquanta_logo.png" alt="Finquanta AI Logo" width={80} height={40} className="mb-2" />
         </div>
         {/* Header */}
         <div className="text-center mb-2 px-4">
           <h2 className="text-3xl font-bold mb-2 tracking-tight">LET&apos;S TALK</h2>
-          <p className="text-gray-700 text-base mb-2">Find out how Fiscal AI can benefit your business today</p>
+          <p className="text-gray-700 text-base mb-2">Find out how Finquanta AI can benefit your business today</p>
         </div>
         {/* Form */}
         <form className="flex flex-col gap-4 lg:px-16 pb-8">

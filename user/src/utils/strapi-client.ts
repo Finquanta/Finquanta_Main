@@ -38,8 +38,8 @@ const MOCK_POSTS: BlogPost[] = [
     {
         id: 1,
         documentId: "mock1",
-        title: "Getting Started with Fiscal AI",
-        slug: "getting-started-with-fiscal-ai",
+        title: "Getting Started with Finquanta AI",
+        slug: "getting-started-with-Finquanta-ai",
         description: "Learn how to optimize your financial workflows with our latest tools.",
         content: "This is a detailed guide on how to get started...",
         publishedAt: new Date().toISOString(),

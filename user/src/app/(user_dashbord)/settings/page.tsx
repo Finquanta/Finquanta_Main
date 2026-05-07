@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SettingsMenu from '@/components/user_dashboard/settings/SettingsMenu';
-import NotificationSettings from '@/components/user_dashboard/settings/NotificationSettings';
+import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
 import AccessPermissions from '@/components/user_dashboard/settings/AccessPermissions';
 import LanguageSettings from '@/components/user_dashboard/settings/LanguageSettings';
 import DataPrivacy from '@/components/user_dashboard/settings/DataPrivacy';

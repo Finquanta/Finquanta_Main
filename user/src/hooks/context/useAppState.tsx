@@ -570,7 +570,7 @@ export const useAppState = create<AppState & AppActions>()(
       }),
     }),
     {
-      name: "fiscal-ai-app-state",
+      name: "Finquanta-ai-app-state",
       storage: createJSONStorage(() => (typeof window !== "undefined" ? localStorage : undefined as any)),
       // Persist only necessary fields, exclude volatile state
       partialize: (state) => ({

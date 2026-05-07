@@ -7,8 +7,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { UserAuthForm } from "./components/auth-form";
 
 export const metadata: Metadata = {
-  title: "Sign up - Fiscal AI",
-  description: "Create your Fiscal AI account to transform your finances with AI power.",
+  title: "Sign up - Finquanta AI",
+  description: "Create your Finquanta AI account to transform your finances with AI power.",
 };
 
 export default function SignupPage() {
@@ -18,10 +18,10 @@ export default function SignupPage() {
       <div className="hidden w-2/5 bg-gray-100 flex-col items-center justify-center lg:flex">
         <div className="flex flex-col items-center justify-center space-y-8">
           <Image
-            src="/images/ffai_logo.svg"
+            src="/images/finquanta_logo.svg"
             width={180}
             height={80}
-            alt="Fiscal AI Logo"
+            alt="Finquanta AI Logo"
             className="mb-8"
           />
           <h1 className="text-center text-4xl font-bold leading-tight">

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { LanguageSettings as LanguageSettingsType } from './types';
 import { Globe, Clock, Calendar, DollarSign, Ruler } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface LanguageSettingsProps {
   settings: LanguageSettingsType;
@@ -53,6 +54,7 @@ const dateFormats = [
 
 export default function LanguageSettings({ settings, onSettingsChange }: LanguageSettingsProps) {
   const [customTimeZone, setCustomTimeZone] = useState('');
+  const { language, setLanguage } = useLanguage();
 
   const handleTimeZoneChange = (timezone: string) => {
     onSettingsChange({
@@ -79,22 +81,25 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Display Language</h3>
           <div className="space-y-3">
-            <select
-              value={settings.language}
-              onChange={(e) => {
-                onSettingsChange({
-                  ...settings,
-                  language: e.target.value
-                });
-              }}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
-            >
-              {languages.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.name}
-                </option>
-              ))}
-            </select>
+           <select
+  value={language}
+  onChange={(e) => {
+    setLanguage(e.target.value);
+    onSettingsChange({ ...settings, language: e.target.value });
+  }}
+  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
+>
+  <option value="en">🇬🇧 English</option>
+  <option value="es">🇪🇸 Spanish</option>
+  <option value="fr">🇫🇷 French</option>
+  <option value="pt">🇵🇹 Portuguese</option>
+  <option value="ar">🇸🇦 Arabic</option>
+  <option value="zh">🇨🇳 Chinese</option>
+  <option value="ja">🇯🇵 Japanese</option>
+  <option value="ru">🇷🇺 Russian</option>
+  <option value="nl">🇳🇱 Dutch</option>
+  <option value="de">🇩🇪 German</option>
+</select>
           </div>
         </div>
 

@@ -15,24 +15,22 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const router = useRouter();
   const auth = useAuth();
   const ui = useUI();
-  
-  // Form states
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [emailValid, setEmailValid] = useState<boolean>(false);
-  
-  // Email validation
+  const [forgotPassword, setForgotPassword] = useState<boolean>(false);
+  const [resetSent, setResetSent] = useState<boolean>(false);
+
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Handle email input
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
-    
     if (value.length > 0) {
       setEmailValid(validateEmail(value));
     } else {
@@ -40,32 +38,36 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
 
-  // Handle password input
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
   };
 
-  // Handle form submission
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailValid) return;
+    setIsLoading(true);
+    await new Promise(r => setTimeout(r, 1000)); // replace with real API call
+    setResetSent(true);
+    setIsLoading(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailValid || !password) return;
-    
+
     setIsLoading(true);
     ui.beginLoading();
     auth.setAuthLoading(true);
-    
+
     try {
-      // First try API login
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
-        
-        // Update auth context with real user data
         auth.login({
           token: data.access,
           refreshToken: data.refresh,
@@ -84,33 +86,17 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             }
           }
         });
-        
         ui.toast("success", `Welcome back, ${data.user.name || data.user.username}!`, 4000);
         router.push('/dashboard');
-        
       } else {
-        // If API fails, try demo authentication for development
         const demoUsers = [
-          {
-            email: "demo@fiscalai.com",
-            password: "demopassword", 
-            id: "demo-1",
-            name: "Demo User",
-            role: "user" as const
-          },
-          {
-            email: "admin@fiscalai.com",
-            password: "adminpassword",
-            id: "admin-1",
-            name: "Admin User", 
-            role: "admin" as const
-          }
+          { email: "demo@Finquantaai.com", password: "demopassword", id: "demo-1", name: "Demo User", role: "user" as const },
+          { email: "admin@Finquantaai.com", password: "adminpassword", id: "admin-1", name: "Admin User", role: "admin" as const }
         ];
-        
+
         const demoUser = demoUsers.find(u => u.email === email && u.password === password);
-        
+
         if (demoUser) {
-          // Demo login success
           auth.login({
             token: `demo_token_${demoUser.id}_${Date.now()}`,
             refreshToken: `demo_refresh_${demoUser.id}_${Date.now()}`,
@@ -122,21 +108,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               avatarUrl: null,
               createdAt: new Date(),
               lastLoginAt: new Date(),
-              preferences: {
-                notifications: true,
-                emailUpdates: true,
-                darkMode: false,
-              }
+              preferences: { notifications: true, emailUpdates: true, darkMode: false }
             }
           });
-          
           ui.toast("success", `Welcome, ${demoUser.name}! (Demo Mode)`, 4000);
           router.push('/dashboard');
         } else {
-          // Both API and demo login failed
           const apiData = await res.json().catch(() => ({}));
           const errorMessage = apiData?.detail || apiData?.message || "Invalid email or password";
-          
           ui.toast("error", errorMessage, 5000);
           ui.addError(errorMessage, "login");
           auth.incrementLoginAttempts();
@@ -155,9 +134,75 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
 
+  // ── Forgot password view ──
+  if (forgotPassword) {
+    return (
+      <div className={cn("grid gap-6", className)} {...props}>
+        {resetSent ? (
+          <div className="grid gap-4 text-center">
+            <div className="flex justify-center">
+              <CheckIcon className="h-10 w-10 text-green-500" />
+            </div>
+            <h3 className="font-semibold text-lg">Check your email</h3>
+            <p className="text-sm text-gray-500">
+              We sent a password reset link to <strong>{email}</strong>
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => { setForgotPassword(false); setResetSent(false); }}>
+              Back to Sign In
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-1">
+              <h3 className="font-semibold text-lg">Reset your password</h3>
+              <p className="text-sm text-gray-500">Enter your email and we'll send you a reset link.</p>
+            </div>
+            <form onSubmit={handleReset}>
+              <div className="grid gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <MailIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  {emailValid && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <CheckIcon className="h-5 w-5 text-green-500" />
+                    </div>
+                  )}
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500" : "")}
+                    placeholder="Your email"
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !emailValid}
+                  className="bg-blue-500 hover:bg-blue-600 text-white">
+                  {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Reset Link
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setForgotPassword(false)}
+                  className="text-sm text-gray-500 hover:underline text-center">
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ── Normal login view ──
   return (
     <div className={cn("grid gap-6", className)} {...props}>
-      {/* Social login options */}
       <div className="grid gap-3">
         <p className="text-sm text-center">Sign in with your Google account</p>
         <div className="grid grid-cols-2 gap-4">
@@ -179,7 +224,6 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         </div>
       </div>
 
-      {/* Divider */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t"></span>
@@ -189,10 +233,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         </div>
       </div>
 
-      {/* Email and password form */}
       <form onSubmit={handleSubmit}>
         <div className="grid gap-4">
-          {/* Email input */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <MailIcon className="h-5 w-5 text-gray-400" />
@@ -207,10 +249,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="email"
               value={email}
               onChange={handleEmailChange}
-              className={cn(
-                "pl-10 pr-10 py-2",
-                emailValid ? "border-green-500 focus:border-green-500" : ""
-              )}
+              className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500 focus:border-green-500" : "")}
               placeholder="Your email"
               autoCapitalize="none"
               autoComplete="email"
@@ -218,8 +257,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               disabled={isLoading}
             />
           </div>
-          
-          {/* Password input */}
+
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <LockIcon className="h-5 w-5 text-gray-400" />
@@ -236,21 +274,25 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               disabled={isLoading}
             />
           </div>
-          
-          {/* Submit button */}
-          <Button 
-            type="submit" 
+
+          {/* Forgot password link */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setForgotPassword(true)}
+              className="text-sm text-gray-500 hover:underline">
+              Forgot password?
+            </button>
+          </div>
+
+          <Button
+            type="submit"
             disabled={isLoading || !emailValid || !password}
-            className={cn(
-              "bg-blue-500 hover:bg-blue-600 text-white",
-              (!emailValid || !password || isLoading) ? "opacity-70" : ""
-            )}
-          >
+            className={cn("bg-blue-500 hover:bg-blue-600 text-white", (!emailValid || !password || isLoading) ? "opacity-70" : "")}>
             {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
             Sign in
           </Button>
-          
-          {/* Login attempts display */}
+
           {auth.loginAttempts > 0 && (
             <div className="text-sm text-orange-600 flex items-center justify-center mt-2">
               <span>Login attempts: {auth.loginAttempts}</span>

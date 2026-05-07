@@ -35,7 +35,7 @@ export default async function BlogPage() {
                         Our Blog
                     </h1>
                     <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        Insights, updates, and stories from the Fiscal AI team.
+                        Insights, updates, and stories from the Finquanta AI team.
                     </p>
                 </div>
 

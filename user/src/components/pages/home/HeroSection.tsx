@@ -1,35 +1,34 @@
+"use client";
 import React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 const HeroSection = () => {
+  const { t } = useLanguage();
+
   return (
-    <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 sm:pb-16">
+    <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12 sm:pb-16">
       <div>
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 sm:gap-8 max-w-[1200px] mx-auto">
           {/* Left column: Content */}
           <div className="w-full md:w-1/2 h-full flex flex-col space-y-8 sm:space-y-14 text-center md:text-left">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-medium leading-tight text-gray-900">
-              Transform Your Finances with AI Power!
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight text-gray-900">
+              {t("hero", "title")}
             </h1>
-            <p className="text-base sm:text-xl md:text-2xl lg:text-3xl text-gray-600 leading-relaxed">
-              Revolutionize your finances with our <br className="hidden sm:block" />
-              AI-powered app. Effortlessly track <br className="hidden sm:block" />
-              expenses, optimize investments, <br className="hidden sm:block" />
-              and reach your goals—all in one <br className="hidden sm:block" />
-              place.
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 leading-relaxed">
+              {t("hero", "description")}
             </p>
           </div>
-
           {/* Right column: Image */}
           <div className="w-full md:w-1/2 flex flex-col justify-center items-center">
             <Image
-              src="/images/hero-flower-pot.svg"
+              src="/images/hero-flower-pot.png"
               alt="Potted plant symbolizing financial growth"
               width={300}
               height={300}
-              className="object-contain w-48 sm:w-64 md:w-full h-auto"
+              className="object-contain w-56 sm:w-72 md:w-80 h-auto max-h-80"
               priority
             />
           </div>
@@ -38,8 +37,8 @@ const HeroSection = () => {
           <div className="flex-1 flex justify-center items-center relative">
             <Input
               type="email"
-              placeholder="Enter your email"
-              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 text-gray-700 text-sm sm:text-base"
+              placeholder={t("hero", "emailPlaceholder")}
+              className="w-full h-12 bg-gray-200 border border-gray-300 rounded-lg pl-10 pr-4 text-gray-700 text-sm sm:text-base"
             />
             <Image
               src="/images/mail_icon.png"
@@ -52,19 +51,18 @@ const HeroSection = () => {
           <div className="flex justify-center items-center">
             <Button
               variant="outline"
-              className="h-12 w-full sm:w-auto sm:min-w-[200px] text-green-600 border-2 border-green-600 hover:bg-green-50 rounded-lg px-6 font-bold text-sm sm:text-base"
+              className="h-12 w-full sm:w-auto sm:min-w-[200px] text-white border-2 rounded-lg px-6 font-bold text-sm sm:text-base"
+              style={{backgroundColor: '#4CAF50', borderColor: '#4CAF50'}}
             >
-              Subscribe now
+              {t("hero", "subscribe")}
             </Button>
           </div>
         </div>
       </div>
-
       {/* Email signup */}
       <div className="flex flex-col w-full items-stretch space-y-3 pt-4 mt-4 sm:mt-6 max-w-[1200px] mx-auto">
         <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-500 text-center sm:text-left px-4 sm:px-0">
-          Sign up to Fiscal AI newsletter for all the latest news, trends and
-          insights from our industry experts.
+          {t("hero", "notice")}
         </p>
       </div>
     </section>

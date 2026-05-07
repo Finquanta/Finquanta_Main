@@ -2,7 +2,7 @@
  * Example Integration: How to integrate the App Context into your application
  * 
  * This file demonstrates the recommended way to integrate the context system
- * into the Fiscal AI application.
+ * into the Finquanta AI application.
  */
 
 import type { Metadata } from "next";
@@ -22,9 +22,9 @@ import {
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Fiscal AI",
+  title: "Finquanta AI",
   description:
-    "Fiscal AI is modern money management platform powered by AI. Track expenses, optimize investments, and reach your goals—all in one place.",
+    "Finquanta AI is modern money management platform powered by AI. Track expenses, optimize investments, and reach your goals—all in one place.",
 };
 
 /**

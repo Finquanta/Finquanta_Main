@@ -6,6 +6,7 @@ import FilterDropdown from './FilterDropdown';
 import TransactionTypeBadge from './TransactionTypeBadge';
 import AmountDisplay from './AmountDisplay';
 import { formatDate, formatCurrency, Transaction } from '@/mockData/bookkeepingMockData';
+import BookkeepingModal from './BookkeepingModal';
 
 interface ManagementTableProps {
   title: string;
@@ -21,10 +22,9 @@ export default function ManagementTable({
   period = 'Last 30 days'
 }: ManagementTableProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(period);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleActionClick = () => {
-    console.log(`${actionText} clicked for ${title}`);
-  };
+  const handleActionClick = () => setIsModalOpen(true);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
@@ -96,6 +96,6 @@ export default function ManagementTable({
           </tbody>
         </table>
       </div>
+    <BookkeepingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
-  );
 }

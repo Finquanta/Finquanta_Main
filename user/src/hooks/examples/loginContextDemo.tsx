@@ -23,7 +23,7 @@ export default function LoginContextDemo() {
   const ui = useUI();
   
   // Local state for the demo
-  const [email, setEmail] = useState("demo@fiscalai.com");
+  const [email, setEmail] = useState("demo@Finquantaai.com");
   const [password, setPassword] = useState("demopassword");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
@@ -32,21 +32,21 @@ export default function LoginContextDemo() {
     {
       id: "user-1",
       name: "Demo User",
-      email: "demo@fiscalai.com",
+      email: "demo@Finquantaai.com",
       role: "user" as const,
       password: "demopassword",
     },
     {
       id: "admin-1", 
       name: "Demo Admin",
-      email: "admin@fiscalai.com",
+      email: "admin@Finquantaai.com",
       role: "admin" as const,
       password: "adminpassword",
     },
     {
       id: "dev-1",
       name: "Developer",
-      email: "dev@fiscalai.com", 
+      email: "dev@Finquantaai.com", 
       role: "developer" as const,
       password: "devpassword",
     }
@@ -238,7 +238,7 @@ export default function LoginContextDemo() {
                   className="w-full justify-start"
                   disabled={auth.isAuthenticated}
                 >
-                  👤 Regular User (demo@fiscalai.com)
+                  👤 Regular User (demo@Finquantaai.com)
                 </Button>
                 <Button
                   variant="outline"
@@ -247,7 +247,7 @@ export default function LoginContextDemo() {
                   className="w-full justify-start"
                   disabled={auth.isAuthenticated}
                 >
-                  ⚡ Admin User (admin@fiscalai.com)
+                  ⚡ Admin User (admin@Finquantaai.com)
                 </Button>
                 <Button
                   variant="outline"
@@ -256,7 +256,7 @@ export default function LoginContextDemo() {
                   className="w-full justify-start"
                   disabled={auth.isAuthenticated}
                 >
-                  🛠️ Developer (dev@fiscalai.com)
+                  🛠️ Developer (dev@Finquantaai.com)
                 </Button>
               </div>
             </div>

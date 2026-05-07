@@ -1,7 +1,7 @@
 /**
  * App Context Module
  * 
- * This module provides comprehensive state management for the entire Fiscal AI application.
+ * This module provides comprehensive state management for the entire Finquanta AI application.
  * It includes authentication, navigation, UI state, admin functionality, financial data,
  * and developer tools.
  * 

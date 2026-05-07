@@ -1,3 +1,6 @@
+"use client";
+import { useLanguage } from '@/hooks/context/LanguageContext';
+
 import React from "react";
 
 // Custom logo SVGs that match exactly what's in the image
@@ -52,17 +55,18 @@ const TwitterLogo = () => (
 
 // Update with actual links if known
 const socialLinks = [
-  { name: "LinkedIn", icon: <LinkedInLogo />, href: "#" },
-  { name: "Instagram", icon: <InstagramLogo />, href: "#" },
-  { name: "Twitter", icon: <TwitterLogo />, href: "#" },
+  { name: "LinkedIn", icon: <LinkedInLogo />, href: "https://www.linkedin.com/company/finquanta/" },
+  { name: "Instagram", icon: <InstagramLogo />, href: "https://www.instagram.com/finquanta?igsh=cG9vOTFydnllMzF2" },
+  { name: "Twitter", icon: <TwitterLogo />, href: "https://x.com/finquanta" },
 ];
 
 const SocialConnectSection = () => {
+  const { t } = useLanguage();
   return (
-    <section className="py-16 bg-white">
+    <section id="community" className="pt-32 pb-16 bg-white">
       <div className="container mx-auto px-4">
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-normal text-center mb-8 sm:mb-12 md:mb-16">
-          You can also connect with us on
+          {t("community", "title")}
         </h2>
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 lg:gap-14 px-4">
           {socialLinks.map((link) => (
