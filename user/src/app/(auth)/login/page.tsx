@@ -1,16 +1,12 @@
-import { Metadata } from "next";
+'use client';
 import Image from "next/image";
 import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { UserAuthForm } from "./components/auth-form";
-
-export const metadata: Metadata = {
-  title: "Sign in - Finquanta AI",
-  description: "Sign in to your Finquanta AI account.",
-};
-
+ 
 export default function LoginPage() {
+  const { t } = useLanguage();
+ 
   return (
     <div className="flex h-screen w-full">
       {/* Left Column - Branding */}
@@ -24,11 +20,11 @@ export default function LoginPage() {
             className="mb-8"
           />
           <h1 className="text-center text-4xl font-bold leading-tight">
-            Transform Your<br />Finances with<br />AI Power!
+            {t("hero", "title")}
           </h1>
         </div>
       </div>
-
+ 
       {/* Right Column - Sign in Form */}
       <div className="w-full lg:w-3/5 flex flex-col items-center justify-center px-6 lg:px-16">
         <div className="w-full max-w-md">
@@ -39,17 +35,16 @@ export default function LoginPage() {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
               </svg>
-              Back to Home
+              {t("legal", "returnHome")}
             </Link>
-            {/* Keep existing form title here */}
           </div>
-
+ 
           {/* Form title */}
-          <h1 className="text-3xl font-bold mb-6">Sign in</h1>
-          
+          <h1 className="text-3xl font-bold mb-6">{t("auth", "login")}</h1>
+ 
           {/* Auth form component */}
           <UserAuthForm />
-          
+ 
           {/* reCAPTCHA notice */}
           <p className="mt-8 text-xs text-center text-gray-500">
             This site is protected by reCAPTCHA and the{" "}
@@ -58,13 +53,13 @@ export default function LoginPage() {
             </Link>
             .
           </p>
-
+ 
           {/* Sign up link */}
           <div className="flex justify-center mt-8">
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
+              {t("auth", "dontHaveAccount")}{" "}
               <Link href="/signup" className="font-medium text-blue-600 hover:underline">
-                Sign up
+                {t("auth", "signUp")}
               </Link>
             </p>
           </div>
@@ -73,3 +68,4 @@ export default function LoginPage() {
     </div>
   );
 }
+ 

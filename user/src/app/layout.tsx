@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 import Footer from "@/components/layout/Footer";
 import { AppProvider } from "@/hooks/context/SimpleAppProvider";
 import { LanguageProvider } from "@/hooks/context/LanguageContext";
+import { ThemeProvider } from "@/hooks/context/ThemeContext";
 import BookkeepingModal from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal from '@/components/user_dashboard/dashboard/GoalModal';
+import ChatbotWidget from "@/components/ChatbotWidget";
+import SocialSidebar from "@/components/SocialSidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,9 +28,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={cn("overflow-x-hidden ", inter.className)}>
         <AppProvider enableDevMode={process.env.NODE_ENV === 'development'}>
-          <LanguageProvider>
-            {children}
-          </LanguageProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              {children}
+              <SocialSidebar />
+              <ChatbotWidget />
+            </LanguageProvider>
+          </ThemeProvider>
         </AppProvider>
       </body>
     </html>

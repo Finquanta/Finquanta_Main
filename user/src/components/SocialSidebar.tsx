@@ -7,47 +7,60 @@ export default function SocialSidebar() {
   const [visible, setVisible] = useState(false);
   const pathname = usePathname();
 
-  const isDashboard = pathname?.startsWith("/dashboard") ||
-                    pathname?.startsWith("/profile-settings") || 
-                      pathname?.startsWith("/bookkeeping") ||
-                      pathname?.startsWith("/inbox") ||
-                      pathname?.startsWith("/payroll") ||
-                      pathname?.startsWith("/documents") ||
-                      pathname?.startsWith("/statistics") ||
-                      pathname?.startsWith("/settings") ||
-                      pathname?.startsWith("/business-plan");
+  const isDashboard =
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/profile-settings") ||
+    pathname?.startsWith("/bookkeeping") ||
+    pathname?.startsWith("/inbox") ||
+    pathname?.startsWith("/payroll") ||
+    pathname?.startsWith("/documents") ||
+    pathname?.startsWith("/statistics") ||
+    pathname?.startsWith("/settings") ||
+    pathname?.startsWith("/business-plan");
 
   useEffect(() => {
-    if (isDashboard) {
-      setVisible(false);
-      return;
-    }
-
+    if (isDashboard) { setVisible(false); return; }
     const handleScroll = () => {
       const banner = document.querySelector(".relative.py-12");
       if (banner) {
-        const bannerBottom = banner.getBoundingClientRect().bottom;
-        setVisible(bannerBottom < 0);
+        setVisible(banner.getBoundingClientRect().bottom < 0);
       } else {
         setVisible(true);
       }
     };
-
     handleScroll();
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [pathname, isDashboard]);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const toggleChat = () => {
+    const current = document.body.getAttribute('data-chat');
+    document.body.setAttribute('data-chat', current === 'open' ? 'closed' : 'open');
   };
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   if (!visible || isDashboard) return null;
 
   return (
     <div className="fixed right-4 bottom-24 z-50 flex flex-col items-center gap-2">
+      {/* Chatbot trigger — always on top */}
+      <button
+        onClick={toggleChat}
+        className="bg-black rounded-full w-12 h-12 flex items-center justify-center hover:opacity-80">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+          <rect x="3" y="11" width="18" height="10" rx="2"/>
+          <circle cx="12" cy="5" r="2"/>
+          <path d="M12 7v4"/>
+          <line x1="8" y1="15" x2="8" y2="17"/>
+          <line x1="16" y1="15" x2="16" y2="17"/>
+        </svg>
+      </button>
+
+      {/* Social controls */}
       {open ? (
-        <div className="flex flex-col items-center bg-black rounded-full py-3 px-2 gap-3">
+        <div className="flex flex-col items-center bg-black rounded-full py-3 px-2 gap-3"
+          style={{ animation: "slideUp 0.3s ease forwards", transformOrigin: "bottom" }}>
           <a href="mailto:info@finquanta.com" className="bg-white rounded-full w-10 h-10 flex items-center justify-center hover:opacity-80">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
           </a>
@@ -69,9 +82,16 @@ export default function SocialSidebar() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
         </button>
       )}
-      <button onClick={scrollToTop} className="bg-black rounded-full w-10 h-10 flex items-center justify-center hover:opacity-80 mt-1">
+
+      <button onClick={scrollToTop} className="bg-black rounded-full w-10 h-10 flex items-center justify-center hover:opacity-80">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       </button>
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

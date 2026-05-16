@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,26 +8,28 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, MailIcon, LockIcon, CheckIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
-
+import { useLanguage } from "@/hooks/context/LanguageContext";
+ 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
-
+ 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const router = useRouter();
   const auth = useAuth();
   const ui = useUI();
-
+  const { t } = useLanguage();
+ 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [emailValid, setEmailValid] = useState<boolean>(false);
   const [forgotPassword, setForgotPassword] = useState<boolean>(false);
   const [resetSent, setResetSent] = useState<boolean>(false);
-
+ 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
-
+ 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
@@ -37,35 +39,35 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       setEmailValid(false);
     }
   };
-
+ 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
   };
-
+ 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailValid) return;
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000)); // replace with real API call
+    await new Promise(r => setTimeout(r, 1000));
     setResetSent(true);
     setIsLoading(false);
   };
-
+ 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailValid || !password) return;
-
+ 
     setIsLoading(true);
     ui.beginLoading();
     auth.setAuthLoading(true);
-
+ 
     try {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
+ 
       if (res.ok) {
         const data = await res.json();
         auth.login({
@@ -93,9 +95,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           { email: "demo@Finquantaai.com", password: "demopassword", id: "demo-1", name: "Demo User", role: "user" as const },
           { email: "admin@Finquantaai.com", password: "adminpassword", id: "admin-1", name: "Admin User", role: "admin" as const }
         ];
-
+ 
         const demoUser = demoUsers.find(u => u.email === email && u.password === password);
-
+ 
         if (demoUser) {
           auth.login({
             token: `demo_token_${demoUser.id}_${Date.now()}`,
@@ -133,8 +135,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       auth.setAuthLoading(false);
     }
   };
-
-  // ── Forgot password view ──
+ 
+  // Forgot password view
   if (forgotPassword) {
     return (
       <div className={cn("grid gap-6", className)} {...props}>
@@ -143,21 +145,21 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             <div className="flex justify-center">
               <CheckIcon className="h-10 w-10 text-green-500" />
             </div>
-            <h3 className="font-semibold text-lg">Check your email</h3>
+            <h3 className="font-semibold text-lg">{t("auth", "checkEmail")}</h3>
             <p className="text-sm text-gray-500">
-              We sent a password reset link to <strong>{email}</strong>
+              {t("auth", "resetLinkSent")} <strong>{email}</strong>
             </p>
             <Button
               variant="outline"
               onClick={() => { setForgotPassword(false); setResetSent(false); }}>
-              Back to Sign In
+              {t("auth", "backToSignIn")}
             </Button>
           </div>
         ) : (
           <>
             <div className="grid gap-1">
-              <h3 className="font-semibold text-lg">Reset your password</h3>
-              <p className="text-sm text-gray-500">Enter your email and we'll send you a reset link.</p>
+              <h3 className="font-semibold text-lg">{t("auth", "resetPassword")}</h3>
+              <p className="text-sm text-gray-500">{t("auth", "resetPasswordDesc")}</p>
             </div>
             <form onSubmit={handleReset}>
               <div className="grid gap-4">
@@ -175,7 +177,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                     value={email}
                     onChange={handleEmailChange}
                     className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500" : "")}
-                    placeholder="Your email"
+                    placeholder={t("auth", "email")}
                     disabled={isLoading}
                   />
                 </div>
@@ -184,13 +186,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                   disabled={isLoading || !emailValid}
                   className="bg-blue-500 hover:bg-blue-600 text-white">
                   {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                  Send Reset Link
+                  {t("auth", "sendResetLink")}
                 </Button>
                 <button
                   type="button"
                   onClick={() => setForgotPassword(false)}
                   className="text-sm text-gray-500 hover:underline text-center">
-                  Back to Sign In
+                  {t("auth", "backToSignIn")}
                 </button>
               </div>
             </form>
@@ -199,12 +201,12 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       </div>
     );
   }
-
-  // ── Normal login view ──
+ 
+  // Normal login view
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="grid gap-3">
-        <p className="text-sm text-center">Sign in with your Google account</p>
+        <p className="text-sm text-center">{t("auth", "loginWithGoogle")}</p>
         <div className="grid grid-cols-2 gap-4">
           <Button variant="outline" type="button" className="flex items-center gap-2">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -223,16 +225,16 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </Button>
         </div>
       </div>
-
+ 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t"></span>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-500">Or continue with email address</span>
+          <span className="bg-white px-2 text-gray-500">{t("auth", "email").toUpperCase()}</span>
         </div>
       </div>
-
+ 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-4">
           <div className="relative">
@@ -250,14 +252,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={email}
               onChange={handleEmailChange}
               className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500 focus:border-green-500" : "")}
-              placeholder="Your email"
+              placeholder={t("auth", "email")}
               autoCapitalize="none"
               autoComplete="email"
               autoCorrect="off"
               disabled={isLoading}
             />
           </div>
-
+ 
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <LockIcon className="h-5 w-5 text-gray-400" />
@@ -268,31 +270,30 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={password}
               onChange={handlePasswordChange}
               className="pl-10 py-2"
-              placeholder="Password"
+              placeholder={t("auth", "password")}
               autoCapitalize="none"
               autoComplete="current-password"
               disabled={isLoading}
             />
           </div>
-
-          {/* Forgot password link */}
+ 
           <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setForgotPassword(true)}
               className="text-sm text-gray-500 hover:underline">
-              Forgot password?
+              {t("auth", "forgotPassword")}
             </button>
           </div>
-
+ 
           <Button
             type="submit"
             disabled={isLoading || !emailValid || !password}
             className={cn("bg-blue-500 hover:bg-blue-600 text-white", (!emailValid || !password || isLoading) ? "opacity-70" : "")}>
             {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-            Sign in
+            {t("auth", "loginButton")}
           </Button>
-
+ 
           {auth.loginAttempts > 0 && (
             <div className="text-sm text-orange-600 flex items-center justify-center mt-2">
               <span>Login attempts: {auth.loginAttempts}</span>
@@ -303,3 +304,4 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     </div>
   );
 }
+ 

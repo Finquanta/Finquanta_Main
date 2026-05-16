@@ -1,17 +1,12 @@
-import { Metadata } from "next";
+'use client';
 import Image from "next/image";
 import Link from "next/link";
-
-import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { UserAuthForm } from "./components/auth-form";
-
-export const metadata: Metadata = {
-  title: "Sign up - Finquanta AI",
-  description: "Create your Finquanta AI account to transform your finances with AI power.",
-};
-
+ 
 export default function SignupPage() {
+  const { t } = useLanguage();
+ 
   return (
     <div className="flex h-screen w-full">
       {/* Left Column - Branding */}
@@ -25,11 +20,11 @@ export default function SignupPage() {
             className="mb-8"
           />
           <h1 className="text-center text-4xl font-bold leading-tight">
-            Transform Your<br />Finances with<br />AI Power!
+            {t("hero", "title")}
           </h1>
         </div>
       </div>
-
+ 
       {/* Right Column - Sign up Form */}
       <div className="w-full lg:w-3/5 flex flex-col items-center justify-center px-6 lg:px-16">
         <div className="w-full max-w-md">
@@ -40,22 +35,22 @@ export default function SignupPage() {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
               </svg>
-              Back to Home
+              {t("legal", "returnHome")}
             </Link>
             <p className="text-sm text-gray-600">
-              Already a member?{" "}
+              {t("auth", "alreadyHaveAccount")}{" "}
               <Link href="/login" className="font-medium text-blue-600 hover:underline">
-                Sign in
+                {t("auth", "login")}
               </Link>
             </p>
           </div>
-
+ 
           {/* Form title */}
-          <h1 className="text-3xl font-bold mb-8">Sign up</h1>
-          
+          <h1 className="text-3xl font-bold mb-8">{t("auth", "signUp")}</h1>
+ 
           {/* Auth form component */}
           <UserAuthForm />
-          
+ 
           {/* reCAPTCHA notice */}
           <p className="mt-8 text-xs text-center text-gray-500">
             This site is protected by reCAPTCHA and the{" "}
@@ -69,3 +64,4 @@ export default function SignupPage() {
     </div>
   );
 }
+ 

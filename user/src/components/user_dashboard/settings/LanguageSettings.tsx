@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { LanguageSettings as LanguageSettingsType } from './types';
 import { Globe, Clock, Calendar, DollarSign, Ruler } from 'lucide-react';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useTheme } from '@/hooks/context/ThemeContext';
 
 interface LanguageSettingsProps {
   settings: LanguageSettingsType;

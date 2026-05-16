@@ -3,6 +3,8 @@
 import React from 'react';
 import { NotificationSettings as NotificationSettingsType } from './types';
 import Switch from './Switch';
+import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useTheme } from '@/hooks/context/ThemeContext';
 
 interface NotificationSettingsProps {
   settings: NotificationSettingsType;
@@ -10,6 +12,9 @@ interface NotificationSettingsProps {
 }
 
 export default function NotificationSettings({ settings, onSettingsChange }: NotificationSettingsProps) {
+  const { t } = useLanguage();
+  const { theme } = useTheme();
+  const dark = theme === 'dark';
 
   const handleToggle = (setting: keyof typeof settings, checked: boolean) => {
     onSettingsChange({
@@ -19,11 +24,11 @@ export default function NotificationSettings({ settings, onSettingsChange }: Not
   };
 
   return (
-    <div className="bg-white p-6">
+    <div className={`p-6 ${dark ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-black mb-1">Notification Settings</h2>
-        <p className="text-sm text-gray-500">Select your notification preference</p>
+        <h2 className={`text-lg font-semibold mb-1 ${dark ? 'text-white' : 'text-black'}`}>{t('settings', 'notificationSettings')}</h2>
+        <p className="text-sm text-gray-500">{t('settings', 'selectNotificationPreference')}</p>
       </div>
 
       {/* Notification Options */}
@@ -32,9 +37,9 @@ export default function NotificationSettings({ settings, onSettingsChange }: Not
         {/* News and Updates */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-black mb-1">News and Updates</h3>
+            <h3 className={`text-sm font-medium mb-1 ${dark ? 'text-white' : 'text-black'}`}>{t('settings', 'newsAndUpdates')}</h3>
             <p className="text-xs text-gray-500">
-              News about product and feature updates.
+              {t('settings', 'newsAboutProducts')}
             </p>
           </div>
           <div className="ml-4">
@@ -48,9 +53,9 @@ export default function NotificationSettings({ settings, onSettingsChange }: Not
         {/* Reminders */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-black mb-1">Reminders</h3>
+            <h3 className={`text-sm font-medium mb-1 ${dark ? 'text-white' : 'text-black'}`}>{t('settings', 'reminders')}</h3>
             <p className="text-xs text-gray-500">
-              Get a notification to remind you of updates you might have missed.
+              {t('settings', 'getRemindersDescription')}
             </p>
           </div>
           <div className="ml-4">
@@ -64,9 +69,9 @@ export default function NotificationSettings({ settings, onSettingsChange }: Not
         {/* Push Notifications */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-black mb-1">Push Notifications</h3>
+            <h3 className={`text-sm font-medium mb-1 ${dark ? 'text-white' : 'text-black'}`}>{t('settings', 'pushNotifications')}</h3>
             <p className="text-xs text-gray-500">
-              Get in-app notification about your savings and investments.
+              {t('settings', 'pushNotificationsDescription')}
             </p>
           </div>
           <div className="ml-4">
