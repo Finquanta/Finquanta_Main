@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { NavBarComponent } from "@/components/navbar";
 import { cn } from "@/lib/utils";
-import Footer from "@/components/layout/Footer";
 import { AppProvider } from "@/hooks/context/SimpleAppProvider";
 import { LanguageProvider } from "@/hooks/context/LanguageContext";
 import { ThemeProvider } from "@/hooks/context/ThemeContext";
-import BookkeepingModal from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
-import GoalModal from '@/components/user_dashboard/dashboard/GoalModal';
-import ChatbotWidget from "@/components/ChatbotWidget";
 import SocialSidebar from "@/components/SocialSidebar";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={cn("overflow-x-hidden ", inter.className)}>
-        <AppProvider enableDevMode={process.env.NODE_ENV === 'development'}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={cn("overflow-x-hidden", inter.className)} suppressHydrationWarning>
+        <AppProvider enableDevMode={false}>
           <ThemeProvider>
             <LanguageProvider>
               {children}

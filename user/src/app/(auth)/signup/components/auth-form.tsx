@@ -145,8 +145,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             <div className="flex justify-center">
               <CheckIcon className="h-10 w-10 text-green-500" />
             </div>
-            <h3 className="font-semibold text-lg">{t("auth", "checkEmail")}</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-semibold text-lg text-black">{t("auth", "checkEmail")}</h3>
+            <p className="text-sm text-gray-600">
               {t("auth", "resetLinkSent")} <strong>{email}</strong>
             </p>
             <Button
@@ -158,8 +158,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         ) : (
           <>
             <div className="grid gap-1">
-              <h3 className="font-semibold text-lg">{t("auth", "resetPassword")}</h3>
-              <p className="text-sm text-gray-500">{t("auth", "resetPasswordDesc")}</p>
+              <h3 className="font-semibold text-lg text-black">{t("auth", "resetPassword")}</h3>
+              <p className="text-sm text-gray-600">{t("auth", "resetPasswordDesc")}</p>
             </div>
             <form onSubmit={handleReset}>
               <div className="grid gap-4">
@@ -176,7 +176,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
-                    className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500" : "")}
+                    className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", emailValid ? "border-green-500" : "")}
                     placeholder={t("auth", "email")}
                     disabled={isLoading}
                   />
@@ -191,7 +191,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 <button
                   type="button"
                   onClick={() => setForgotPassword(false)}
-                  className="text-sm text-gray-500 hover:underline text-center">
+                  className="text-sm text-gray-600 hover:underline text-center">
                   {t("auth", "backToSignIn")}
                 </button>
               </div>
@@ -206,9 +206,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="grid gap-3">
-        <p className="text-sm text-center">{t("auth", "loginWithGoogle")}</p>
+        <p className="text-sm text-center text-gray-700">{t("auth", "loginWithGoogle")}</p>
         <div className="grid grid-cols-2 gap-4">
-          <Button variant="outline" type="button" className="flex items-center gap-2">
+          <Button variant="outline" type="button" className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 border-black">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M18.1711 8.36788H17.4998V8.33329H9.99984V11.6666H14.7094C14.0223 13.6071 12.1761 15.0001 9.99984 15.0001C7.23869 15.0001 4.99984 12.7613 4.99984 10.0001C4.99984 7.23895 7.23869 5.00008 9.99984 5.00008C11.2744 5.00008 12.434 5.48167 13.3169 6.26507L15.6744 3.90758C14.1844 2.52206 12.1948 1.66675 9.99984 1.66675C5.39775 1.66675 1.6665 5.39799 1.6665 10.0001C1.6665 14.6022 5.39775 18.3334 9.99984 18.3334C14.6019 18.3334 18.3332 14.6022 18.3332 10.0001C18.3332 9.44028 18.2757 8.89416 18.1711 8.36788Z" fill="#FBC02D"/>
               <path d="M2.6286 6.36019L5.36485 8.36269C6.10401 6.46269 7.90068 5.00008 10.0003 5.00008C11.2749 5.00008 12.4344 5.48167 13.3173 6.26507L15.6748 3.90758C14.1848 2.52206 12.1953 1.66675 10.0003 1.66675C6.82964 1.66675 4.10026 3.57373 2.6286 6.36019Z" fill="#E93131"/>
@@ -217,9 +217,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             </svg>
             Google
           </Button>
-          <Button variant="outline" type="button" className="flex items-center gap-2">
+          <Button variant="outline" type="button" className="flex items-center gap-2 bg-black text-white hover:bg-gray-800 border-black">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15.7943 10.5581C15.7726 8.91697 16.788 7.67964 18.8333 6.79797C17.7217 5.26381 16.0461 4.43464 13.8688 4.28797C11.8024 4.14797 9.51305 5.51964 8.86638 5.51964C8.17055 5.51964 6.11722 4.34797 4.64388 4.34797C1.92055 4.39131 0 6.19797 0 9.08797C0 10.0846 0.173883 11.1213 0.521883 12.1946C1.01472 13.7263 3.19222 17.9963 5.46055 17.9213C6.55722 17.8846 7.31055 17.0913 8.77388 17.0913C10.1861 17.0913 10.8826 17.9213 12.1077 17.9213C14.4016 17.8846 16.3581 14.0213 16.8206 12.4846C13.6333 10.9329 13.7943 10.6413 15.7943 10.5581ZM12.871 3.32797C13.7616 2.32131 13.6696 1.39297 13.6333 0.988308C12.8833 1.02631 12.0133 1.44964 11.5033 1.95131C10.936 2.49131 10.4703 3.25131 10.5996 4.24131C11.4288 4.30797 12.1973 4.13297 12.871 3.32797Z" fill="black"/>
+              <path d="M15.7943 10.5581C15.7726 8.91697 16.788 7.67964 18.8333 6.79797C17.7217 5.26381 16.0461 4.43464 13.8688 4.28797C11.8024 4.14797 9.51305 5.51964 8.86638 5.51964C8.17055 5.51964 6.11722 4.34797 4.64388 4.34797C1.92055 4.39131 0 6.19797 0 9.08797C0 10.0846 0.173883 11.1213 0.521883 12.1946C1.01472 13.7263 3.19222 17.9963 5.46055 17.9213C6.55722 17.8846 7.31055 17.0913 8.77388 17.0913C10.1861 17.0913 10.8826 17.9213 12.1077 17.9213C14.4016 17.8846 16.3581 14.0213 16.8206 12.4846C13.6333 10.9329 13.7943 10.6413 15.7943 10.5581ZM12.871 3.32797C13.7616 2.32131 13.6696 1.39297 13.6333 0.988308C12.8833 1.02631 12.0133 1.44964 11.5033 1.95131C10.936 2.49131 10.4703 3.25131 10.5996 4.24131C11.4288 4.30797 12.1973 4.13297 12.871 3.32797Z" fill="white"/>
             </svg>
             Apple ID
           </Button>
@@ -228,10 +228,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
  
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t"></span>
+          <span className="w-full border-t border-gray-300"></span>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-500">{t("auth", "email").toUpperCase()}</span>
+          <span className="bg-white px-2 text-gray-600">{t("auth", "email").toUpperCase()}</span>
         </div>
       </div>
  
@@ -251,7 +251,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="email"
               value={email}
               onChange={handleEmailChange}
-              className={cn("pl-10 pr-10 py-2", emailValid ? "border-green-500 focus:border-green-500" : "")}
+              className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", emailValid ? "border-green-500 focus:border-green-500" : "")}
               placeholder={t("auth", "email")}
               autoCapitalize="none"
               autoComplete="email"
@@ -269,7 +269,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="password"
               value={password}
               onChange={handlePasswordChange}
-              className="pl-10 py-2"
+              className="pl-10 py-2 bg-white text-black border border-gray-300"
               placeholder={t("auth", "password")}
               autoCapitalize="none"
               autoComplete="current-password"
@@ -281,7 +281,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             <button
               type="button"
               onClick={() => setForgotPassword(true)}
-              className="text-sm text-gray-500 hover:underline">
+              className="text-sm text-gray-600 hover:underline">
               {t("auth", "forgotPassword")}
             </button>
           </div>
@@ -304,4 +304,3 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     </div>
   );
 }
- 

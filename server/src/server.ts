@@ -48,12 +48,12 @@ process.on('SIGTERM', async () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  server.log.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  server.log.error({ promise, reason }, 'Unhandled Rejection');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  server.log.error('Uncaught Exception:', error);
+  server.log.error({ error }, 'Uncaught Exception');
   process.exit(1);
 });
 

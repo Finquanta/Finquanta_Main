@@ -1,11 +1,11 @@
 {
   "info": {
-    "name": "Fiscal AI Server API",
+    "name": "Finquanta AI Server API",
     "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures\n\n## Authentication\n\nThis API uses JWT (JSON Web Token) authentication. Include the token in the `Authorization` header:\n\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## Getting Started\n\n1. **Register a new user account**\n2. **Login to receive access and refresh tokens**\n3. **Include the access token in API requests**\n4. **Refresh tokens when they expire**",
     "version": "1.0.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_postman_id": "fiscal-ai-server-api-v1",
-    "_exporter_id": "fiscal-ai-docs-generator"
+    "_postman_id": "Finquanta-ai-server-api-v1",
+    "_exporter_id": "Finquanta-ai-docs-generator"
   },
   "auth": {
     "type": "bearer",
@@ -304,7 +304,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Fiscal AI\"\n  }\n}",
+              "raw": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Finquanta AI\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"

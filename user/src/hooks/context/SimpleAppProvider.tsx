@@ -20,7 +20,7 @@ export function AppProvider({ children, enableDevMode = false }: AppProviderProp
   const devModeInitialized = React.useRef(false);
   
   // Initialize dev mode only once using useLayoutEffect for synchronous execution
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     if (enableDevMode && !manager.dev.devMode && !devModeInitialized.current) {
       manager.setDevMode(true);
       devModeInitialized.current = true;

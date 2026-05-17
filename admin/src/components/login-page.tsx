@@ -30,7 +30,7 @@ export function LoginPage() {
             className="text-base font-normal leading-[19px] text-white"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Fiscal Asset Group Ltd. © 2024 - Administration Portal
+            Finquanta Asset Group Ltd. © 2024 - Administration Portal
           </p>
         </div>
       </div>

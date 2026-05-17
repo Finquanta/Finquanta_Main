@@ -1,13 +1,13 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Fiscal AI Server API",
+    "title": "Finquanta AI Server API",
     "version": "1.0.0",
-    "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures\n\n## Authentication\n\nThis API uses JWT (JSON Web Token) authentication. Include the token in the `Authorization` header:\n\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## Getting Started\n\n1. **Register a new user account**\n2. **Login to receive access and refresh tokens**\n3. **Include the access token in API requests**\n4. **Refresh tokens when they expire**\n\n## Base URL\n\n- Production: `https://api.fiscalai.com/v1`\n- Staging: `https://staging-api.fiscalai.com/v1`\n- Development: `http://localhost:3001/api/v1`",
+    "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures\n\n## Authentication\n\nThis API uses JWT (JSON Web Token) authentication. Include the token in the `Authorization` header:\n\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## Getting Started\n\n1. **Register a new user account**\n2. **Login to receive access and refresh tokens**\n3. **Include the access token in API requests**\n4. **Refresh tokens when they expire**\n\n## Base URL\n\n- Production: `https://api.Finquantaai.com/v1`\n- Staging: `https://staging-api.Finquantaai.com/v1`\n- Development: `http://localhost:3001/api/v1`",
     "contact": {
-      "name": "Fiscal AI Support",
-      "email": "support@fiscalai.com",
-      "url": "https://fiscalai.com/support"
+      "name": "Finquanta AI Support",
+      "email": "support@Finquantaai.com",
+      "url": "https://Finquantaai.com/support"
     },
     "license": {
       "name": "MIT",
@@ -16,11 +16,11 @@
   },
   "servers": [
     {
-      "url": "https://api.fiscalai.com/v1",
+      "url": "https://api.Finquantaai.com/v1",
       "description": "Production server"
     },
     {
-      "url": "https://staging-api.fiscalai.com/v1",
+      "url": "https://staging-api.Finquantaai.com/v1",
       "description": "Staging server"
     },
     {
@@ -485,7 +485,7 @@
                     "invoice": "INV-2024-001",
                     "metadata": {
                       "department": "Engineering",
-                      "project": "Fiscal AI"
+                      "project": "Finquanta AI"
                     }
                   }
                 },
@@ -920,7 +920,7 @@
         "properties": {
           "message": {
             "type": "string",
-            "example": "Fiscal AI Server API"
+            "example": "Finquanta AI Server API"
           },
           "version": {
             "type": "string",
@@ -1200,7 +1200,7 @@
             "description": "Additional transaction metadata",
             "example": {
               "department": "Engineering",
-              "project": "Fiscal AI"
+              "project": "Finquanta AI"
             }
           },
           "createdAt": {
@@ -1267,7 +1267,7 @@
             "description": "Additional transaction metadata",
             "example": {
               "department": "Engineering",
-              "project": "Fiscal AI"
+              "project": "Finquanta AI"
             }
           }
         }

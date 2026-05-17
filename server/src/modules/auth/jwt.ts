@@ -12,8 +12,8 @@ export interface JWTPayload {
 export class JWTManager {
   private readonly accessTokenSecret: string;
   private readonly refreshTokenSecret: string;
-  private readonly issuer = 'fiscal-ai';
-  private readonly audience = 'fiscal-ai';
+  private readonly issuer = 'Finquanta-ai';
+  private readonly audience = 'Finquanta-ai';
 
   constructor() {
     // In production, these should come from environment variables

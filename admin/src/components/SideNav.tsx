@@ -39,8 +39,8 @@ export default function SideNav() {
       <div className="pt-[61px] pb-[40px] px-[55px]">
         <div className="flex items-center">
           <img 
-            src="/images/fiscal-ai-logo.png" 
-            alt="FISCAL AI" 
+            src="/images/Finquanta-ai-logo.png" 
+            alt="Finquanta AI" 
             className="h-9 w-auto"
           />
         </div>

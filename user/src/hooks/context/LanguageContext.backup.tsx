@@ -1,0 +1,397 @@
+"use client";
+import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Globe, ChevronDown, Bell, LogOut, X } from 'lucide-react';
+import BookkeepingModal from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
+import GoalModal from '@/components/user_dashboard/dashboard/GoalModal';
+import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useTheme } from '@/hooks/context/ThemeContext';
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'zh', label: '中文' },
+  { code: 'ja', label: '日本語' },
+  { code: 'ru', label: 'Русский' },
+];
+
+export default function DashboardPage() {
+  const { language, setLanguage, t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
+
+  const [mounted, setMounted] = useState(false);
+  const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // Build translated notifications — rebuilds automatically when language changes
+  const defaultNotifications = useMemo(() => [
+    { id: 1, title: t('notifications', 'welcomeTitle'), body: t('notifications', 'welcomeBody'), time: t('notifications', 'justNow'), read: false },
+    { id: 2, title: t('notifications', 'newFeatureTitle'), body: t('notifications', 'newFeatureBody'), time: t('notifications', 'twoHoursAgo'), read: false },
+    { id: 3, title: t('notifications', 'maintenanceTitle'), body: t('notifications', 'maintenanceBody'), time: t('notifications', 'yesterday'), read: true },
+  ], [language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [notifications, setNotifications] = useState(defaultNotifications);
+
+  // Re-sync notifications when language changes
+  useEffect(() => {
+    setNotifications(defaultNotifications);
+  }, [defaultNotifications]);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (clickCount >= 10 && !feedbackDismissed) setShowFeedback(true);
+  }, [clickCount, feedbackDismissed]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const dismissNotification = (id: number) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  // ── LOGOUT ──────────────────────────────────────────────────────────────────
+  // Plug your signOut call in here, e.g.:
+  //   await supabase.auth.signOut();
+  //   await firebaseAuth.signOut();
+  const handleLogout = async () => {
+    // TODO: await supabase.auth.signOut();
+    router.push('/login');
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const darkMode = mounted && theme === 'light';
+  const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+
+  const bg        = "bg-white"  // Always white, ignore dark mode;
+  const sidebar   = darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
+  const card      = darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900";
+  const topbar    = darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
+  const text      = darkMode ? "text-gray-300" : "text-gray-500";
+  const subtext   = darkMode ? "text-gray-400" : "text-gray-400";
+  const input     = darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-200 text-gray-900";
+  const tableRow  = darkMode ? "divide-gray-700 text-gray-300" : "divide-gray-50 text-gray-600";
+  const tableHead = darkMode ? "text-gray-500 border-gray-700" : "text-gray-400 border-gray-200";
+  const notifBg   = darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
+  const notifItem = darkMode ? "hover:bg-gray-700 border-gray-700" : "hover:bg-gray-50 border-gray-100";
+
+  if (!mounted) {
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-screen ${bg}`}
+      onClick={() => setClickCount(c => c + 1)}
+    >
+      {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
+      <div className={`w-48 ${sidebar} border-r flex flex-col py-6 px-4`}>
+        <div className="mb-8">
+          <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+        </div>
+
+        <nav className="flex flex-col gap-2">
+          <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
+            {t('dashboard', 'title')}
+          </Link>
+        </nav>
+
+        <div className="mt-auto flex flex-col gap-2 text-xs">
+          <Link href="/profile-settings" className={`hover:underline ${text}`}>
+            {t('dashboard', 'profileSettings')}
+          </Link>
+          <Link href="/terms" className={`hover:underline ${text}`}>
+            {t('dashboard', 'termsOfService')}
+          </Link>
+          <Link href="/privacy" className={`hover:underline ${text}`}>
+            {t('dashboard', 'privacyPolicy')}
+          </Link>
+          {/* AI Risk Disclosure — now translated */}
+          <Link href="/ai-risk" className={`hover:underline ${text}`}>
+            {t('dashboard', 'aiRiskDisclosure')}
+          </Link>
+          {/* Log Out */}
+          <button
+            onClick={handleLogout}
+            className="text-left text-red-400 hover:text-red-500 hover:underline transition-colors"
+          >
+            {t('settings', 'logOut')}
+          </button>
+
+          <p className={`mt-4 ${subtext}`}>{t('dashboard', 'version')} 1.0.0.0</p>
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Top Bar */}
+        <div className={`${topbar} border-b px-6 py-3 flex items-center justify-between`}>
+          {/* Left */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+              <span className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-800"}`}>User</span>
+            </div>
+            <span className={`text-sm ${text}`}>{t('dashboard', 'bankAccount')}</span>
+          </div>
+
+          {/* Right */}
+          <div className="flex items-center gap-3">
+
+            {/* Notification Bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setNotifOpen(prev => !prev); }}
+                className={`relative p-2 rounded-lg border transition-colors ${
+                  darkMode
+                    ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                    : "bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {notifOpen && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-xl shadow-xl border z-50 overflow-hidden ${notifBg}`}>
+                  <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+                    {/* Translated heading */}
+                    <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>
+                      {t('notifications', 'title')}
+                    </span>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} className="text-xs text-blue-500 hover:underline">
+                        {t('notifications', 'markAllRead')}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className={`text-xs text-center py-6 ${text}`}>{t('notifications', 'noNotifications')}</p>
+                    ) : (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          className={`flex items-start gap-3 px-4 py-3 border-b transition-colors ${notifItem} ${
+                            !n.read ? (darkMode ? "bg-gray-700/50" : "bg-blue-50") : ""
+                          }`}
+                        >
+                          <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read ? "bg-blue-500" : "bg-transparent"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>
+                              {n.title}
+                            </p>
+                            <p className={`text-xs mt-0.5 ${text}`}>{n.body}</p>
+                            <p className={`text-[10px] mt-1 ${subtext}`}>{n.time}</p>
+                          </div>
+                          <button
+                            onClick={() => dismissNotification(n.id)}
+                            className={`flex-shrink-0 ${text} hover:text-red-400 transition-colors`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Search */}
+            <input
+              type="text"
+              placeholder={t('dashboard', 'search')}
+              className={`border rounded-lg px-3 py-1 text-sm w-48 ${input}`}
+            />
+
+            {/* Language Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen(!langOpen)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium border ${darkMode ? "bg-gray-700 text-white border-gray-600" : "bg-gray-100 text-gray-700 border-gray-200"}`}
+              >
+                <Globe className="h-4 w-4" />
+                <span>{currentLang.label}</span>
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                        language === lang.code ? 'font-semibold text-blue-600' : 'text-gray-700'
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Dark Mode Toggle */}
+            {mounted && (
+              <button
+                onClick={toggleTheme}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border ${darkMode ? "bg-gray-700 text-white border-gray-600" : "bg-gray-100 text-gray-700 border-gray-200"}`}
+              >
+                {darkMode ? t('dashboard', 'light') : t('dashboard', 'dark')}
+              </button>
+            )}
+
+            {/* Logout Button — top navbar */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-red-500 hover:bg-red-600 text-white transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              {t('settings', 'logOut')}
+            </button>
+
+          </div>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[
+              { label: t('dashboard', 'balance'), value: "$0.00" },
+              { label: t('dashboard', 'cashflow'), value: "$0.00" },
+              { label: t('dashboard', 'expense'), value: "$0.00" },
+            ].map((item, i) => (
+              <div key={i} className={`${card} rounded-xl p-4 shadow-sm`}>
+                <p className={`text-xs mb-1 ${text}`}>{item.label}</p>
+                <p className="text-2xl font-bold">{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Bookkeeping Table */}
+          <div className={`${card} rounded-xl p-4 shadow-sm mb-6`}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-semibold">{t('dashboard', 'bookkeeping')}</h2>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${text}`}>{t('dashboard', 'last30Days')}</span>
+                <button onClick={() => setBookkeepingModalOpen(true)} className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg">
+                  {t('dashboard', 'addData')}
+                </button>
+              </div>
+            </div>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className={`${tableHead} border-b`}>
+                  <th className="text-left pb-2">{t('dashboard', 'date')}</th>
+                  <th className="text-left pb-2">{t('dashboard', 'type')}</th>
+                  <th className="text-left pb-2">{t('dashboard', 'detail')}</th>
+                  <th className="text-left pb-2">{t('dashboard', 'price')}</th>
+                  <th className="text-left pb-2">{t('dashboard', 'amount')}</th>
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${tableRow}`}>
+                <tr>
+                  <td colSpan={5} className={`py-6 text-center ${text}`}>{t('dashboard', 'noTransactions')}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Bottom Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`${card} rounded-xl p-4 shadow-sm`}>
+              <h2 className="text-sm font-semibold mb-1">{t('dashboard', 'totalRevenue')}</h2>
+              <p className="text-xl font-bold mb-1">$0.00</p>
+              <p className={`text-xs mb-4 ${text}`}>{t('dashboard', 'noDataYet')}</p>
+              <div className="h-24 flex items-end gap-1">
+                {[0, 0, 0, 0, 0, 0, 0].map((h, i) => (
+                  <div key={i} className={`flex-1 ${darkMode ? "bg-gray-700" : "bg-gray-100"} rounded-t`} style={{ height: "10%" }}></div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`${card} rounded-xl p-4 shadow-sm`}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-sm font-semibold">{t('dashboard', 'goals')}</h2>
+                <button onClick={() => setGoalModalOpen(true)} className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg">
+                  {t('dashboard', 'addGoal')}
+                </button>
+              </div>
+              <p className={`text-xs text-center py-6 ${text}`}>{t('dashboard', 'noGoalsAdded')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {mounted && <BookkeepingModal isOpen={bookkeepingModalOpen} onClose={() => setBookkeepingModalOpen(false)} />}
+      {mounted && <GoalModal isOpen={goalModalOpen} onClose={() => setGoalModalOpen(false)} />}
+
+      {/* Feedback Popup */}
+      {mounted && showFeedback && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
+          <div className={`rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center relative ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+            <button
+              onClick={() => { setShowFeedback(false); setFeedbackDismissed(true); }}
+              className="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold"
+            >
+              x
+            </button>
+            <h2 className="text-xl font-bold mb-2">{t('settings', 'feedbackPopupTitle')}</h2>
+            <p className={`text-sm mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {t('settings', 'feedbackPopupDesc')}
+            </p>
+            <a
+              href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => { setShowFeedback(false); setFeedbackDismissed(true); }}
+              className="inline-block bg-green-500 hover:bg-green-600 text-white font-medium px-6 py-3 rounded-lg text-sm"
+            >
+              {t('settings', 'feedbackPopupButton')}
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

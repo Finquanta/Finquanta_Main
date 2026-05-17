@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 interface Message {
   role: "user" | "assistant";
@@ -43,11 +44,13 @@ const getFallbackReply = (text: string, isDashboard: boolean) => {
 
 export default function ChatbotWidget() {
   const pathname = usePathname();
+  const { language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<"gemini" | "claude" | "chatgpt">("gemini");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isDashboard =
@@ -63,8 +66,6 @@ export default function ChatbotWidget() {
     pathname?.startsWith("/profile-settings") ||
     pathname?.startsWith("/settings");
 
-  // On landing pages the trigger is inside SocialSidebar
-  // Listen for data-chat attribute changes
   useEffect(() => {
     if (isDashboard || isSettings) return;
     const observer = new MutationObserver(() => {
@@ -89,12 +90,27 @@ export default function ChatbotWidget() {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    const reply = isDashboard
-      ? (DASHBOARD_RESPONSES[text] || getFallbackReply(text, true))
-      : (LANDING_QA[text] || getFallbackReply(text, false));
-    setMessages([...newMessages, { role: "assistant", content: reply }]);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          messages: newMessages, 
+          isDashboard, 
+          model: selectedModel,
+          language
+        }),
+      });
+      const data = await res.json();
+      setMessages([...newMessages, { role: "assistant", content: data.content }]);
+    } catch {
+      const fallback = isDashboard
+        ? getFallbackReply(text, true)
+        : (LANDING_QA[text] || getFallbackReply(text, false));
+      setMessages([...newMessages, { role: "assistant", content: fallback }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -104,7 +120,6 @@ export default function ChatbotWidget() {
 
   return (
     <>
-      {/* Chat window */}
       {open && (
         <div style={{
           position: "fixed",
@@ -122,6 +137,7 @@ export default function ChatbotWidget() {
           maxHeight: 460,
           fontFamily: "sans-serif",
         }}>
+          {/* Header */}
           <div style={{ background: "#111", padding: "13px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "0.5px solid #1f1f1f" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 30, height: 30, background: "#1a2e1a", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -132,9 +148,20 @@ export default function ChatbotWidget() {
                 <div style={{ fontSize: 11, color: "#555" }}>{isDashboard ? "Your Financial Assistant" : "Finquanta AI"}</div>
               </div>
             </div>
-            <button onClick={handleClose} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={selectedModel}
+                onChange={e => setSelectedModel(e.target.value as "gemini" | "claude" | "chatgpt")}
+                style={{ background: "#1a1a1a", border: "0.5px solid #2a2a2a", borderRadius: 6, padding: "3px 6px", fontSize: 10, color: "#22c55e", cursor: "pointer", outline: "none" }}>
+                <option value="gemini">Gemini</option>
+                <option value="claude">Claude</option>
+                <option value="chatgpt">ChatGPT</option>
+              </select>
+              <button onClick={handleClose} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
+            </div>
           </div>
 
+          {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, background: "#111", minHeight: 280 }}>
             {!started ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14, textAlign: "center", padding: "0 8px" }}>
@@ -190,6 +217,7 @@ export default function ChatbotWidget() {
             )}
           </div>
 
+          {/* Input */}
           {started && (
             <div style={{ display: "flex", gap: 6, padding: "10px 12px", borderTop: "0.5px solid #1f1f1f", background: "#111" }}>
               <input
