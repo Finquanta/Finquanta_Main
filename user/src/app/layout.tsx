@@ -11,8 +11,23 @@ import ChatbotWidget from "@/components/ChatbotWidget";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Finquanta AI",
+  title: "Finquanta - AI Powered Finance",
   description: "Finquanta AI is modern money management platform powered by AI. Track expenses, optimize investments, and reach your goals all in one place.",
+icons: {
+  icon: '/favicon.svg',
+},
+  openGraph: {
+    title: "Finquanta - AI Powered Finance",
+    description: "Finquanta AI is modern money management platform powered by AI.",
+    image: '/images/Finquanta_Metatag.png',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Finquanta - AI Powered Finance",
+    description: "Finquanta AI is modern money management platform powered by AI.",
+    image: '/images/Finquanta_Metatag.png',
+  },
 };
 
 export default function RootLayout({
