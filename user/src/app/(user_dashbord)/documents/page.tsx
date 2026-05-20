@@ -5,10 +5,12 @@ import { mockDocumentsPageProps } from '@/mockData/documentsMockData';
 import { Document, DocumentFolder } from '@/mockData/documentsMockData';
 import DocumentGrid from '@/components/user_dashboard/documents/DocumentGrid';
 import { Folder, FileText, Upload, Plus, X } from 'lucide-react';
+import { getDocumentStats, listDocuments } from '@/lib/api/documents';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState(mockDocumentsPageProps.documents);
   const [folders] = useState(mockDocumentsPageProps.folders);
+  const [stats, setStats] = useState(mockDocumentsPageProps.stats);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -101,7 +103,10 @@ export default function DocumentsPage() {
     setShowUploadModal(false);
   }, [currentFolder]);
 
-  const stats = mockDocumentsPageProps.stats;
+  React.useEffect(() => {
+    listDocuments().then(setDocuments).catch(() => undefined);
+    getDocumentStats().then(setStats).catch(() => undefined);
+  }, []);
 
   return (
     <div className="p-4 sm:p-6 bg-[#f2f3f4] min-h-full">

@@ -1,12 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import BookkeepingSummaryCard from '@/components/user_dashboard/bookkeeping/BookkeepingSummaryCard';
 import ManagementTable from '@/components/user_dashboard/bookkeeping/ManagementTable';
 import { mockRootProps } from '@/mockData/bookkeepingMockData';
+import { BookkeepingOverview, getBookkeepingOverview } from '@/lib/api/bookkeeping';
 
 export default function BookkeepingPage() {
-  const { summaryData, incomeTransactions, expenseTransactions, generalTransactions } = mockRootProps;
+  const [data, setData] = useState<BookkeepingOverview | null>(null);
+  const { summaryData, incomeTransactions, expenseTransactions, generalTransactions } = data ?? mockRootProps;
+
+  useEffect(() => {
+    getBookkeepingOverview()
+      .then(setData)
+      .catch(() => setData(null));
+  }, []);
 
   return (
     <div className="h-full flex flex-col space-y-6 sm:space-y-8 p-4 sm:p-6 overflow-hidden">

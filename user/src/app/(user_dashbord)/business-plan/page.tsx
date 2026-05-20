@@ -5,11 +5,20 @@ import { mockBusinessPlanPageProps, BusinessPlan, PlanTemplate } from '@/mockDat
 import { BusinessPlanSection } from '@/mockData/businessPlanMockData';
 import BusinessPlanGrid from '@/components/user_dashboard/business-plan/usinessPlanGrid';
 import { Lightbulb, Target, TrendingUp, Calendar, DollarSign, Users, ArrowRight, Plus } from 'lucide-react';
+import { getBusinessPlanMarketData, getBusinessPlanStats, listBusinessPlans } from '@/lib/api/business-plans';
 
 export default function BusinessPlanPage() {
   const [plans, setPlans] = useState(mockBusinessPlanPageProps.plans);
+  const [stats, setStats] = useState(mockBusinessPlanPageProps.stats);
+  const [marketData, setMarketData] = useState(mockBusinessPlanPageProps.marketData);
   const [currentView, setCurrentView] = useState<'overview' | 'editor' | 'templates'>('overview');
   const [selectedPlan, setSelectedPlan] = useState<BusinessPlan | null>(null);
+
+  React.useEffect(() => {
+    listBusinessPlans().then(setPlans).catch(() => undefined);
+    getBusinessPlanStats().then(setStats).catch(() => undefined);
+    getBusinessPlanMarketData().then(setMarketData).catch(() => undefined);
+  }, []);
 
   const handleCreateNew = useCallback(() => {
     // Create new business plan
@@ -81,9 +90,6 @@ export default function BusinessPlanPage() {
 
     setPlans(prev => [duplicatedPlan, ...prev]);
   }, []);
-
-  const stats = mockBusinessPlanPageProps.stats;
-  const marketData = mockBusinessPlanPageProps.marketData;
 
   if (currentView === 'templates') {
     return (

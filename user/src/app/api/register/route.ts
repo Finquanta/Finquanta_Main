@@ -1,3 +1,5 @@
+import { serverApiUrl } from '@/lib/api/client';
+
 export async function GET() {
   return new Response(
     JSON.stringify({ status: "ok" }),
@@ -6,10 +8,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // TODO: implement actual registration logic
-  return new Response(
-    JSON.stringify({ message: "Register endpoint not implemented" }),
-    { status: 501, headers: { "Content-Type": "application/json" } }
-  );
+  const response = await fetch(serverApiUrl('/auth/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(await request.json())
+  });
+
+  return new Response(await response.text(), {
+    status: response.status,
+    headers: { "Content-Type": "application/json" }
+  });
 }
 

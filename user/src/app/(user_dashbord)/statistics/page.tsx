@@ -1,12 +1,25 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import { statisticsMockData } from '@/mockData/statisticsMockData';
+import { StatisticsPageProps } from '@/mockData/statisticsMockData';
 import StatsCard from '@/components/user_dashboard/statistics/StatsCard';
 import FinancialTrendsChart from '@/components/user_dashboard/statistics/FinancialTrendsChart';
 import TransactionAnalytics from '@/components/user_dashboard/statistics/TransactionAnalytics';
 import PerformanceMetrics from '@/components/user_dashboard/statistics/PerformanceMetrics';
 import StatisticsTable from '@/components/user_dashboard/statistics/StatisticsTable';
+import { getStatisticsOverview } from '@/lib/api/statistics';
 
 export default function StatisticsPage() {
+  const [apiData, setApiData] = useState<StatisticsPageProps | null>(null);
+  const sourceData = apiData ?? statisticsMockData;
+
+  useEffect(() => {
+    getStatisticsOverview()
+      .then(setApiData)
+      .catch(() => setApiData(null));
+  }, []);
+
   const {
     overviewCards,
     financialTrends,
@@ -15,7 +28,7 @@ export default function StatisticsPage() {
     performanceMetrics,
     tableData,
     period
-  } = statisticsMockData;
+  } = sourceData;
 
   return (
     <div className="p-4 sm:p-6 bg-[#f2f3f4] min-h-full">

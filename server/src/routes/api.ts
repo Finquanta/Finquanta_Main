@@ -3,6 +3,13 @@ import { ApiInfoResponse, ApiResponse } from '@/types';
 import { authRoutes } from '../modules/auth/auth.routes';
 import { transactionRoutes } from '../modules/financial/transaction.routes';
 import { Database } from '../infrastructure/database';
+import { profileRoutes } from '../modules/profile/profile.routes';
+import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
+import { bookkeepingRoutes } from '../modules/bookkeeping/bookkeeping.routes';
+import { statisticsRoutes } from '../modules/statistics/statistics.routes';
+import { payrollRoutes } from '../modules/payroll/payroll.routes';
+import { documentRoutes } from '../modules/documents/document.routes';
+import { businessPlanRoutes } from '../modules/business-plans/business-plan.routes';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -101,7 +108,7 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Register authentication routes
   const database = new Database();
   await fastify.register(authRoutes, {
-    prefix: '/api/v1/auth',
+    prefix: '/v1/auth',
     database
   });
 
@@ -109,6 +116,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   await fastify.register(transactionRoutes, {
     database
   });
+
+  await fastify.register(profileRoutes, { database });
+  await fastify.register(dashboardRoutes, { database });
+  await fastify.register(bookkeepingRoutes, { database });
+  await fastify.register(statisticsRoutes, { database });
+  await fastify.register(payrollRoutes, { database });
+  await fastify.register(documentRoutes, { database });
+  await fastify.register(businessPlanRoutes, { database });
 }
 
 export default apiRoutes;

@@ -64,7 +64,7 @@ export default function SettingsPage() {
 
     switch (activeSection) {
       case 'notification-preference':
-        return <NotificationSettings settings={settings.notifications} onSettingsChange={(notifications) => setSettings({ ...settings, notifications })} />;
+        return <NotificationSettingsComponent settings={settings.notifications} onSettingsChange={(notifications) => setSettings({ ...settings, notifications })} />;
       case 'access-permission':
         return <AccessPermissions settings={settings.security} onSettingsChange={(securitySettings) => setSettings({ ...settings, security: securitySettings })} />;
       case 'languages':
@@ -80,7 +80,7 @@ export default function SettingsPage() {
       case 'log-out':
         return null;
       default:
-        return <NotificationSettings settings={settings.notifications} onSettingsChange={(notifications) => setSettings({ ...settings, notifications })} />;
+        return <NotificationSettingsComponent settings={settings.notifications} onSettingsChange={(notifications) => setSettings({ ...settings, notifications })} />;
     }
   }, [activeSection, settings, isLoggingOut]);
 

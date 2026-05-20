@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
+import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
  
 export default function ProfileSettingsPage() {
@@ -19,13 +20,17 @@ export default function ProfileSettingsPage() {
   const [country, setCountry] = useState('');
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
-  const [notificationSettings, setNotificationSettings] = useState({
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     filter: false,
     newsUpdates: false,
     reminders: false,
     pushNotifications: false,
     paymentUpdate: false,
-    balanceNotification: false
+    balanceNotification: false,
+    emailNotifications: false,
+    smsNotifications: false,
+    inAppNotifications: true,
+    frequency: 'daily'
   });
  
   return (

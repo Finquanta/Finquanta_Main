@@ -1,11 +1,13 @@
 "use client";
 import { useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { Globe, ChevronDown } from 'lucide-react';
 import BookkeepingModal from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { DashboardOverviewResponse, getDashboardOverview } from '@/lib/api/dashboard';
  
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -27,6 +29,13 @@ export default function DashboardPage() {
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardOverviewResponse | null>(null);
+
+  useEffect(() => {
+    getDashboardOverview()
+      .then(setDashboardData)
+      .catch(() => setDashboardData(null));
+  }, []);
  
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
  
@@ -123,12 +132,17 @@ export default function DashboardPage() {
               { label: t('dashboard', 'balance'), value: "$0.00" },
               { label: t('dashboard', 'cashflow'), value: "$0.00" },
               { label: t('dashboard', 'expense'), value: "$0.00" },
-            ].map((item, i) => (
+            ].map((fallback, i) => {
+              const item = dashboardData?.summaryCards[i]
+                ? { label: dashboardData.summaryCards[i].title, value: dashboardData.summaryCards[i].amount }
+                : fallback;
+              return (
               <div key={i} className={`${card} rounded-xl p-4 shadow-sm`}>
                 <p className={`text-xs mb-1 ${text}`}>{item.label}</p>
                 <p className="text-2xl font-bold">{item.value}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
  
           {/* Bookkeeping Table */}
@@ -153,9 +167,21 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className={`divide-y ${tableRow}`}>
-                <tr>
-                  <td colSpan={5} className={`py-6 text-center ${text}`}>{t('dashboard', 'noTransactions')}</td>
-                </tr>
+                {dashboardData?.latestTransactions.length ? (
+                  dashboardData.latestTransactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td className="py-3">{transaction.date}</td>
+                      <td className="py-3">{transaction.type}</td>
+                      <td className="py-3">{transaction.detail}</td>
+                      <td className="py-3">${transaction.price.toFixed(2)}</td>
+                      <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className={`py-6 text-center ${text}`}>{t('dashboard', 'noTransactions')}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -165,8 +191,8 @@ export default function DashboardPage() {
             {/* Total Revenue */}
             <div className={`${card} rounded-xl p-4 shadow-sm`}>
               <h2 className="text-sm font-semibold mb-1">{t('dashboard', 'totalRevenue')}</h2>
-              <p className="text-xl font-bold mb-1">$0.00</p>
-              <p className={`text-xs mb-4 ${text}`}>{t('dashboard', 'noDataYet')}</p>
+              <p className="text-xl font-bold mb-1">{dashboardData?.totalFinancesData.highlightValue ?? '$0.00'}</p>
+              <p className={`text-xs mb-4 ${text}`}>{dashboardData ? dashboardData.totalFinancesData.year : t('dashboard', 'noDataYet')}</p>
               <div className="h-24 flex items-end gap-1">
                 {[0, 0, 0, 0, 0, 0, 0].map((h, i) => (
                   <div key={i} className={`flex-1 ${darkMode ? "bg-gray-700" : "bg-gray-100"} rounded-t`} style={{ height: "10%" }}></div>
@@ -182,7 +208,20 @@ export default function DashboardPage() {
                   {t('dashboard', 'addGoal')}
                 </button>
               </div>
-              <p className={`text-xs text-center py-6 ${text}`}>{t('dashboard', 'noGoalsAdded')}</p>
+              {dashboardData?.goalsData.goals.length ? (
+                <div className="space-y-3">
+                  {dashboardData.goalsData.goals.map((goal) => (
+                    <div key={goal.id} className={`text-xs ${text}`}>
+                      <div className="flex justify-between">
+                        <span>{goal.name}</span>
+                        <span>${goal.current.toLocaleString()} / ${goal.target.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={`text-xs text-center py-6 ${text}`}>{t('dashboard', 'noGoalsAdded')}</p>
+              )}
             </div>
           </div>
         </div>

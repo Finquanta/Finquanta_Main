@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify';
+import fastifyJwt from '@fastify/jwt';
 import { config } from '@/config/config';
 import routes from '@/routes';
 
@@ -14,6 +15,10 @@ const server: FastifyInstance = Fastify({
       },
     } : undefined,
   },
+});
+
+server.register(fastifyJwt, {
+  secret: process.env.JWT_ACCESS_SECRET || 'access-secret-key-for-development-only'
 });
 
 // Register routes
@@ -48,12 +53,12 @@ process.on('SIGTERM', async () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  server.log.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  server.log.error({ promise, reason }, 'Unhandled Rejection');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  server.log.error('Uncaught Exception:', error);
+  server.log.error({ error }, 'Uncaught Exception');
   process.exit(1);
 });
 

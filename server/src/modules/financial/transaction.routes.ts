@@ -1,9 +1,10 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import { TransactionController, AuthenticatedRequest } from './transaction.controller';
 import { TransactionService } from './transaction.service';
 import { TransactionRepository } from './transaction.repository';
 import { Database } from '../../infrastructure/database';
 import { CreateTransactionData, UpdateTransactionData } from './transaction.types';
+import { authenticate } from '../shared/authenticate';
 
 export async function transactionRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const { database } = options;
@@ -12,18 +13,6 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   const transactionRepository = new TransactionRepository(database);
   const transactionService = new TransactionService(transactionRepository);
   const transactionController = new TransactionController(transactionService);
-
-  // Authentication hook for all routes
-  const authenticate = async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      await request.jwtVerify();
-    } catch (err) {
-      reply.status(401).send({
-        success: false,
-        error: 'Authentication required'
-      });
-    }
-  };
 
   // Schema definitions for validation
   const createTransactionSchema = {
@@ -92,7 +81,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   // POST /api/v1/financial/transactions - Create transaction
   fastify.post<{
     Body: CreateTransactionData;
-  }>('/api/v1/financial/transactions', {
+  }>('/v1/financial/transactions', {
     preHandler: [authenticate],
     schema: {
       body: createTransactionSchema,
@@ -113,12 +102,12 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.createTransaction(request, reply);
-  });
+  }) as any);
 
   // GET /api/v1/financial/transactions - Get user transactions
-  fastify.get('/api/v1/financial/transactions', {
+  fastify.get('/v1/financial/transactions', {
     preHandler: [authenticate],
     schema: {
       querystring: transactionQuerySchema,
@@ -140,14 +129,14 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.getTransactions(request, reply);
-  });
+  }) as any);
 
   // GET /api/v1/financial/transactions/:id - Get transaction by ID
   fastify.get<{
     Params: { id: string };
-  }>('/api/v1/financial/transactions/:id', {
+  }>('/v1/financial/transactions/:id', {
     preHandler: [authenticate],
     schema: {
       params: transactionParamsSchema,
@@ -168,15 +157,15 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.getTransactionById(request, reply);
-  });
+  }) as any);
 
   // PUT /api/v1/financial/transactions/:id - Update transaction
   fastify.put<{
     Params: { id: string };
     Body: UpdateTransactionData;
-  }>('/api/v1/financial/transactions/:id', {
+  }>('/v1/financial/transactions/:id', {
     preHandler: [authenticate],
     schema: {
       params: transactionParamsSchema,
@@ -198,14 +187,14 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.updateTransaction(request, reply);
-  });
+  }) as any);
 
   // DELETE /api/v1/financial/transactions/:id - Delete transaction
   fastify.delete<{
     Params: { id: string };
-  }>('/api/v1/financial/transactions/:id', {
+  }>('/v1/financial/transactions/:id', {
     preHandler: [authenticate],
     schema: {
       params: transactionParamsSchema,
@@ -226,12 +215,12 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.deleteTransaction(request, reply);
-  });
+  }) as any);
 
   // GET /api/v1/financial/summary - Get financial summary
-  fastify.get('/api/v1/financial/summary', {
+  fastify.get('/v1/financial/summary', {
     preHandler: [authenticate],
     schema: {
       querystring: financialSummaryQuerySchema,
@@ -262,7 +251,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         }
       }
     }
-  }, (request: AuthenticatedRequest, reply: FastifyReply) => {
+  }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.getFinancialSummary(request, reply);
-  });
+  }) as any);
 }

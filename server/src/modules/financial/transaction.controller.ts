@@ -8,13 +8,13 @@ import {
   TransactionStatus
 } from './transaction.types';
 
-export interface AuthenticatedRequest extends FastifyRequest {
-  user: {
+export type AuthenticatedRequest = Omit<FastifyRequest, 'user'> & {
+  user?: {
     id: string;
     email: string;
     role: string;
   };
-}
+};
 
 export class TransactionController {
   constructor(private transactionService: TransactionService) {}

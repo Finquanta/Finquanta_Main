@@ -5,12 +5,22 @@ import { Button } from '@/components/ui/button';
 import FilterDropdown from './FilterDropdown';
 import TransactionTypeBadge from './TransactionTypeBadge';
 import AmountDisplay from './AmountDisplay';
-import { formatDate, formatCurrency, Transaction } from '@/mockData/bookkeepingMockData';
+import { formatDate, formatCurrency } from '@/mockData/bookkeepingMockData';
 import BookkeepingModal from './BookkeepingModal';
+
+interface TableTransaction {
+  id: string | number;
+  date: Date | string;
+  type: string;
+  detail: string;
+  invoice: string;
+  price: number;
+  amount: number;
+}
 
 interface ManagementTableProps {
   title: string;
-  data: Transaction[];
+  data: TableTransaction[];
   actionText: string;
   period?: string;
 }
@@ -76,7 +86,7 @@ export default function ManagementTable({
             {data.map((row, index) => (
               <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-25">
                 <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold text-gray-900">
-                  {formatDate(row.date)}
+                  {formatDate(new Date(row.date))}
                 </td>
                 <td className="px-3 sm:px-6 py-3 sm:py-4">
                   <TransactionTypeBadge type={row.type} />
@@ -96,6 +106,7 @@ export default function ManagementTable({
           </tbody>
         </table>
       </div>
-    <BookkeepingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <BookkeepingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
+  );
 }
