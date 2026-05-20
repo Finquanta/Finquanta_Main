@@ -1,6 +1,6 @@
-# Fiscal AI Server
+# Finquanta AI Server
 
-Fastify TypeScript backend server for Fiscal AI application.
+Fastify TypeScript backend server for Finquanta AI application.
 
 ## Features
 

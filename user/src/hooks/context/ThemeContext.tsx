@@ -2,47 +2,42 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface ThemeContextType {
-  theme: 'light' | 'dark';
-  setTheme: (theme: 'light' | 'dark') => void;
+  theme: string;
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<string>('light');
   const [mounted, setMounted] = useState(false);
 
+  // Initialize theme on mount
   useEffect(() => {
-    setMounted(true);
-    
-    // Get theme from localStorage
-    const savedTheme = localStorage.getItem('finquanta_theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    } else {
-      // Check system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initialTheme = prefersDark ? 'dark' : 'light';
-      setThemeState(initialTheme);
-      document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    const saved = localStorage.getItem('app_theme');
+    if (saved) {
+      setTheme(saved);
+      console.log('Loaded theme from storage:', saved);
     }
+    setMounted(true);
   }, []);
 
-  const setTheme = (newTheme: 'light' | 'dark') => {
-    setThemeState(newTheme);
-    localStorage.setItem('finquanta_theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
-  };
+  // Save theme to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('app_theme', theme);
+      console.log('Saved theme to storage:', theme);
+    }
+  }, [theme, mounted]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
+    console.log('Toggling theme from', theme, 'to', newTheme);
     setTheme(newTheme);
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

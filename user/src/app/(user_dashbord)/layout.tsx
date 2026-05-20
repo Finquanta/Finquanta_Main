@@ -1,9 +1,3 @@
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html>
-      <body>
-        {children}
-      </body>
-    </html>
-  );
+export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

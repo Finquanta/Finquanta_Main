@@ -1,4 +1,4 @@
-# Fiscal AI Server API Documentation
+# Finquanta AI Server API Documentation
 
 Comprehensive financial management API for tracking income, expenses, and generating financial insights.
 
@@ -222,7 +222,7 @@ curl "http://localhost:3001/api/v1/financial/transactions?invoice=INV-2024-001" 
   "status": "completed",
   "metadata": {
     "department": "Engineering",
-    "project": "Fiscal AI"
+    "project": "Finquanta AI"
   },
   "createdAt": "2024-01-15T10:30:00Z",
   "updatedAt": "2024-01-15T10:30:00Z"
@@ -264,7 +264,7 @@ curl "http://localhost:3001/api/v1/financial/transactions?invoice=INV-2024-001" 
 // Install axios: npm install axios
 const axios = require('axios');
 
-class FiscalAIClient {
+class FinquantaAIClient {
   constructor(baseURL = 'http://localhost:3001/api/v1') {
     this.baseURL = baseURL;
     this.accessToken = null;
@@ -312,7 +312,7 @@ class FiscalAIClient {
 }
 
 // Usage example
-const client = new FiscalAIClient();
+const client = new FinquantaAIClient();
 
 // Register and login
 await client.register({
@@ -341,7 +341,7 @@ console.log(transactions);
 # Install requests: pip install requests
 import requests
 
-class FiscalAIClient:
+class FinquantaAIClient:
     def __init__(self, base_url="http://localhost:3001/api/v1"):
         self.base_url = base_url
         self.access_token = None
@@ -391,7 +391,7 @@ class FiscalAIClient:
         return response.json()
 
 # Usage example
-client = FiscalAIClient()
+client = FinquantaAIClient()
 
 # Register and login
 client.register({
@@ -478,15 +478,15 @@ The API returns standard HTTP status codes and consistent error responses:
 | Environment | Base URL | Description |
 |-------------|----------|-------------|
 | Development | `http://localhost:3001/api/v1` | Local development server |
-| Staging | `https://staging-api.fiscalai.com/v1` | Staging environment |
-| Production | `https://api.fiscalai.com/v1` | Production environment |
+| Staging | `https://staging-api.Finquantaai.com/v1` | Staging environment |
+| Production | `https://api.Finquantaai.com/v1` | Production environment |
 
 ## 📞 Support
 
 For support, please contact:
-- **Email**: support@fiscalai.com
-- **Documentation**: https://docs.fiscalai.com
-- **Issues**: https://github.com/fiscalai/server/issues
+- **Email**: support@Finquantaai.com
+- **Documentation**: https://docs.Finquantaai.com
+- **Issues**: https://github.com/Finquantaai/server/issues
 
 ## 📄 License
 
@@ -494,5 +494,5 @@ This API is licensed under the MIT License. See [LICENSE](../LICENSE) for detail
 
 ---
 
-**Generated with ❤️ using the Fiscal AI Documentation Generator**
+**Generated with ❤️ using the Finquanta AI Documentation Generator**
 *Last updated: January 15, 2024*

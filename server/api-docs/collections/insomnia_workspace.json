@@ -2,18 +2,18 @@
   "_type": "export",
   "__export_format": 4,
   "__export_date": "2024-01-15T10:30:00.000Z",
-  "__export_source": "fiscal-ai-docs-generator",
+  "__export_source": "Finquanta-ai-docs-generator",
   "_resources": [
     {
-      "_id": "wrk_fiscal-ai-server",
+      "_id": "wrk_Finquanta-ai-server",
       "_type": "workspace",
-      "name": "Fiscal AI Server API",
+      "name": "Finquanta AI Server API",
       "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures",
       "workspace": {
-        "name": "Fiscal AI Server API",
+        "name": "Finquanta AI Server API",
         "description": "Comprehensive financial management API for tracking income, expenses, and generating financial insights.\n\n## Features\n- JWT-based authentication system\n- Financial transaction management (CRUD operations)\n- Advanced filtering and search capabilities\n- Financial summary and analytics\n- Real-time WebSocket notifications\n- Comprehensive error handling\n- Rate limiting and security measures",
         "baseEnvironmentId": "env_main",
-        "baseId": "wrk_fiscal-ai-server"
+        "baseId": "wrk_Finquanta-ai-server"
       }
     },
     {
@@ -225,7 +225,7 @@
           ],
           "body": {
             "mimeType": "application/json",
-            "text": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Fiscal AI\"\n  }\n}"
+            "text": "{\n  \"type\": \"income\",\n  \"category\": \"Salary\",\n  \"subcategory\": \"Monthly Salary\",\n  \"amount\": 5000.00,\n  \"description\": \"Monthly salary payment\",\n  \"date\": \"2024-01-15\",\n  \"invoice\": \"INV-2024-001\",\n  \"metadata\": {\n    \"department\": \"Engineering\",\n    \"project\": \"Finquanta AI\"\n  }\n}"
           },
           "description": "Create a new income transaction"
         },

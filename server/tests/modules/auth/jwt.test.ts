@@ -12,11 +12,11 @@ describe('JWTManager', () => {
       expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
     });
 
-    it('should include fiscal-ai issuer and audience claims', () => {
+    it('should include Finquanta-ai issuer and audience claims', () => {
       const token = jwtManager.generateAccessToken(testPayload);
       const decoded = jwtManager.verifyAccessToken(token);
-      expect(decoded.iss).toBe('fiscal-ai');
-      expect(decoded.aud).toBe('fiscal-ai');
+      expect(decoded.iss).toBe('Finquanta-ai');
+      expect(decoded.aud).toBe('Finquanta-ai');
     });
 
     it('should include user payload in token', () => {
@@ -57,11 +57,11 @@ describe('JWTManager', () => {
       expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
     });
 
-    it('should include fiscal-ai issuer and audience claims', () => {
+    it('should include Finquanta-ai issuer and audience claims', () => {
       const token = jwtManager.generateRefreshToken(testPayload);
       const decoded = jwtManager.verifyRefreshToken(token);
-      expect(decoded.iss).toBe('fiscal-ai');
-      expect(decoded.aud).toBe('fiscal-ai');
+      expect(decoded.iss).toBe('Finquanta-ai');
+      expect(decoded.aud).toBe('Finquanta-ai');
     });
 
     it('should include user payload in token', () => {

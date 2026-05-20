@@ -30,7 +30,7 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const response: ApiInfoResponse = {
-      message: 'Fiscal AI API Server',
+      message: 'Finquanta AI API Server',
       version: '1.0.0',
       status: 'running',
     };

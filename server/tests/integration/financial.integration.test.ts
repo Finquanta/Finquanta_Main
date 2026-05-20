@@ -92,7 +92,7 @@ describe('Financial Transaction System Integration', () => {
         .get('/api');
 
       expect(apiResponse.status).toBe(200);
-      expect(apiResponse.body).toHaveProperty('message', 'Fiscal AI API Server');
+      expect(apiResponse.body).toHaveProperty('message', 'Finquanta AI API Server');
     });
 
     it('should handle invalid financial endpoints gracefully', async () => {

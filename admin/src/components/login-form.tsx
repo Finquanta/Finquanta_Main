@@ -7,7 +7,7 @@ import { LoginButton } from '@/components/ui/login-button';
 import Image from 'next/image';
 
 export function LoginForm() {
-  const [email, setEmail] = useState('hello@fiscal.host');
+  const [email, setEmail] = useState('hello@Finquanta.host');
   const [password, setPassword] = useState('******');
 
   const handleLogin = () => {
@@ -21,8 +21,8 @@ export function LoginForm() {
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <Image
-              src="/fiscal-ai-logo.png"
-              alt="FISCAL AI"
+              src="/Finquanta-ai-logo.png"
+              alt="Finquanta AI"
               width={329}
               height={52}
               className="object-contain"
@@ -42,7 +42,7 @@ export function LoginForm() {
             type="email"
             label="Email"
             value={email}
-            placeholder="hello@fiscal.host"
+            placeholder="hello@Finquanta.host"
             onChange={setEmail}
           />
           

@@ -1,4 +1,4 @@
-# Fiscal AI Server Implementation Plan
+# Finquanta AI Server Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -206,7 +206,7 @@ export class Database {
       connectionString: config.connectionString || process.env.DATABASE_URL,
       host: config.host || process.env.DB_HOST || 'localhost',
       port: config.port || parseInt(process.env.DB_PORT || '5432'),
-      database: config.database || process.env.DB_NAME || 'fiscal_ai_test',
+      database: config.database || process.env.DB_NAME || 'Finquanta_ai_test',
       user: config.user || process.env.DB_USER || 'postgres',
       password: config.password || process.env.DB_PASSWORD || 'password',
       max: 20,
@@ -506,24 +506,24 @@ export class JWTManager {
   generateAccessToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
     return jwt.sign(payload, this.accessSecret, {
       expiresIn: this.accessTokenExpiry,
-      issuer: 'fiscal-ai',
-      audience: 'fiscal-ai-client',
+      issuer: 'Finquanta-ai',
+      audience: 'Finquanta-ai-client',
     });
   }
 
   generateRefreshToken(payload: Omit<RefreshTokenPayload, 'iat' | 'exp'>): string {
     return jwt.sign(payload, this.refreshSecret, {
       expiresIn: this.refreshTokenExpiry,
-      issuer: 'fiscal-ai',
-      audience: 'fiscal-ai-client',
+      issuer: 'Finquanta-ai',
+      audience: 'Finquanta-ai-client',
     });
   }
 
   verifyAccessToken(token: string): JWTPayload {
     try {
       return jwt.verify(token, this.accessSecret, {
-        issuer: 'fiscal-ai',
-        audience: 'fiscal-ai-client',
+        issuer: 'Finquanta-ai',
+        audience: 'Finquanta-ai-client',
       }) as JWTPayload;
     } catch (error) {
       throw new Error('Invalid access token');
@@ -533,8 +533,8 @@ export class JWTManager {
   verifyRefreshToken(token: string): RefreshTokenPayload {
     try {
       return jwt.verify(token, this.refreshSecret, {
-        issuer: 'fiscal-ai',
-        audience: 'fiscal-ai-client',
+        issuer: 'Finquanta-ai',
+        audience: 'Finquanta-ai-client',
       }) as RefreshTokenPayload;
     } catch (error) {
       throw new Error('Invalid refresh token');
@@ -2903,7 +2903,7 @@ export class WebSocketManager {
     // Send welcome message
     this.sendMessage(client, {
       type: 'welcome',
-      data: { message: 'Connected to Fiscal AI real-time updates' },
+      data: { message: 'Connected to Finquanta AI real-time updates' },
       timestamp: new Date().toISOString(),
     });
 
@@ -3367,10 +3367,10 @@ This comprehensive implementation plan provides:
 6. **API Standards** - Consistent response formats, error handling, and pagination
 7. **Scalable Design** - Modular monolith that can evolve to microservices
 
-**Plan complete and saved to `docs/plans/2025-10-27-fiscal-ai-server-design.md`. Two execution options:**
+**Plan complete and saved to `docs/plans/2025-10-27-Finquanta-ai-server-design.md`. Two execution options:**
 
 **1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
 
 **2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
 
-Which approach would you prefer for implementing this comprehensive Fiscal AI server?
+Which approach would you prefer for implementing this comprehensive Finquanta AI server?
