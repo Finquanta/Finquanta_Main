@@ -294,7 +294,13 @@ export const useAppState = create<AppState & AppActions>()(
       ...initialState,
 
       // Auth Actions
-      login: ({ token, user, refreshToken }) =>
+      login: ({ token, user, refreshToken }) => {
+        // Persist tokens to localStorage so apiFetch can read them
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', token);
+          if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+          localStorage.setItem('user', JSON.stringify(user));
+        }
         set(() => ({
           isAuthenticated: true,
           accessToken: token,
@@ -305,9 +311,16 @@ export const useAppState = create<AppState & AppActions>()(
           },
           loginAttempts: 0,
           isLoading: false,
-        })),
+        }));
+      },
       
       logout: () => {
+        // Clear persisted tokens
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+        }
         const currentTheme = get().theme;
         const currentDevMode = get().devMode;
         set(() => ({ 
