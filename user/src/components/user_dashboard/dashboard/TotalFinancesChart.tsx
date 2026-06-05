@@ -70,7 +70,7 @@ export default function TotalFinancesChart() {
             />
             <ChartTooltip
               content={<ChartTooltipContent
-                formatter={(value, name) => [`$${value.toLocaleString()}`, chartConfig[name as keyof typeof chartConfig]?.label]}
+                formatter={(value, name) => [`$${(value ?? 0).toLocaleString()}`, chartConfig[name as keyof typeof chartConfig]?.label]}
                 labelFormatter={(label) => `Month: ${label}`}
               />}
             />
