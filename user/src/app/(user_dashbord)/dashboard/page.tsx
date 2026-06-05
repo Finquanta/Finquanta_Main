@@ -311,7 +311,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className={`divide-y ${colors.tableRow}`}>
-                {dashboardData?.latestTransactions.length ? (
+                {dashboardData?.latestTransactions?.length ? (
                   dashboardData.latestTransactions.map((transaction) => (
                     <tr key={transaction.id}>
                       <td className="py-3">{transaction.date}</td>
@@ -336,7 +336,7 @@ export default function DashboardPage() {
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
               <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'totalRevenue')}</h2>
               <p className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData.highlightValue ?? '$0.00'}</p>
-              <p className={`text-xs mb-4 ${colors.text}`}>{dashboardData ? dashboardData.totalFinancesData.year : t('dashboard', 'noDataYet')}</p>
+              <p className={`text-xs mb-4 ${colors.text}`}>{dashboardData?.totalFinancesData?.year ?? t('dashboard', 'noDataYet')}</p>
               <div className="h-24 flex items-end gap-1">
                 {[0, 0, 0, 0, 0, 0, 0].map((h, i) => (
                   <div key={i} className={`flex-1 ${isDark ? 'bg-gray-700' : 'bg-gray-200'} rounded-t`} style={{ height: '10%' }}></div>
@@ -351,7 +351,7 @@ export default function DashboardPage() {
                   {t('dashboard', 'addGoal')}
                 </button>
               </div>
-              {dashboardData?.goalsData.goals.length ? (
+              {dashboardData?.goalsData?.goals?.length ? (
                 <div className="space-y-3">
                   {dashboardData.goalsData.goals.map((goal) => (
                     <div key={goal.id} className={`text-xs ${colors.text}`}>
