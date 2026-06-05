@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import fastifyCors from '@fastify/cors';
 import { config } from '@/config/config';
 import routes from '@/routes';
 
@@ -15,6 +16,14 @@ const server: FastifyInstance = Fastify({
       },
     } : undefined,
   },
+});
+
+// Enable CORS
+server.register(fastifyCors, {
+  origin: config.CORS_ORIGIN.split(',').map(s => s.trim()),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
 server.register(fastifyJwt, {
