@@ -150,7 +150,7 @@ export class WebSocketServer {
       return;
     }
 
-    this.wsServer.on('connection', (ws: ws.WebSocket, req) => {
+    this.wsServer.on('connection', (ws: ws.WebSocket, req: import('http').IncomingMessage) => {
       // Check connection limits
       if (this.manager.getConnectionCount() >= this.options.maxConnections!) {
         ws.close(1013, 'Server overloaded');
@@ -216,13 +216,13 @@ export class WebSocketServer {
         }
       });
 
-      ws.on('error', (error) => {
+      ws.on('error', (error: Error) => {
         clearTimeout(authTimeout);
         console.error(`WebSocket error for connection ${connectionId}:`, error);
       });
     });
 
-    this.wsServer.on('error', (error) => {
+    this.wsServer.on('error', (error: Error) => {
       console.error('WebSocket server error:', error);
     });
 
@@ -306,7 +306,7 @@ export class WebSocketServer {
       }
 
       const clients = this.wsServer.clients;
-      clients.forEach(ws => {
+      clients.forEach((ws: ws.WebSocket) => {
         if (ws.readyState === ws.OPEN) {
           try {
             ws.ping();

@@ -54,7 +54,7 @@ export class JWTManager {
       }) as JWTPayload;
 
       return decoded;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof jwt.JsonWebTokenError) {
         throw new Error(`Invalid access token: ${error.message}`);
       } else if (error instanceof jwt.TokenExpiredError) {
@@ -76,7 +76,7 @@ export class JWTManager {
       }) as JWTPayload;
 
       return decoded;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof jwt.JsonWebTokenError) {
         throw new Error(`Invalid refresh token: ${error.message}`);
       } else if (error instanceof jwt.TokenExpiredError) {

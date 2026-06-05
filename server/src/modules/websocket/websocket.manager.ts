@@ -176,7 +176,7 @@ export class WebSocketManager extends EventEmitter {
     const ws = connection.ws;
 
     // Handle incoming messages
-    ws.on('message', (data) => {
+    ws.on('message', (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
         connection.lastActivity = new Date();
@@ -193,13 +193,13 @@ export class WebSocketManager extends EventEmitter {
     });
 
     // Handle connection close
-    ws.on('close', (code, reason) => {
+    ws.on('close', (code: number, reason: Buffer) => {
       console.log(`WebSocket connection ${connectionId} closed: ${code} ${reason}`);
       this.removeConnection(connectionId);
     });
 
     // Handle connection errors
-    ws.on('error', (error) => {
+    ws.on('error', (error: Error) => {
       console.error(`WebSocket connection ${connectionId} error:`, error);
       this.removeConnection(connectionId);
     });
