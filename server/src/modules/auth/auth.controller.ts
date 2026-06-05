@@ -26,21 +26,11 @@ export class AuthController {
       const result = await this.authService.register(userData);
       return reply.status(201).send(result);
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'Email already exists') {
-          return reply.status(409).send({
-            error: error.message
-          });
-        }
-        if (error.message.includes('Password must')) {
-          return reply.status(400).send({
-            error: error.message
-          });
-        }
-      }
-
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('REGISTER ERROR:', msg);
       return reply.status(500).send({
-        error: 'Internal server error'
+        error: 'Internal server error',
+        detail: msg
       });
     }
   }

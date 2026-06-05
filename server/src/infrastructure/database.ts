@@ -44,8 +44,8 @@ export class Database {
   }
 
   async query(text: string, params?: any[]): Promise<any> {
-    if (!this.pool || !this.connected) {
-      throw new Error('Database not connected');
+    if (!this.pool) {
+      throw new Error('Database pool not initialized');
     }
 
     const result = await this.pool.query(text, params);
@@ -53,8 +53,8 @@ export class Database {
   }
 
   async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    if (!this.pool || !this.connected) {
-      throw new Error('Database not connected');
+    if (!this.pool) {
+      throw new Error('Database pool not initialized');
     }
 
     const client = await this.pool.connect();

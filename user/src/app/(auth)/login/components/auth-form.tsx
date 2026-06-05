@@ -71,15 +71,15 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       if (res.ok) {
         const data = await res.json();
         auth.login({
-          token: data.access,
-          refreshToken: data.refresh,
+          token: data.accessToken,
+          refreshToken: data.refreshToken,
           user: {
             id: data.user.id,
-            name: data.user.name || data.user.username,
+            name: `${data.user.firstName ?? ''} ${data.user.lastName ?? ''}`.trim() || data.user.email,
             email: data.user.email,
             role: data.user.role || 'user',
-            avatarUrl: data.user.avatar_url,
-            createdAt: new Date(data.user.created_at),
+            avatarUrl: data.user.avatarUrl,
+            createdAt: data.user.createdAt ? new Date(data.user.createdAt) : new Date(),
             lastLoginAt: new Date(),
             preferences: {
               notifications: data.user.preferences?.notifications ?? true,
@@ -88,7 +88,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             }
           }
         });
-        ui.toast("success", `Welcome back, ${data.user.name || data.user.username}!`, 4000);
+        ui.toast("success", `Welcome back, ${data.user.firstName || data.user.email}!`, 4000);
         router.push('/dashboard');
       } else {
         const demoUsers = [

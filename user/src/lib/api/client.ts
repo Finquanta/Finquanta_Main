@@ -1,0 +1,113 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+export function serverApiUrl(path: string): string {
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/**
+ * Attempt to refresh the JWT access token using the stored refresh token.
+ * Returns true if the refresh succeeded, false otherwise.
+ */
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('refreshToken')
+      : null;
+
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(serverApiUrl('/v1/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Clear stored auth tokens and redirect to login page.
+ */
+function clearAuthAndRedirect(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
+
+/**
+ * Authenticated fetch wrapper.
+ * Reads the JWT access token from localStorage and attaches it as
+ * an Authorization header. On 401, attempts a silent token refresh
+ * and retries the request once before giving up.
+ */
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('accessToken')
+      : null;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> | undefined),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(serverApiUrl(path), {
+    ...options,
+    headers,
+  });
+
+  // Token expired — attempt a silent refresh and retry once
+  if (res.status === 401 && token) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      // Retry with the new token
+      const newToken = localStorage.getItem('accessToken');
+      headers['Authorization'] = `Bearer ${newToken}`;
+
+      const retryRes = await fetch(serverApiUrl(path), {
+        ...options,
+        headers,
+      });
+
+      if (retryRes.ok) {
+        return retryRes.json() as Promise<T>;
+      }
+
+      // If retry still fails with 401, force re-login
+      if (retryRes.status === 401) {
+        clearAuthAndRedirect();
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      throw new Error(`API error: ${retryRes.status} ${retryRes.statusText}`);
+    }
+
+    // Refresh failed — force re-login
+    clearAuthAndRedirect();
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json() as Promise<T>;
+}

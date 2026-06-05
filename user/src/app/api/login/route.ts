@@ -8,7 +8,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const response = await fetch(serverApiUrl('/auth/login'), {
+  const response = await fetch(serverApiUrl('/v1/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(await request.json())
