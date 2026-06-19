@@ -83,12 +83,16 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
 
     setSaving(true);
     try {
-      const saved = editing
-        ? await updateTransaction(editing.id, payload)
-        : await createTransaction(payload);
-
-      if (receiptFile) {
-        await uploadReceipt(saved.id, receiptFile);
+      if (editing) {
+        // The id is already known, so save the fields and upload the file at the
+        // same time instead of waiting for one then the other.
+        await Promise.all([
+          updateTransaction(editing.id, payload),
+          ...(receiptFile ? [uploadReceipt(editing.id, receiptFile)] : []),
+        ]);
+      } else {
+        const saved = await createTransaction(payload);
+        if (receiptFile) await uploadReceipt(saved.id, receiptFile);
       }
 
       onSaved?.();
