@@ -36,6 +36,8 @@ export interface DashboardOverviewResponse {
     detail: string;
     price: number;
     amount: number;
+    recurrence: string;
+    hasReceipt: boolean;
   }[];
 }
 

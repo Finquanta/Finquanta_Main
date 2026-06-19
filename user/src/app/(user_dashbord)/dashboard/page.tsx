@@ -2,13 +2,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw } from 'lucide-react';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/lib/api/dashboard';
-import { deleteTransaction, createTransaction } from '@/lib/api/transactions';
+import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
@@ -165,8 +165,19 @@ export default function DashboardPage() {
       invoiceAmount: String(Math.abs(tx.price)),
       invoiceType: tx.type === 'Expense' ? 'Expense' : 'Cashflow',
       dateOfInvoice: tx.date,
+      recurrence: (tx.recurrence as Recurrence) ?? 'once',
+      hasReceipt: tx.hasReceipt,
     });
     setBookkeepingModalOpen(true);
+  };
+
+  const viewReceipt = async (id: string) => {
+    try {
+      const url = await getReceiptObjectUrl(id);
+      window.open(url, '_blank');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not open receipt.');
+    }
   };
   const handleDeleteTransaction = async (tx: DashboardOverviewResponse['latestTransactions'][number]) => {
     try {
@@ -192,6 +203,7 @@ export default function DashboardPage() {
         description: entry.detail || undefined,
         amount: Math.abs(entry.price),
         date: entry.date,
+        recurrence: (entry.recurrence as Recurrence) ?? 'once',
       });
       setRecentlyDeleted((prev) => {
         const next = prev.filter((e) => e.deletedAt !== entry.deletedAt);
@@ -547,12 +559,25 @@ export default function DashboardPage() {
                   dashboardData.latestTransactions.map((transaction) => (
                     <tr key={transaction.id} className="group">
                       <td className="py-3">{transaction.date}</td>
-                      <td className="py-3">{transaction.type}</td>
+                      <td className="py-3">
+                        <span>{transaction.type}</span>
+                        {transaction.recurrence && transaction.recurrence !== 'once' && (
+                          <span className={`ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-blue-50 text-blue-600'}`}>
+                            <RefreshCw className="h-2.5 w-2.5" />
+                            {t('dashboard', transaction.recurrence === 'monthly' ? 'recurrenceMonthly' : 'recurrenceYearly')}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3">{transaction.detail}</td>
                       <td className="py-3">${transaction.price.toFixed(2)}</td>
                       <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
                       <td className="py-3 text-right">
                         <div className="flex items-center justify-end gap-3">
+                          {transaction.hasReceipt && (
+                            <button onClick={() => viewReceipt(transaction.id)} className="text-gray-500 hover:text-gray-700" title={t('dashboard', 'viewReceipt')}>
+                              <Paperclip className="h-4 w-4" />
+                            </button>
+                          )}
                           <button onClick={() => openEditBookkeeping(transaction)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <Pencil className="h-4 w-4" />
                           </button>

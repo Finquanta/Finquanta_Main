@@ -1,6 +1,6 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { createTransaction, updateTransaction } from '@/lib/api/transactions';
+import React, { useEffect, useRef, useState } from 'react';
+import { createTransaction, updateTransaction, uploadReceipt, Recurrence } from '@/lib/api/transactions';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export interface BookkeepingEditing {
@@ -10,6 +10,8 @@ export interface BookkeepingEditing {
   invoiceAmount: string;
   invoiceType: 'Cashflow' | 'Expense';
   dateOfInvoice: string;
+  recurrence: Recurrence;
+  hasReceipt: boolean;
 }
 
 interface BookkeepingModalProps {
@@ -25,18 +27,38 @@ const emptyForm = {
   invoiceAmount: '',
   invoiceType: 'Cashflow',
   dateOfInvoice: '',
+  recurrence: 'once' as Recurrence,
 };
+
+const RECURRENCES: { value: Recurrence; key: string }[] = [
+  { value: 'once', key: 'recurrenceOnce' },
+  { value: 'monthly', key: 'recurrenceMonthly' },
+  { value: 'yearly', key: 'recurrenceYearly' },
+];
 
 export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: BookkeepingModalProps) {
   const { t } = useLanguage();
   const [form, setForm] = useState(emptyForm);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setError(null);
-      setForm(editing ? { ...editing } : emptyForm);
+      setReceiptFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setForm(editing
+        ? {
+            invoiceName: editing.invoiceName,
+            invoiceDescription: editing.invoiceDescription,
+            invoiceAmount: editing.invoiceAmount,
+            invoiceType: editing.invoiceType,
+            dateOfInvoice: editing.dateOfInvoice,
+            recurrence: editing.recurrence ?? 'once',
+          }
+        : emptyForm);
     }
   }, [isOpen, editing]);
 
@@ -56,15 +78,19 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
       description: form.invoiceDescription.trim() || form.invoiceName.trim(),
       amount,
       date: form.dateOfInvoice,
+      recurrence: form.recurrence,
     };
 
     setSaving(true);
     try {
-      if (editing) {
-        await updateTransaction(editing.id, payload);
-      } else {
-        await createTransaction(payload);
+      const saved = editing
+        ? await updateTransaction(editing.id, payload)
+        : await createTransaction(payload);
+
+      if (receiptFile) {
+        await uploadReceipt(saved.id, receiptFile);
       }
+
       onSaved?.();
       onClose();
     } catch (e) {
@@ -76,7 +102,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#1a1a2e] text-white rounded-2xl p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#1a1a2e] text-white rounded-2xl p-8 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold mb-6">{editing ? t('dashboard', 'editBookkeeping') : t('dashboard', 'enterBookkeeping')}</h2>
 
         <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceNameLabel')}</label>
@@ -102,9 +128,36 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
           ))}
         </div>
 
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'recurrenceLabel')}</label>
+        <div className="flex gap-2 mb-4">
+          {RECURRENCES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => setForm({ ...form, recurrence: r.value })}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold ${form.recurrence === r.value ? 'bg-blue-500 text-white' : 'bg-[#2a2a3e] text-gray-300'}`}
+            >
+              {t('dashboard', r.key)}
+            </button>
+          ))}
+        </div>
+
         <label className="block text-sm font-semibold mb-1">{t('dashboard', 'dateOfInvoiceLabel')}</label>
         <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" type="date"
           value={form.dateOfInvoice} onChange={(e) => setForm({ ...form, dateOfInvoice: e.target.value })} />
+
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'receiptLabel')}</label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,image/png,image/jpeg,image/webp"
+          onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+          className="w-full text-xs mb-2 text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white file:cursor-pointer"
+        />
+        {editing?.hasReceipt && !receiptFile && (
+          <p className="text-xs text-gray-400 mb-4">{t('dashboard', 'receiptAttached')}</p>
+        )}
+        {!editing?.hasReceipt && <div className="mb-2" />}
 
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 

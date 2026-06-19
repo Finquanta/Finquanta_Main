@@ -323,6 +323,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Target", targetPlaceholder: "e.g. 1 for a yes/no goal, 10 for 10 sales, 5000 to save 5000", progressLabel: "Progress so far",
     errGoalName: "Please enter a goal name.", errTarget: "Please enter a target amount greater than 0.", errProgress: "Progress cannot be negative.",
     genericError: "Something went wrong. Please try again.",
+    recurrenceLabel: "Recurrence", recurrenceOnce: "One-time", recurrenceMonthly: "Monthly", recurrenceYearly: "Yearly",
+    receiptLabel: "Receipt (PDF/image)", receiptAttached: "A receipt is attached. Choose a file to replace it.", viewReceipt: "View receipt",
   },
   nl: {
     finquantaId: "Finquanta-ID", yourName: "Uw naam", editNameTitle: "Klik om uw naam te bewerken",
@@ -339,6 +341,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Doelwaarde", targetPlaceholder: "bijv. 1 voor een ja/nee-doel, 10 voor 10 verkopen, 5000 om 5000 te sparen", progressLabel: "Voortgang tot nu toe",
     errGoalName: "Voer een doelnaam in.", errTarget: "Voer een doelwaarde groter dan 0 in.", errProgress: "Voortgang kan niet negatief zijn.",
     genericError: "Er is iets misgegaan. Probeer het opnieuw.",
+    recurrenceLabel: "Herhaling", recurrenceOnce: "Eenmalig", recurrenceMonthly: "Maandelijks", recurrenceYearly: "Jaarlijks",
+    receiptLabel: "Bon (PDF/afbeelding)", receiptAttached: "Er is een bon bijgevoegd. Kies een bestand om te vervangen.", viewReceipt: "Bon bekijken",
   },
   de: {
     finquantaId: "Finquanta-ID", yourName: "Ihr Name", editNameTitle: "Klicken, um Ihren Namen zu bearbeiten",
@@ -355,6 +359,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Zielwert", targetPlaceholder: "z. B. 1 für ein Ja/Nein-Ziel, 10 für 10 Verkäufe, 5000 um 5000 zu sparen", progressLabel: "Bisheriger Fortschritt",
     errGoalName: "Bitte geben Sie einen Zielnamen ein.", errTarget: "Bitte geben Sie einen Zielwert größer als 0 ein.", errProgress: "Fortschritt darf nicht negativ sein.",
     genericError: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    recurrenceLabel: "Wiederholung", recurrenceOnce: "Einmalig", recurrenceMonthly: "Monatlich", recurrenceYearly: "Jährlich",
+    receiptLabel: "Beleg (PDF/Bild)", receiptAttached: "Ein Beleg ist angehängt. Wählen Sie eine Datei zum Ersetzen.", viewReceipt: "Beleg ansehen",
   },
   fr: {
     finquantaId: "ID Finquanta", yourName: "Votre nom", editNameTitle: "Cliquez pour modifier votre nom",
@@ -371,6 +377,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Cible", targetPlaceholder: "ex. 1 pour un objectif oui/non, 10 pour 10 ventes, 5000 pour économiser 5000", progressLabel: "Progression à ce jour",
     errGoalName: "Veuillez saisir un nom d'objectif.", errTarget: "Veuillez saisir une cible supérieure à 0.", errProgress: "La progression ne peut pas être négative.",
     genericError: "Une erreur s'est produite. Veuillez réessayer.",
+    recurrenceLabel: "Récurrence", recurrenceOnce: "Ponctuel", recurrenceMonthly: "Mensuel", recurrenceYearly: "Annuel",
+    receiptLabel: "Reçu (PDF/image)", receiptAttached: "Un reçu est joint. Choisissez un fichier pour le remplacer.", viewReceipt: "Voir le reçu",
   },
   es: {
     finquantaId: "ID de Finquanta", yourName: "Tu nombre", editNameTitle: "Haz clic para editar tu nombre",
@@ -387,6 +395,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Meta", targetPlaceholder: "ej. 1 para un objetivo sí/no, 10 para 10 ventas, 5000 para ahorrar 5000", progressLabel: "Progreso hasta ahora",
     errGoalName: "Ingresa un nombre de objetivo.", errTarget: "Ingresa una meta mayor que 0.", errProgress: "El progreso no puede ser negativo.",
     genericError: "Algo salió mal. Inténtalo de nuevo.",
+    recurrenceLabel: "Recurrencia", recurrenceOnce: "Una vez", recurrenceMonthly: "Mensual", recurrenceYearly: "Anual",
+    receiptLabel: "Recibo (PDF/imagen)", receiptAttached: "Ya hay un recibo adjunto. Elige un archivo para reemplazarlo.", viewReceipt: "Ver recibo",
   },
   pt: {
     finquantaId: "ID Finquanta", yourName: "Seu nome", editNameTitle: "Clique para editar seu nome",
@@ -403,6 +413,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Alvo", targetPlaceholder: "ex. 1 para uma meta sim/não, 10 para 10 vendas, 5000 para economizar 5000", progressLabel: "Progresso até agora",
     errGoalName: "Insira um nome de meta.", errTarget: "Insira um alvo maior que 0.", errProgress: "O progresso não pode ser negativo.",
     genericError: "Algo deu errado. Tente novamente.",
+    recurrenceLabel: "Recorrência", recurrenceOnce: "Única", recurrenceMonthly: "Mensal", recurrenceYearly: "Anual",
+    receiptLabel: "Recibo (PDF/imagem)", receiptAttached: "Um recibo está anexado. Escolha um arquivo para substituir.", viewReceipt: "Ver recibo",
   },
   ar: {
     finquantaId: "معرّف Finquanta", yourName: "اسمك", editNameTitle: "انقر لتعديل اسمك",
@@ -419,6 +431,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "المستهدف", targetPlaceholder: "مثال: 1 لهدف نعم/لا، 10 لـ 10 مبيعات، 5000 لتوفير 5000", progressLabel: "التقدم حتى الآن",
     errGoalName: "يرجى إدخال اسم الهدف.", errTarget: "يرجى إدخال مستهدف أكبر من 0.", errProgress: "لا يمكن أن يكون التقدم سالبا.",
     genericError: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    recurrenceLabel: "التكرار", recurrenceOnce: "مرة واحدة", recurrenceMonthly: "شهري", recurrenceYearly: "سنوي",
+    receiptLabel: "إيصال (PDF/صورة)", receiptAttached: "تم إرفاق إيصال. اختر ملفا لاستبداله.", viewReceipt: "عرض الإيصال",
   },
   zh: {
     finquantaId: "Finquanta ID", yourName: "您的姓名", editNameTitle: "点击编辑您的姓名",
@@ -435,6 +449,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "目标值", targetPlaceholder: "例如：是/否目标填1，10笔销售填10，存5000填5000", progressLabel: "目前进度",
     errGoalName: "请输入目标名称。", errTarget: "请输入大于0的目标值。", errProgress: "进度不能为负。",
     genericError: "出了点问题。请重试。",
+    recurrenceLabel: "重复", recurrenceOnce: "一次性", recurrenceMonthly: "每月", recurrenceYearly: "每年",
+    receiptLabel: "收据（PDF/图片）", receiptAttached: "已附加收据。选择文件以替换。", viewReceipt: "查看收据",
   },
   ja: {
     finquantaId: "Finquanta ID", yourName: "お名前", editNameTitle: "クリックして名前を編集",
@@ -451,6 +467,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "目標値", targetPlaceholder: "例：はい/いいえの目標は1、10件の販売は10、5000を貯めるなら5000", progressLabel: "これまでの進捗",
     errGoalName: "目標名を入力してください。", errTarget: "0より大きい目標値を入力してください。", errProgress: "進捗をマイナスにはできません。",
     genericError: "問題が発生しました。もう一度お試しください。",
+    recurrenceLabel: "繰り返し", recurrenceOnce: "1回のみ", recurrenceMonthly: "毎月", recurrenceYearly: "毎年",
+    receiptLabel: "領収書（PDF/画像）", receiptAttached: "領収書が添付されています。置き換えるファイルを選択してください。", viewReceipt: "領収書を見る",
   },
   ru: {
     finquantaId: "ID Finquanta", yourName: "Ваше имя", editNameTitle: "Нажмите, чтобы изменить имя",
@@ -467,6 +485,8 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     targetLabel: "Цель (значение)", targetPlaceholder: "напр. 1 для цели да/нет, 10 для 10 продаж, 5000 чтобы накопить 5000", progressLabel: "Текущий прогресс",
     errGoalName: "Введите название цели.", errTarget: "Введите значение больше 0.", errProgress: "Прогресс не может быть отрицательным.",
     genericError: "Что-то пошло не так. Повторите попытку.",
+    recurrenceLabel: "Повторение", recurrenceOnce: "Разово", recurrenceMonthly: "Ежемесячно", recurrenceYearly: "Ежегодно",
+    receiptLabel: "Чек (PDF/изображение)", receiptAttached: "Чек прикреплён. Выберите файл для замены.", viewReceipt: "Посмотреть чек",
   },
 };
 
