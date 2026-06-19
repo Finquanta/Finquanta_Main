@@ -343,9 +343,9 @@ export default function DashboardPage() {
                     onChange={(e) => setNameDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
                     className={`text-sm font-medium rounded px-2 py-0.5 w-40 outline-none border ${colors.input}`}
-                    placeholder="Your name"
+                    placeholder={t('dashboard', 'yourName')}
                   />
-                  <button onClick={saveName} className="text-green-500 hover:text-green-600" title="Save name">
+                  <button onClick={saveName} className="text-green-500 hover:text-green-600" title={t('dashboard', 'saveChanges')}>
                     <Check className="h-4 w-4" />
                   </button>
                 </div>
@@ -353,14 +353,14 @@ export default function DashboardPage() {
                 <button
                   onClick={startEditName}
                   className={`group flex items-center gap-1 text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}
-                  title="Click to edit your name"
+                  title={t('dashboard', 'editNameTitle')}
                 >
                   {displayName}
                   <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60" />
                 </button>
               )}
             </div>
-            <span className={`text-sm ${colors.text}`}>Finquanta ID: {accountId}</span>
+            <span className={`text-sm ${colors.text}`}>{t('dashboard', 'finquantaId')}: {accountId}</span>
           </div>
 
           {/* Right */}
@@ -524,9 +524,9 @@ export default function DashboardPage() {
             {/* Undo banner shown right after a delete */}
             {lastUndo && (
               <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 mb-3 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
-                <span>Deleted “{lastUndo.detail}”.</span>
+                <span>{t('dashboard', 'deleted')} “{lastUndo.detail}”.</span>
                 <button onClick={() => restoreTransaction(lastUndo)} className="font-semibold text-blue-500 hover:text-blue-700">
-                  Undo
+                  {t('dashboard', 'undo')}
                 </button>
               </div>
             )}
@@ -579,11 +579,11 @@ export default function DashboardPage() {
                     onClick={() => setShowRecentlyDeleted((v) => !v)}
                     className={`text-xs font-medium ${colors.text} hover:underline`}
                   >
-                    Recently deleted ({recentlyDeleted.length}) {showRecentlyDeleted ? '▲' : '▼'}
+                    {t('dashboard', 'recentlyDeleted')} ({recentlyDeleted.length}) {showRecentlyDeleted ? '▲' : '▼'}
                   </button>
                   {showRecentlyDeleted && (
                     <button onClick={clearRecentlyDeleted} className={`text-xs ${colors.subtext} hover:underline`}>
-                      Clear
+                      {t('dashboard', 'clear')}
                     </button>
                   )}
                 </div>
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                           {entry.date} · {entry.type} · {entry.detail} · ${Math.abs(entry.price).toFixed(2)}
                         </span>
                         <button onClick={() => restoreTransaction(entry)} className="font-semibold text-blue-500 hover:text-blue-700 ml-3">
-                          Restore
+                          {t('dashboard', 'restore')}
                         </button>
                       </div>
                     ))}
@@ -627,7 +627,7 @@ export default function DashboardPage() {
                     onClick={() => setActiveCardTab('reminders')}
                     className={`px-2 py-1 rounded-lg transition-colors ${activeCardTab === 'reminders' ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900') : colors.subtext}`}
                   >
-                    Reminders
+                    {t('dashboard', 'reminders')}
                   </button>
                 </div>
                 {activeCardTab === 'goals' ? (
@@ -673,7 +673,7 @@ export default function DashboardPage() {
                       value={reminderText}
                       onChange={(e) => setReminderText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') addReminder(); }}
-                      placeholder="Add a reminder…"
+                      placeholder={t('dashboard', 'addReminderPlaceholder')}
                       className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`}
                     />
                     <input
@@ -682,7 +682,7 @@ export default function DashboardPage() {
                       onChange={(e) => setReminderDate(e.target.value)}
                       className={`text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`}
                     />
-                    <button onClick={addReminder} className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600">Add</button>
+                    <button onClick={addReminder} className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600">{t('dashboard', 'add')}</button>
                   </div>
                   {reminders.length ? (
                     <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -698,7 +698,7 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className={`text-xs text-center py-6 ${colors.text}`}>No reminders yet. Add one above.</p>
+                    <p className={`text-xs text-center py-6 ${colors.text}`}>{t('dashboard', 'noReminders')}</p>
                   )}
                 </div>
               )}
@@ -730,22 +730,22 @@ export default function DashboardPage() {
             >
               x
             </button>
-            <h2 className="text-xl font-bold mb-2">How are your goals going?</h2>
+            <h2 className="text-xl font-bold mb-2">{t('dashboard', 'goalPromptTitle')}</h2>
             <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              You haven&apos;t updated your goals in a while. Want to log your progress?
+              {t('dashboard', 'goalPromptBody')}
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => { dismissGoalPrompt(); const first = dashboardData?.goalsData?.goals?.[0]; if (first) openEditGoal(first); }}
                 className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-2.5 rounded-lg text-sm"
               >
-                Update goals
+                {t('dashboard', 'updateGoals')}
               </button>
               <button
                 onClick={dismissGoalPrompt}
                 className={`px-6 py-2.5 rounded-lg text-sm font-medium border ${colors.buttonBg}`}
               >
-                Later
+                {t('dashboard', 'later')}
               </button>
             </div>
           </div>

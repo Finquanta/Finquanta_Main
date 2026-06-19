@@ -4,11 +4,12 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { getRevenue, RevenueRange, RevenuePoint } from '@/lib/api/dashboard';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
-const RANGES: { key: RevenueRange; label: string }[] = [
-  { key: 'day', label: 'Day' },
-  { key: 'month', label: 'Month' },
-  { key: 'year', label: 'Year' },
+const RANGES: { key: RevenueRange; labelKey: string }[] = [
+  { key: 'day', labelKey: 'rangeDay' },
+  { key: 'month', labelKey: 'rangeMonth' },
+  { key: 'year', labelKey: 'rangeYear' },
 ];
 
 const COLOR = '#3b82f6';
@@ -27,6 +28,7 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export default function RevenueChart({ isDark }: { isDark: boolean }) {
+  const { t } = useLanguage();
   const [range, setRange] = useState<RevenueRange>('month');
   const [points, setPoints] = useState<RevenuePoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,14 +61,14 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
                 : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {r.label}
+            {t('dashboard', r.labelKey)}
           </button>
         ))}
       </div>
 
       <div className="h-40">
         {loading ? (
-          <div className={`h-full flex items-center justify-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading…</div>
+          <div className={`h-full flex items-center justify-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'loading')}</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             {range === 'day' ? (

@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { createTransaction, updateTransaction } from '@/lib/api/transactions';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export interface BookkeepingEditing {
   id: string;
@@ -27,6 +28,7 @@ const emptyForm = {
 };
 
 export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: BookkeepingModalProps) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,9 +46,9 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
     setError(null);
 
     const amount = Number(form.invoiceAmount);
-    if (!form.invoiceName.trim()) return setError('Please enter an invoice name.');
-    if (!Number.isFinite(amount) || amount <= 0) return setError('Please enter an amount greater than 0.');
-    if (!form.dateOfInvoice) return setError('Please choose a date.');
+    if (!form.invoiceName.trim()) return setError(t('dashboard', 'errInvoiceName'));
+    if (!Number.isFinite(amount) || amount <= 0) return setError(t('dashboard', 'errAmount'));
+    if (!form.dateOfInvoice) return setError(t('dashboard', 'errDate'));
 
     const payload = {
       type: (form.invoiceType === 'Cashflow' ? 'income' : 'expense') as 'income' | 'expense',
@@ -66,7 +68,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
       onSaved?.();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      setError(e instanceof Error ? e.message : t('dashboard', 'genericError'));
     } finally {
       setSaving(false);
     }
@@ -75,32 +77,32 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#1a1a2e] text-white rounded-2xl p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-6">{editing ? 'Edit Bookkeeping Data' : 'Enter Bookkeeping Data'}</h2>
+        <h2 className="text-2xl font-bold mb-6">{editing ? t('dashboard', 'editBookkeeping') : t('dashboard', 'enterBookkeeping')}</h2>
 
-        <label className="block text-sm font-semibold mb-1">Invoice Name</label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder="Invoice Here"
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceNameLabel')}</label>
+        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder={t('dashboard', 'invoiceNamePlaceholder')}
           value={form.invoiceName} onChange={(e) => setForm({ ...form, invoiceName: e.target.value })} />
 
-        <label className="block text-sm font-semibold mb-1">Invoice Description</label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder="Text Here"
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceDescriptionLabel')}</label>
+        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder={t('dashboard', 'invoiceDescriptionPlaceholder')}
           value={form.invoiceDescription} onChange={(e) => setForm({ ...form, invoiceDescription: e.target.value })} />
 
-        <label className="block text-sm font-semibold mb-1">Invoice Amount</label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder="Enter Value" type="number"
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceAmountLabel')}</label>
+        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder={t('dashboard', 'enterValue')} type="number"
           value={form.invoiceAmount} onChange={(e) => setForm({ ...form, invoiceAmount: e.target.value })} />
 
-        <label className="block text-sm font-semibold mb-2">Invoice Type</label>
+        <label className="block text-sm font-semibold mb-2">{t('dashboard', 'invoiceTypeLabel')}</label>
         <div className="flex flex-col gap-2 mb-4">
-          {['Cashflow', 'Expense'].map((type) => (
+          {(['Cashflow', 'Expense'] as const).map((type) => (
             <label key={type} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="invoiceType" value={type} checked={form.invoiceType === type}
                 onChange={(e) => setForm({ ...form, invoiceType: e.target.value })} />
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${type === 'Cashflow' ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'}`}>{type}</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${type === 'Cashflow' ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'}`}>{t('dashboard', type === 'Cashflow' ? 'cashflow' : 'expense')}</span>
             </label>
           ))}
         </div>
 
-        <label className="block text-sm font-semibold mb-1">Date of Invoice</label>
+        <label className="block text-sm font-semibold mb-1">{t('dashboard', 'dateOfInvoiceLabel')}</label>
         <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" type="date"
           value={form.dateOfInvoice} onChange={(e) => setForm({ ...form, dateOfInvoice: e.target.value })} />
 
@@ -109,7 +111,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
         <button disabled={saving}
           className="w-full bg-[#4CAF50] hover:bg-[#45a049] disabled:opacity-60 text-white font-bold py-3 rounded-full"
           onClick={handleSubmit}>
-          {saving ? 'Saving…' : editing ? 'Save Changes' : 'Enter Data'}
+          {saving ? t('dashboard', 'saving') : editing ? t('dashboard', 'saveChanges') : t('dashboard', 'enterData')}
         </button>
       </div>
     </div>
