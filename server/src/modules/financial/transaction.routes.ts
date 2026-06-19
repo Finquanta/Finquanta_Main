@@ -94,7 +94,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' }
+            data: { type: 'object', additionalProperties: true }
           }
         },
         400: {
@@ -149,7 +149,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' }
+            data: { type: 'object', additionalProperties: true }
           }
         },
         404: {
@@ -179,7 +179,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' }
+            data: { type: 'object', additionalProperties: true }
           }
         },
         404: {
