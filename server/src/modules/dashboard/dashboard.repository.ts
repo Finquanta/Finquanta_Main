@@ -225,7 +225,8 @@ export class DashboardRepository {
       // row.date may be a Date object (pg) or a string; normalise to YYYY-MM-DD
       date: new Date(row.date).toISOString().slice(0, 10),
       type: row.type === 'expense' ? 'Expense' : 'Cashflow',
-      detail: row.description ?? row.category,
+      name: row.category,
+      detail: row.description ?? '',
       invoice: row.invoice ?? null,
       price: Number.parseFloat(row.amount),
       amount: row.type === 'expense' ? -Number.parseFloat(row.amount) : Number.parseFloat(row.amount),

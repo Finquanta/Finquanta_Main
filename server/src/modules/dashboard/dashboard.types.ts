@@ -61,6 +61,7 @@ export interface LatestTransaction {
   id: string;
   date: string;
   type: string;
+  name: string;
   detail: string;
   invoice: string | null;
   price: number;
