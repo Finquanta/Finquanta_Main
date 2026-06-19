@@ -35,6 +35,23 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 /**
+ * Backend success responses are wrapped as { success: true, data: <payload> }.
+ * Frontend callers expect the payload directly, so unwrap the envelope when
+ * present while tolerating already-unwrapped responses.
+ */
+function unwrapEnvelope<T>(json: unknown): T {
+  if (
+    json !== null &&
+    typeof json === 'object' &&
+    'success' in json &&
+    'data' in json
+  ) {
+    return (json as { data: T }).data;
+  }
+  return json as T;
+}
+
+/**
  * Clear stored auth tokens and redirect to login page.
  */
 function clearAuthAndRedirect(): void {
@@ -88,7 +105,7 @@ export async function apiFetch<T>(
       });
 
       if (retryRes.ok) {
-        return retryRes.json() as Promise<T>;
+        return unwrapEnvelope<T>(await retryRes.json());
       }
 
       // If retry still fails with 401, force re-login
@@ -109,5 +126,5 @@ export async function apiFetch<T>(
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
 
-  return res.json() as Promise<T>;
+  return unwrapEnvelope<T>(await res.json());
 }

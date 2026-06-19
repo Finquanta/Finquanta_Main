@@ -277,8 +277,9 @@ export default function DashboardPage() {
               { label: t('dashboard', 'cashflow'), value: '$0.00' },
               { label: t('dashboard', 'expense'), value: '$0.00' },
             ].map((fallback, i) => {
-              const item = dashboardData?.summaryCards[i]
-                ? { label: dashboardData.summaryCards[i].title, value: dashboardData.summaryCards[i].amount }
+              const card = dashboardData?.summaryCards?.[i];
+              const item = card
+                ? { label: card.title, value: card.amount }
                 : fallback;
               return (
               <div key={i} className={`${colors.card} rounded-xl p-4 shadow-sm`}>
@@ -335,7 +336,7 @@ export default function DashboardPage() {
             {/* Total Revenue */}
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
               <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'totalRevenue')}</h2>
-              <p className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData.highlightValue ?? '$0.00'}</p>
+              <p className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData?.highlightValue ?? '$0.00'}</p>
               <p className={`text-xs mb-4 ${colors.text}`}>{dashboardData?.totalFinancesData?.year ?? t('dashboard', 'noDataYet')}</p>
               <div className="h-24 flex items-end gap-1">
                 {[0, 0, 0, 0, 0, 0, 0].map((h, i) => (
