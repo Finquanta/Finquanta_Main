@@ -35,6 +35,21 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 /**
+ * Build an Error from a failed response, preferring the backend's own error
+ * message ({ error } or { message }) over the bare status code.
+ */
+async function errorFromResponse(res: Response): Promise<Error> {
+  try {
+    const body = await res.json();
+    const message = body?.error || body?.message;
+    if (message) return new Error(message);
+  } catch {
+    /* response had no/invalid JSON body */
+  }
+  return new Error(`API error: ${res.status} ${res.statusText}`);
+}
+
+/**
  * Backend success responses are wrapped as { success: true, data: <payload> }.
  * Frontend callers expect the payload directly, so unwrap the envelope when
  * present while tolerating already-unwrapped responses.
@@ -114,7 +129,7 @@ export async function apiFetch<T>(
         throw new Error('Session expired. Please log in again.');
       }
 
-      throw new Error(`API error: ${retryRes.status} ${retryRes.statusText}`);
+      throw await errorFromResponse(retryRes);
     }
 
     // Refresh failed — force re-login
@@ -123,7 +138,7 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    throw await errorFromResponse(res);
   }
 
   return unwrapEnvelope<T>(await res.json());

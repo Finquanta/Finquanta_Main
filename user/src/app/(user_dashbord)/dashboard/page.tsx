@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/lib/api/dashboard';
 import { deleteTransaction } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
+import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 
 const GOAL_PROMPT_DISMISSED_KEY = 'goalPromptDismissedAt';
 const GOAL_STALE_DAYS = 7;
@@ -55,6 +56,42 @@ export default function DashboardPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [goalPromptOpen, setGoalPromptOpen] = useState(false);
+
+  // Goals/Reminders rotating card
+  const [activeCardTab, setActiveCardTab] = useState<'goals' | 'reminders'>('goals');
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [reminderText, setReminderText] = useState('');
+  const [reminderDate, setReminderDate] = useState('');
+
+  const loadReminders = useCallback(() => {
+    return getReminders().then(setReminders).catch(() => setReminders([]));
+  }, []);
+  useEffect(() => { loadReminders(); }, [loadReminders]);
+
+  // Auto-rotate between Goals and Reminders every 10s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActiveCardTab((tab) => (tab === 'goals' ? 'reminders' : 'goals'));
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  const addReminder = async () => {
+    const text = reminderText.trim();
+    if (!text) return;
+    try {
+      await createReminder({ text, remindAt: reminderDate ? new Date(reminderDate).toISOString() : null });
+      setReminderText('');
+      setReminderDate('');
+      await loadReminders();
+    } catch { /* ignore */ }
+  };
+  const toggleReminder = async (r: Reminder) => {
+    try { await updateReminder(r.id, { done: !r.done }); await loadReminders(); } catch { /* ignore */ }
+  };
+  const removeReminder = async (id: string) => {
+    try { await deleteReminder(id); await loadReminders(); } catch { /* ignore */ }
+  };
 
   const refresh = useCallback(() => {
     return getDashboardOverview()
@@ -487,38 +524,91 @@ export default function DashboardPage() {
 
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
               <div className="flex justify-between items-center mb-4">
-                <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'goals')}</h2>
-                <button onClick={openNewGoal} className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-600">
-                  {t('dashboard', 'addGoal')}
-                </button>
+                <div className="flex items-center gap-1 text-sm font-semibold">
+                  <button
+                    onClick={() => setActiveCardTab('goals')}
+                    className={`px-2 py-1 rounded-lg transition-colors ${activeCardTab === 'goals' ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900') : colors.subtext}`}
+                  >
+                    {t('dashboard', 'goals')}
+                  </button>
+                  <button
+                    onClick={() => setActiveCardTab('reminders')}
+                    className={`px-2 py-1 rounded-lg transition-colors ${activeCardTab === 'reminders' ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900') : colors.subtext}`}
+                  >
+                    Reminders
+                  </button>
+                </div>
+                {activeCardTab === 'goals' ? (
+                  <button onClick={openNewGoal} className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-600">
+                    {t('dashboard', 'addGoal')}
+                  </button>
+                ) : null}
               </div>
-              {dashboardData?.goalsData?.goals?.length ? (
-                <div className="space-y-4">
-                  {dashboardData.goalsData.goals.map((goal) => {
-                    const pct = goal.target > 0 ? Math.min(100, Math.round((goal.current / goal.target) * 100)) : 0;
-                    return (
-                      <div key={goal.id} className={`text-xs ${colors.text} group`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium">{goal.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span>${goal.current.toLocaleString()} / ${goal.target.toLocaleString()}</span>
-                            <button onClick={() => openEditGoal(goal)} className="text-blue-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit goal">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => handleDeleteGoal(goal.id)} className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete goal">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+
+              {activeCardTab === 'goals' ? (
+                dashboardData?.goalsData?.goals?.length ? (
+                  <div className="space-y-4">
+                    {dashboardData.goalsData.goals.map((goal) => {
+                      const pct = goal.target > 0 ? Math.min(100, Math.round((goal.current / goal.target) * 100)) : 0;
+                      return (
+                        <div key={goal.id} className={`text-xs ${colors.text} group`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-medium">{goal.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span>{goal.current.toLocaleString()} / {goal.target.toLocaleString()}</span>
+                              <button onClick={() => openEditGoal(goal)} className="text-blue-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit goal">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => handleDeleteGoal(goal.id)} className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete goal">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                            <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
-                        <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                          <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className={`text-xs text-center py-6 ${colors.text}`}>{t('dashboard', 'noGoalsAdded')}</p>
+                )
               ) : (
-                <p className={`text-xs text-center py-6 ${colors.text}`}>{t('dashboard', 'noGoalsAdded')}</p>
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      value={reminderText}
+                      onChange={(e) => setReminderText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') addReminder(); }}
+                      placeholder="Add a reminder…"
+                      className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`}
+                    />
+                    <input
+                      type="date"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      className={`text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`}
+                    />
+                    <button onClick={addReminder} className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600">Add</button>
+                  </div>
+                  {reminders.length ? (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {reminders.map((r) => (
+                        <div key={r.id} className={`flex items-center gap-2 text-xs ${colors.text} group`}>
+                          <input type="checkbox" checked={r.done} onChange={() => toggleReminder(r)} className="cursor-pointer" />
+                          <span className={`flex-1 ${r.done ? 'line-through opacity-60' : ''}`}>{r.text}</span>
+                          {r.remindAt && <span className={`${colors.subtext}`}>{new Date(r.remindAt).toLocaleDateString()}</span>}
+                          <button onClick={() => removeReminder(r.id)} className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete reminder">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={`text-xs text-center py-6 ${colors.text}`}>No reminders yet. Add one above.</p>
+                  )}
+                </div>
               )}
             </div>
           </div>

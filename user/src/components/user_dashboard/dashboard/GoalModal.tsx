@@ -62,15 +62,15 @@ export default function GoalModal({ isOpen, onClose, onSaved, editing }: GoalMod
       <div className="bg-[#1a1a2e] text-white rounded-2xl p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold mb-6">{editing ? 'Edit Goal' : 'Enter Goal'}</h2>
 
-        <label className="block text-sm font-semibold mb-1">Goal Name</label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder="Goal"
+        <label className="block text-sm font-semibold mb-1">Goal</label>
+        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none" placeholder="e.g. Close a real estate deal, Get 10 product sales"
           value={form.goalName} onChange={(e) => setForm({ ...form, goalName: e.target.value })} />
 
-        <label className="block text-sm font-semibold mb-1">Goal Amount (target)</label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder="Enter Value" type="number"
+        <label className="block text-sm font-semibold mb-1 mt-3">Target</label>
+        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none" placeholder="e.g. 1 for a yes/no goal, 10 for 10 sales, 5000 to save $5000" type="number"
           value={form.goalAmount} onChange={(e) => setForm({ ...form, goalAmount: e.target.value })} />
 
-        <label className="block text-sm font-semibold mb-1">Saved so far</label>
+        <label className="block text-sm font-semibold mb-1 mt-3">Progress so far</label>
         <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-6 text-sm outline-none" placeholder="0" type="number"
           value={form.currentAmount} onChange={(e) => setForm({ ...form, currentAmount: e.target.value })} />
 
