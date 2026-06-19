@@ -12,6 +12,7 @@ import { documentRoutes } from '../modules/documents/document.routes';
 import { businessPlanRoutes } from '../modules/business-plans/business-plan.routes';
 import { reminderRoutes } from '../modules/reminders/reminders.routes';
 import { RemindersRepository } from '../modules/reminders/reminders.repository';
+import { ReceiptRepository } from '../modules/financial/receipt.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -134,6 +135,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure reminders schema');
   }
   await fastify.register(reminderRoutes, { database });
+
+  // Ensure the receipts table exists (idempotent).
+  try {
+    await new ReceiptRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure receipts schema');
+  }
 }
 
 export default apiRoutes;

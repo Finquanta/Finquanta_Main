@@ -211,10 +211,11 @@ export class DashboardRepository {
 
   async getLatestTransactions(userId: string, limit = 5): Promise<LatestTransaction[]> {
     const result = await this.database.query(
-      `SELECT id, date, type, category, description, invoice, amount
-       FROM financial_transactions
-       WHERE user_id = $1
-       ORDER BY date DESC, created_at DESC
+      `SELECT t.id, t.date, t.type, t.category, t.description, t.invoice, t.amount, t.metadata,
+              EXISTS (SELECT 1 FROM transaction_receipts r WHERE r.transaction_id = t.id) AS has_receipt
+       FROM financial_transactions t
+       WHERE t.user_id = $1
+       ORDER BY t.date DESC, t.created_at DESC
        LIMIT $2`,
       [userId, limit]
     );
@@ -227,7 +228,9 @@ export class DashboardRepository {
       detail: row.description ?? row.category,
       invoice: row.invoice ?? null,
       price: Number.parseFloat(row.amount),
-      amount: row.type === 'expense' ? -Number.parseFloat(row.amount) : Number.parseFloat(row.amount)
+      amount: row.type === 'expense' ? -Number.parseFloat(row.amount) : Number.parseFloat(row.amount),
+      recurrence: row.metadata?.recurrence ?? 'once',
+      hasReceipt: row.has_receipt === true
     }));
   }
 

@@ -65,6 +65,8 @@ export interface LatestTransaction {
   invoice: string | null;
   price: number;
   amount: number;
+  recurrence: string;
+  hasReceipt: boolean;
 }
 
 export interface DashboardOverviewResponse {

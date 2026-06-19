@@ -5,6 +5,9 @@ import { TransactionRepository } from './transaction.repository';
 import { Database } from '../../infrastructure/database';
 import { CreateTransactionData, UpdateTransactionData } from './transaction.types';
 import { authenticate } from '../shared/authenticate';
+import { ReceiptRepository } from './receipt.repository';
+
+const ALLOWED_RECEIPT_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
 
 export async function transactionRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const { database } = options;
@@ -13,6 +16,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   const transactionRepository = new TransactionRepository(database);
   const transactionService = new TransactionService(transactionRepository);
   const transactionController = new TransactionController(transactionService);
+  const receiptRepository = new ReceiptRepository(database);
 
   // Schema definitions for validation
   const createTransactionSchema = {
@@ -253,5 +257,63 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
     }
   }, ((request: AuthenticatedRequest, reply: FastifyReply) => {
     return transactionController.getFinancialSummary(request, reply);
+  }) as any);
+
+  // POST /api/v1/financial/transactions/:id/receipt — upload a receipt (PDF/image)
+  fastify.post('/v1/financial/transactions/:id/receipt', {
+    preHandler: [authenticate]
+  }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const userId = request.user!.id;
+
+      if (!(await receiptRepository.transactionBelongsToUser(id, userId))) {
+        return reply.status(404).send({ success: false, error: 'Transaction not found' });
+      }
+
+      const file = await (request as any).file();
+      if (!file) {
+        return reply.status(400).send({ success: false, error: 'No file uploaded' });
+      }
+      if (!ALLOWED_RECEIPT_TYPES.includes(file.mimetype)) {
+        return reply.status(400).send({ success: false, error: 'Only PDF or image files are allowed' });
+      }
+
+      const buffer = await file.toBuffer();
+      if ((file as any).truncated) {
+        return reply.status(413).send({ success: false, error: 'File too large (max 5MB)' });
+      }
+
+      await receiptRepository.save(userId, id, {
+        filename: file.filename,
+        mimeType: file.mimetype,
+        data: buffer
+      });
+
+      return reply.status(201).send({ success: true, data: { transactionId: id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  // GET /api/v1/financial/transactions/:id/receipt — download/view the receipt
+  fastify.get('/v1/financial/transactions/:id/receipt', {
+    preHandler: [authenticate]
+  }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const receipt = await receiptRepository.get(request.user!.id, id);
+      if (!receipt) {
+        return reply.status(404).send({ success: false, error: 'Receipt not found' });
+      }
+      return reply
+        .header('Content-Type', receipt.mimeType)
+        .header('Content-Disposition', `inline; filename="${receipt.filename.replace(/"/g, '')}"`)
+        .send(receipt.data);
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
   }) as any);
 }

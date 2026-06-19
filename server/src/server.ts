@@ -1,6 +1,7 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import fastifyCors from '@fastify/cors';
+import fastifyMultipart from '@fastify/multipart';
 import { config } from '@/config/config';
 import routes from '@/routes';
 
@@ -28,6 +29,11 @@ server.register(fastifyCors, {
 
 server.register(fastifyJwt, {
   secret: process.env.JWT_ACCESS_SECRET || 'access-secret-key-for-development-only'
+});
+
+// Receipt uploads (PDF/images) — cap at 5MB
+server.register(fastifyMultipart, {
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 }
 });
 
 // Register routes
