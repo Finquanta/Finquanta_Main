@@ -10,6 +10,8 @@ import { statisticsRoutes } from '../modules/statistics/statistics.routes';
 import { payrollRoutes } from '../modules/payroll/payroll.routes';
 import { documentRoutes } from '../modules/documents/document.routes';
 import { businessPlanRoutes } from '../modules/business-plans/business-plan.routes';
+import { reminderRoutes } from '../modules/reminders/reminders.routes';
+import { RemindersRepository } from '../modules/reminders/reminders.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -124,6 +126,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   await fastify.register(payrollRoutes, { database });
   await fastify.register(documentRoutes, { database });
   await fastify.register(businessPlanRoutes, { database });
+
+  // Ensure the reminders table exists (idempotent), then register its routes.
+  try {
+    await new RemindersRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure reminders schema');
+  }
+  await fastify.register(reminderRoutes, { database });
 }
 
 export default apiRoutes;

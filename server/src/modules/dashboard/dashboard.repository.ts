@@ -154,7 +154,8 @@ export class DashboardRepository {
 
     return result.rows.map((row: any) => ({
       id: row.id,
-      date: String(row.date).slice(0, 10),
+      // row.date may be a Date object (pg) or a string; normalise to YYYY-MM-DD
+      date: new Date(row.date).toISOString().slice(0, 10),
       type: row.type === 'expense' ? 'Expense' : 'Cashflow',
       detail: row.description ?? row.category,
       invoice: row.invoice ?? null,

@@ -59,7 +59,9 @@ export class TransactionService {
     // Business logic validations for updates
     if (data.amount !== undefined || data.date !== undefined) {
       const mergedData = { ...existingTransaction, ...data };
-      await this.validateBusinessRules(userId, mergedData as CreateTransactionData);
+      // Exclude the transaction being edited so it isn't flagged as a
+      // duplicate of itself or double-counted against daily limits.
+      await this.validateBusinessRules(userId, mergedData as CreateTransactionData, id);
     }
 
     // Update transaction through repository
@@ -274,7 +276,7 @@ export class TransactionService {
     }
   }
 
-  private async validateBusinessRules(userId: string, data: CreateTransactionData): Promise<void> {
+  private async validateBusinessRules(userId: string, data: CreateTransactionData, excludeId?: string): Promise<void> {
     // Rule 1: Expense transactions cannot have future dates
     if (data.type === TransactionType.EXPENSE) {
       const transactionDate = new Date(data.date + 'T00:00:00.000Z');
@@ -286,12 +288,16 @@ export class TransactionService {
       }
     }
 
-    // Rule 2: Daily transaction limit
-    const dayTransactions = await this.repository.getUserTransactions(userId, {
+    // Rule 2: Daily transaction limit. When editing, ignore the transaction
+    // being updated so it doesn't count against the user's own limits.
+    const dayQuery = await this.repository.getUserTransactions(userId, {
       startDate: data.date,
       endDate: data.date,
       limit: TransactionService.MAX_TRANSACTIONS_PER_DAY + 1
     });
+    const dayTransactions = {
+      transactions: dayQuery.transactions.filter(t => t.id !== excludeId)
+    };
 
     if (dayTransactions.transactions.length >= TransactionService.MAX_TRANSACTIONS_PER_DAY) {
       throw new Error(`Cannot create more than ${TransactionService.MAX_TRANSACTIONS_PER_DAY} transactions per day`);
