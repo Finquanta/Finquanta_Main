@@ -5,6 +5,8 @@ import {
   DashboardOverviewResponse,
   ExpenseSegment,
   LatestTransaction,
+  RevenuePoint,
+  RevenueRange,
   UpdateGoalData,
   WeeklyData
 } from './dashboard.types';
@@ -13,6 +15,7 @@ export interface DashboardRepositoryPort {
   createGoal(userId: string, data: CreateGoalData): Promise<DashboardGoal>;
   updateGoal(userId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal | null>;
   deleteGoal(userId: string, id: string): Promise<boolean>;
+  getRevenueSeries(userId: string, range: RevenueRange): Promise<RevenuePoint[]>;
   getSummary(userId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
@@ -149,5 +152,11 @@ export class DashboardService {
     if (!deleted) {
       throw new Error('Goal not found');
     }
+  }
+
+  async getRevenue(userId: string, range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
+    const normalized: RevenueRange = range === 'day' || range === 'month' || range === 'year' ? range : 'month';
+    const points = await this.repository.getRevenueSeries(userId, normalized);
+    return { range: normalized, points };
   }
 }

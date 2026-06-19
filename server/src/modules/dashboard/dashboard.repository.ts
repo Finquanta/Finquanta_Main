@@ -1,6 +1,9 @@
 import { Database } from '../../infrastructure/database';
 import { getPreviousMonthRange } from '../shared/date-range';
-import { CreateGoalData, ExpenseSegment, LatestTransaction, UpdateGoalData, WeeklyData } from './dashboard.types';
+import { CreateGoalData, ExpenseSegment, LatestTransaction, RevenuePoint, RevenueRange, UpdateGoalData, WeeklyData } from './dashboard.types';
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const segmentColors = ['#1e1b4b', '#0f766e', '#f97316', '#06b6d4', '#778da9'];
 
@@ -62,6 +65,70 @@ export class DashboardRepository {
       percentage: total === 0 ? 0 : Number(((Number.parseFloat(row.total_amount) / total) * 100).toFixed(1)),
       color: segmentColors[index] ?? '#778da9'
     }));
+  }
+
+  async getRevenueSeries(userId: string, range: RevenueRange): Promise<RevenuePoint[]> {
+    if (range === 'day') {
+      const result = await this.database.query(
+        `SELECT date::date as bucket, COALESCE(SUM(amount), 0) as v
+         FROM financial_transactions
+         WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+           AND date >= (CURRENT_DATE - INTERVAL '29 days') AND date <= CURRENT_DATE
+         GROUP BY date::date`,
+        [userId]
+      );
+      const map = new Map<string, number>(
+        result.rows.map((r: any) => [new Date(r.bucket).toISOString().slice(0, 10), Number.parseFloat(r.v)])
+      );
+      const points: RevenuePoint[] = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setUTCHours(0, 0, 0, 0);
+        d.setUTCDate(d.getUTCDate() - i);
+        const iso = d.toISOString().slice(0, 10);
+        points.push({
+          label: `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCDate()}`,
+          full: `${MONTH_FULL[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`,
+          value: map.get(iso) ?? 0
+        });
+      }
+      return points;
+    }
+
+    if (range === 'month') {
+      const result = await this.database.query(
+        `SELECT EXTRACT(MONTH FROM date)::int as bucket, COALESCE(SUM(amount), 0) as v
+         FROM financial_transactions
+         WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+           AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+         GROUP BY bucket`,
+        [userId]
+      );
+      const map = new Map<number, number>(result.rows.map((r: any) => [Number(r.bucket), Number.parseFloat(r.v)]));
+      const year = new Date().getUTCFullYear();
+      return MONTH_LABELS.map((label, idx) => ({
+        label,
+        full: `${MONTH_FULL[idx]} ${year}`,
+        value: map.get(idx + 1) ?? 0
+      }));
+    }
+
+    // range === 'year' — last 5 years
+    const result = await this.database.query(
+      `SELECT EXTRACT(YEAR FROM date)::int as bucket, COALESCE(SUM(amount), 0) as v
+       FROM financial_transactions
+       WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+         AND date >= (CURRENT_DATE - INTERVAL '4 years')
+       GROUP BY bucket`,
+      [userId]
+    );
+    const map = new Map<number, number>(result.rows.map((r: any) => [Number(r.bucket), Number.parseFloat(r.v)]));
+    const currentYear = new Date().getUTCFullYear();
+    const points: RevenuePoint[] = [];
+    for (let y = currentYear - 4; y <= currentYear; y++) {
+      points.push({ label: String(y), full: String(y), value: map.get(y) ?? 0 });
+    }
+    return points;
   }
 
   async getGoals(userId: string) {

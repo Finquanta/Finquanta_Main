@@ -17,6 +17,17 @@ export class DashboardController {
     }
   }
 
+  async getRevenue(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      const { range } = request.query as { range?: string };
+      const data = await this.service.getRevenue(request.user!.id, range as any);
+      return reply.send({ success: true, data });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }
+
   async createGoal(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const data = await this.service.createGoal(request.user!.id, request.body as any);

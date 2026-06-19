@@ -19,6 +19,19 @@ export interface ExpenseSegment {
   color: string;
 }
 
+export type RevenueRange = 'day' | 'month' | 'year';
+
+export interface RevenuePoint {
+  label: string;   // short axis label, e.g. "Jun 19", "Jan", "2026"
+  full: string;    // full label for tooltip, e.g. "Jun 19, 2026"
+  value: number;   // revenue (cashflow / income) for the period
+}
+
+export interface RevenueSeries {
+  range: RevenueRange;
+  points: RevenuePoint[];
+}
+
 export interface DashboardGoal {
   id: string;
   name: string;

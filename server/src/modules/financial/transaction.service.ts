@@ -321,19 +321,9 @@ export class TransactionService {
       throw new Error(`Transaction amount exceeds maximum reasonable limit of $${maxReasonableAmount.toLocaleString()}`);
     }
 
-    // Rule 5: Prevent duplicate transactions within a short time window
-    if (data.type === TransactionType.EXPENSE) {
-      const recentTransactions = dayTransactions.transactions
-        .filter(t =>
-          t.type === data.type &&
-          t.category === data.category &&
-          Math.abs(parseFloat(t.amount) - data.amount) < 0.01 // Same amount within 1 cent
-        );
-
-      if (recentTransactions.length > 0) {
-        throw new Error('Possible duplicate transaction detected');
-      }
-    }
+    // NOTE: duplicate-transaction blocking was removed intentionally — users may
+    // legitimately record identical entries on the same day, and it also broke
+    // restoring a just-deleted entry.
   }
 
   /**
