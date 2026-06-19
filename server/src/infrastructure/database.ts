@@ -10,7 +10,8 @@ export class Database {
       connectionString: process.env.DATABASE_URL,
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      // Neon serverless can cold-start slower than 2s; give connections room.
+      connectionTimeoutMillis: 10000,
     };
 
     this.pool = new Pool(config || defaultConfig);

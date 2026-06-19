@@ -279,11 +279,21 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
         return reply.status(400).send({ success: false, error: 'Only PDF or image files are allowed' });
       }
 
-      const buffer = await file.toBuffer();
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch (err: any) {
+        if (err?.code === 'FST_REQ_FILE_TOO_LARGE') {
+          return reply.status(413).send({ success: false, error: 'File too large (max 10MB)' });
+        }
+        throw err;
+      }
       if ((file as any).truncated) {
-        return reply.status(413).send({ success: false, error: 'File too large (max 5MB)' });
+        return reply.status(413).send({ success: false, error: 'File too large (max 10MB)' });
       }
 
+      // Make sure the table exists (idempotent) in case the boot migration was skipped.
+      await receiptRepository.ensureSchema();
       await receiptRepository.save(userId, id, {
         filename: file.filename,
         mimeType: file.mimetype,
@@ -293,7 +303,9 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
       return reply.status(201).send({ success: true, data: { transactionId: id } });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Internal server error' });
+      // Surface the underlying reason so the user/devs can see what failed.
+      const detail = error instanceof Error ? error.message : 'Internal server error';
+      return reply.status(500).send({ success: false, error: detail });
     }
   }) as any);
 

@@ -31,9 +31,9 @@ server.register(fastifyJwt, {
   secret: process.env.JWT_ACCESS_SECRET || 'access-secret-key-for-development-only'
 });
 
-// Receipt uploads (PDF/images) — cap at 5MB
+// Receipt uploads (PDF/images) — cap at 10MB
 server.register(fastifyMultipart, {
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 }
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 }
 });
 
 // Register routes
