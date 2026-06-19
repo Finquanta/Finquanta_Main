@@ -1,7 +1,18 @@
 import { changeType, formatCurrency, formatPercentChange, toNumber } from '../shared/formatters';
-import { DashboardOverviewResponse, ExpenseSegment, LatestTransaction, WeeklyData } from './dashboard.types';
+import {
+  CreateGoalData,
+  DashboardGoal,
+  DashboardOverviewResponse,
+  ExpenseSegment,
+  LatestTransaction,
+  UpdateGoalData,
+  WeeklyData
+} from './dashboard.types';
 
 export interface DashboardRepositoryPort {
+  createGoal(userId: string, data: CreateGoalData): Promise<DashboardGoal>;
+  updateGoal(userId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal | null>;
+  deleteGoal(userId: string, id: string): Promise<boolean>;
   getSummary(userId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
@@ -46,7 +57,7 @@ export class DashboardService {
     return {
       summaryCards: [
         {
-          title: 'Current balance',
+          title: 'Balance',
           amount: formatCurrency(balance),
           change: formatPercentChange(balance, previousBalance),
           changeType: changeType(balance, previousBalance),
@@ -54,20 +65,20 @@ export class DashboardService {
           description: 'This month your final balance has changed by'
         },
         {
-          title: 'Expenses',
-          amount: `-${formatCurrency(expenses)}`,
-          change: formatPercentChange(expenses, previousExpenses),
-          changeType: expenses <= previousExpenses ? 'positive' : 'negative',
-          period: 'This month',
-          description: 'This month expenses have changed by'
-        },
-        {
-          title: 'Income',
+          title: 'Cashflow',
           amount: formatCurrency(income),
           change: formatPercentChange(income, previousIncome),
           changeType: changeType(income, previousIncome),
           period: 'This month',
-          description: 'This month incomes have changed by'
+          description: 'This month cashflow has changed by'
+        },
+        {
+          title: 'Expense',
+          amount: formatCurrency(expenses),
+          change: formatPercentChange(expenses, previousExpenses),
+          changeType: expenses <= previousExpenses ? 'positive' : 'negative',
+          period: 'This month',
+          description: 'This month expenses have changed by'
         }
       ],
       totalFinancesData: {
@@ -90,5 +101,53 @@ export class DashboardService {
       },
       latestTransactions
     };
+  }
+
+  async createGoal(userId: string, data: CreateGoalData): Promise<DashboardGoal> {
+    const name = (data.name ?? '').trim();
+    if (!name) {
+      throw new Error('Invalid goal name');
+    }
+    const target = Number(data.target);
+    if (!Number.isFinite(target) || target <= 0) {
+      throw new Error('Invalid goal target amount');
+    }
+    const current = data.current === undefined ? 0 : Number(data.current);
+    if (!Number.isFinite(current) || current < 0) {
+      throw new Error('Invalid goal current amount');
+    }
+
+    return this.repository.createGoal(userId, { ...data, name, target, current });
+  }
+
+  async updateGoal(userId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal> {
+    if (data.name !== undefined && !data.name.trim()) {
+      throw new Error('Invalid goal name');
+    }
+    if (data.target !== undefined) {
+      const target = Number(data.target);
+      if (!Number.isFinite(target) || target <= 0) {
+        throw new Error('Invalid goal target amount');
+      }
+    }
+    if (data.current !== undefined) {
+      const current = Number(data.current);
+      if (!Number.isFinite(current) || current < 0) {
+        throw new Error('Invalid goal current amount');
+      }
+    }
+
+    const updated = await this.repository.updateGoal(userId, id, data);
+    if (!updated) {
+      throw new Error('Goal not found');
+    }
+    return updated;
+  }
+
+  async deleteGoal(userId: string, id: string): Promise<void> {
+    const deleted = await this.repository.deleteGoal(userId, id);
+    if (!deleted) {
+      throw new Error('Goal not found');
+    }
   }
 }

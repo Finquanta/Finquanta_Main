@@ -1,5 +1,5 @@
 export interface SummaryCardData {
-  title: 'Current balance' | 'Expenses' | 'Income';
+  title: 'Balance' | 'Cashflow' | 'Expense';
   amount: string;
   change: string;
   changeType: 'positive' | 'negative';
@@ -25,6 +25,23 @@ export interface DashboardGoal {
   current: number;
   target: number;
   color: string;
+  updatedAt: string;
+}
+
+export interface CreateGoalData {
+  name: string;
+  target: number;
+  current?: number;
+  color?: string;
+  period?: string;
+}
+
+export interface UpdateGoalData {
+  name?: string;
+  target?: number;
+  current?: number;
+  color?: string;
+  period?: string;
 }
 
 export interface LatestTransaction {

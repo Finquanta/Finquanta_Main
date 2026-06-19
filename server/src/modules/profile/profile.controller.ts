@@ -13,6 +13,14 @@ export class ProfileController {
     }
   }
 
+  async updateName(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      return reply.send({ success: true, data: await this.service.updateName(request.user!.id, request.body as any) });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
   async updateProfile(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       return reply.send({ success: true, data: await this.service.updateProfile(request.user!.id, request.body as any) });

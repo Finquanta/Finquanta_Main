@@ -4,6 +4,7 @@ export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
   updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile>;
   updateSettings(userId: string, data: UserSettingsPayload): Promise<UserSettingsPayload>;
+  updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }>;
 }
 
 export class ProfileService {
@@ -23,6 +24,23 @@ export class ProfileService {
     }
 
     return this.repository.updateProfile(userId, data);
+  }
+
+  async updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }> {
+    if (data.firstName !== undefined && !data.firstName.trim()) {
+      throw new Error('Invalid first name');
+    }
+    if (data.lastName !== undefined && !data.lastName.trim()) {
+      throw new Error('Invalid last name');
+    }
+    if (data.firstName === undefined && data.lastName === undefined) {
+      throw new Error('Invalid name update');
+    }
+
+    return this.repository.updateName(userId, {
+      firstName: data.firstName?.trim(),
+      lastName: data.lastName?.trim()
+    });
   }
 
   async updateSettings(userId: string, data: UserSettingsPayload): Promise<UserSettingsPayload> {

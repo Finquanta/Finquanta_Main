@@ -1,6 +1,6 @@
 import { Database } from '../../infrastructure/database';
 import { getPreviousMonthRange } from '../shared/date-range';
-import { ExpenseSegment, LatestTransaction, WeeklyData } from './dashboard.types';
+import { CreateGoalData, ExpenseSegment, LatestTransaction, UpdateGoalData, WeeklyData } from './dashboard.types';
 
 const segmentColors = ['#1e1b4b', '#0f766e', '#f97316', '#06b6d4', '#778da9'];
 
@@ -66,17 +66,80 @@ export class DashboardRepository {
 
   async getGoals(userId: string) {
     const result = await this.database.query(
-      'SELECT id, name, current_amount, target_amount, color FROM user_goals WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
 
-    return result.rows.map((row: any) => ({
+    return result.rows.map((row: any) => this.mapGoal(row));
+  }
+
+  async createGoal(userId: string, data: CreateGoalData) {
+    const result = await this.database.query(
+      `INSERT INTO user_goals (user_id, name, current_amount, target_amount, color, period, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING id, name, current_amount, target_amount, color, updated_at`,
+      [
+        userId,
+        data.name,
+        data.current ?? 0,
+        data.target,
+        data.color ?? 'bg-blue-600',
+        data.period ?? 'This month'
+      ]
+    );
+
+    return this.mapGoal(result.rows[0]);
+  }
+
+  async updateGoal(userId: string, id: string, data: UpdateGoalData) {
+    const setClause: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (data.name !== undefined) { setClause.push(`name = $${paramIndex++}`); values.push(data.name); }
+    if (data.current !== undefined) { setClause.push(`current_amount = $${paramIndex++}`); values.push(data.current); }
+    if (data.target !== undefined) { setClause.push(`target_amount = $${paramIndex++}`); values.push(data.target); }
+    if (data.color !== undefined) { setClause.push(`color = $${paramIndex++}`); values.push(data.color); }
+    if (data.period !== undefined) { setClause.push(`period = $${paramIndex++}`); values.push(data.period); }
+
+    if (setClause.length === 0) {
+      const existing = await this.database.query(
+        'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
+      return existing.rows[0] ? this.mapGoal(existing.rows[0]) : null;
+    }
+
+    setClause.push('updated_at = NOW()');
+    values.push(id, userId);
+
+    const result = await this.database.query(
+      `UPDATE user_goals SET ${setClause.join(', ')}
+       WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}
+       RETURNING id, name, current_amount, target_amount, color, updated_at`,
+      values
+    );
+
+    return result.rows[0] ? this.mapGoal(result.rows[0]) : null;
+  }
+
+  async deleteGoal(userId: string, id: string): Promise<boolean> {
+    const result = await this.database.query(
+      'DELETE FROM user_goals WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private mapGoal(row: any) {
+    return {
       id: row.id,
       name: row.name,
       current: Number.parseFloat(row.current_amount),
       target: Number.parseFloat(row.target_amount),
-      color: row.color
-    }));
+      color: row.color,
+      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+    };
   }
 
   async getLatestTransactions(userId: string, limit = 5): Promise<LatestTransaction[]> {
@@ -92,7 +155,7 @@ export class DashboardRepository {
     return result.rows.map((row: any) => ({
       id: row.id,
       date: String(row.date).slice(0, 10),
-      type: row.category,
+      type: row.type === 'expense' ? 'Expense' : 'Cashflow',
       detail: row.description ?? row.category,
       invoice: row.invoice ?? null,
       price: Number.parseFloat(row.amount),

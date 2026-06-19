@@ -11,6 +11,7 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
   const controller = new ProfileController(service);
 
   fastify.get('/v1/me', { preHandler: [authenticate] }, controller.getMe.bind(controller) as any);
+  fastify.patch('/v1/me', { preHandler: [authenticate] }, controller.updateName.bind(controller) as any);
   fastify.patch('/v1/me/profile', { preHandler: [authenticate] }, controller.updateProfile.bind(controller) as any);
   fastify.patch('/v1/me/settings', { preHandler: [authenticate] }, controller.updateSettings.bind(controller) as any);
 }

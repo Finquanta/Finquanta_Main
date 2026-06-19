@@ -61,6 +61,17 @@ export class ProfileRepository {
     };
   }
 
+  async updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }> {
+    const user = await this.users.update(userId, {
+      firstName: data.firstName,
+      lastName: data.lastName
+    });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return { firstName: user.firstName, lastName: user.lastName };
+  }
+
   async updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile> {
     const query = `
       INSERT INTO user_profiles (
