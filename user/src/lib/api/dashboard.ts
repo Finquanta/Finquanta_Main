@@ -3,7 +3,7 @@ import { apiFetch } from './client';
 export interface DashboardOverviewResponse {
   summaryCards: {
     title: string;
-    amount: number;
+    amount: string;
   }[];
   totalFinancesData: {
     year: string;
@@ -12,7 +12,7 @@ export interface DashboardOverviewResponse {
   };
   totalSavingsData: {
     period: string;
-    weeklyData: { day: string; amount: number }[];
+    weeklyData: { day: string; income: number; expense: number }[];
   };
   totalExpensesData: {
     period: string;
@@ -21,7 +21,7 @@ export interface DashboardOverviewResponse {
   };
   goalsData: {
     period: string;
-    goals: { id: string; name: string; current: number; target: number; color: string }[];
+    goals: { id: string; name: string; current: number; target: number; color: string; updatedAt: string }[];
   };
   stockMarketData: {
     period: string;
@@ -41,4 +41,38 @@ export interface DashboardOverviewResponse {
 
 export async function getDashboardOverview(): Promise<DashboardOverviewResponse> {
   return apiFetch<DashboardOverviewResponse>('/v1/dashboard/overview');
+}
+
+export interface GoalInput {
+  name: string;
+  target: number;
+  current?: number;
+  color?: string;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  current: number;
+  target: number;
+  color: string;
+  updatedAt: string;
+}
+
+export async function createGoal(data: GoalInput): Promise<Goal> {
+  return apiFetch<Goal>('/v1/dashboard/goals', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGoal(id: string, data: Partial<GoalInput>): Promise<Goal> {
+  return apiFetch<Goal>(`/v1/dashboard/goals/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  await apiFetch(`/v1/dashboard/goals/${id}`, { method: 'DELETE' });
 }
