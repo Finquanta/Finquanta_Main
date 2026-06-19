@@ -76,3 +76,15 @@ export async function updateGoal(id: string, data: Partial<GoalInput>): Promise<
 export async function deleteGoal(id: string): Promise<void> {
   await apiFetch(`/v1/dashboard/goals/${id}`, { method: 'DELETE' });
 }
+
+export type RevenueRange = 'day' | 'month' | 'year';
+
+export interface RevenuePoint {
+  label: string;
+  full: string;
+  value: number;
+}
+
+export async function getRevenue(range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
+  return apiFetch<{ range: RevenueRange; points: RevenuePoint[] }>(`/v1/dashboard/revenue?range=${range}`);
+}

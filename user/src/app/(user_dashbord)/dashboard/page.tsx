@@ -8,9 +8,14 @@ import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/Go
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/lib/api/dashboard';
-import { deleteTransaction } from '@/lib/api/transactions';
+import { deleteTransaction, createTransaction } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
+import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
+
+const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
+
+type DeletedEntry = DashboardOverviewResponse['latestTransactions'][number] & { deletedAt: number };
 
 const GOAL_PROMPT_DISMISSED_KEY = 'goalPromptDismissedAt';
 const GOAL_STALE_DAYS = 7;
@@ -56,6 +61,25 @@ export default function DashboardPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [goalPromptOpen, setGoalPromptOpen] = useState(false);
+
+  // Bookkeeping recently-deleted + undo
+  const [recentlyDeleted, setRecentlyDeleted] = useState<DeletedEntry[]>([]);
+  const [lastUndo, setLastUndo] = useState<DeletedEntry | null>(null);
+  const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENTLY_DELETED_KEY);
+      if (raw) setRecentlyDeleted(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Auto-hide the undo banner after a few seconds
+  useEffect(() => {
+    if (!lastUndo) return;
+    const id = setTimeout(() => setLastUndo(null), 8000);
+    return () => clearTimeout(id);
+  }, [lastUndo]);
 
   // Goals/Reminders rotating card
   const [activeCardTab, setActiveCardTab] = useState<'goals' | 'reminders'>('goals');
@@ -144,9 +168,46 @@ export default function DashboardPage() {
     });
     setBookkeepingModalOpen(true);
   };
-  const handleDeleteTransaction = async (id: string) => {
-    if (!window.confirm('Delete this entry? This cannot be undone.')) return;
-    try { await deleteTransaction(id); await refresh(); } catch { /* ignore */ }
+  const handleDeleteTransaction = async (tx: DashboardOverviewResponse['latestTransactions'][number]) => {
+    try {
+      await deleteTransaction(tx.id);
+      const entry: DeletedEntry = { ...tx, deletedAt: Date.now() };
+      setRecentlyDeleted((prev) => {
+        const next = [entry, ...prev].slice(0, 10);
+        localStorage.setItem(RECENTLY_DELETED_KEY, JSON.stringify(next));
+        return next;
+      });
+      setLastUndo(entry);
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete this entry.');
+    }
+  };
+
+  const restoreTransaction = async (entry: DeletedEntry) => {
+    try {
+      await createTransaction({
+        type: entry.type === 'Expense' ? 'expense' : 'income',
+        category: entry.detail || 'General',
+        description: entry.detail || undefined,
+        amount: Math.abs(entry.price),
+        date: entry.date,
+      });
+      setRecentlyDeleted((prev) => {
+        const next = prev.filter((e) => e.deletedAt !== entry.deletedAt);
+        localStorage.setItem(RECENTLY_DELETED_KEY, JSON.stringify(next));
+        return next;
+      });
+      if (lastUndo?.deletedAt === entry.deletedAt) setLastUndo(null);
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not restore this entry.');
+    }
+  };
+
+  const clearRecentlyDeleted = () => {
+    localStorage.removeItem(RECENTLY_DELETED_KEY);
+    setRecentlyDeleted([]);
   };
 
   const openNewGoal = () => { setGoalEditing(null); setGoalModalOpen(true); };
@@ -161,7 +222,8 @@ export default function DashboardPage() {
   };
   const handleDeleteGoal = async (id: string) => {
     if (!window.confirm('Delete this goal? This cannot be undone.')) return;
-    try { await deleteGoal(id); await refresh(); } catch { /* ignore */ }
+    try { await deleteGoal(id); await refresh(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Could not delete this goal.'); }
   };
 
   const startEditName = () => {
@@ -458,6 +520,17 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+
+            {/* Undo banner shown right after a delete */}
+            {lastUndo && (
+              <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 mb-3 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+                <span>Deleted “{lastUndo.detail}”.</span>
+                <button onClick={() => restoreTransaction(lastUndo)} className="font-semibold text-blue-500 hover:text-blue-700">
+                  Undo
+                </button>
+              </div>
+            )}
+
             <table className="w-full text-xs">
               <thead>
                 <tr className={`${colors.tableHead} border-b`}>
@@ -479,12 +552,12 @@ export default function DashboardPage() {
                       <td className="py-3">${transaction.price.toFixed(2)}</td>
                       <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
                       <td className="py-3 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditBookkeeping(transaction)} className="text-blue-500 hover:text-blue-600" title="Edit">
-                            <Pencil className="h-3.5 w-3.5" />
+                        <div className="flex items-center justify-end gap-3">
+                          <button onClick={() => openEditBookkeeping(transaction)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                            <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDeleteTransaction(transaction.id)} className="text-red-500 hover:text-red-600" title="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <button onClick={() => handleDeleteTransaction(transaction)} className="text-red-500 hover:text-red-700" title="Delete">
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -497,6 +570,39 @@ export default function DashboardPage() {
                 )}
               </tbody>
             </table>
+
+            {/* Recently deleted */}
+            {recentlyDeleted.length > 0 && (
+              <div className={`mt-4 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setShowRecentlyDeleted((v) => !v)}
+                    className={`text-xs font-medium ${colors.text} hover:underline`}
+                  >
+                    Recently deleted ({recentlyDeleted.length}) {showRecentlyDeleted ? '▲' : '▼'}
+                  </button>
+                  {showRecentlyDeleted && (
+                    <button onClick={clearRecentlyDeleted} className={`text-xs ${colors.subtext} hover:underline`}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {showRecentlyDeleted && (
+                  <div className="mt-2 space-y-2">
+                    {recentlyDeleted.map((entry) => (
+                      <div key={entry.deletedAt} className={`flex items-center justify-between text-xs ${colors.text}`}>
+                        <span className="flex-1 truncate">
+                          {entry.date} · {entry.type} · {entry.detail} · ${Math.abs(entry.price).toFixed(2)}
+                        </span>
+                        <button onClick={() => restoreTransaction(entry)} className="font-semibold text-blue-500 hover:text-blue-700 ml-3">
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Row */}
@@ -504,22 +610,8 @@ export default function DashboardPage() {
             {/* Total Revenue */}
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
               <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'totalRevenue')}</h2>
-              <p className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData?.highlightValue ?? '$0.00'}</p>
-              <p className={`text-xs mb-4 ${colors.text}`}>{dashboardData?.totalFinancesData?.year ?? t('dashboard', 'noDataYet')}</p>
-              <div className="h-24 flex items-end gap-1">
-                {(() => {
-                  const weekly = dashboardData?.totalSavingsData?.weeklyData ?? [];
-                  const bars = weekly.length ? weekly.map((w) => w.income) : [0, 0, 0, 0, 0, 0, 0];
-                  const max = Math.max(...bars, 1);
-                  return bars.map((value, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-t ${value > 0 ? 'bg-blue-500' : isDark ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      style={{ height: `${Math.max(6, (value / max) * 100)}%` }}
-                    ></div>
-                  ));
-                })()}
-              </div>
+              <p className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData?.highlightValue ?? '$0.00'}</p>
+              <RevenueChart isDark={isDark} />
             </div>
 
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
@@ -556,11 +648,11 @@ export default function DashboardPage() {
                             <span className="font-medium">{goal.name}</span>
                             <div className="flex items-center gap-2">
                               <span>{goal.current.toLocaleString()} / {goal.target.toLocaleString()}</span>
-                              <button onClick={() => openEditGoal(goal)} className="text-blue-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit goal">
-                                <Pencil className="h-3.5 w-3.5" />
+                              <button onClick={() => openEditGoal(goal)} className="text-blue-500 hover:text-blue-700" title="Edit goal">
+                                <Pencil className="h-4 w-4" />
                               </button>
-                              <button onClick={() => handleDeleteGoal(goal.id)} className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete goal">
-                                <Trash2 className="h-3.5 w-3.5" />
+                              <button onClick={() => handleDeleteGoal(goal.id)} className="text-red-500 hover:text-red-700" title="Delete goal">
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
