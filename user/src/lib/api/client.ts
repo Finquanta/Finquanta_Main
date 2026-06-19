@@ -41,7 +41,8 @@ async function refreshAccessToken(): Promise<boolean> {
 async function errorFromResponse(res: Response): Promise<Error> {
   try {
     const body = await res.json();
-    const message = body?.error || body?.message;
+    // Prefer a specific message; Fastify's `error` is often just "Bad Request".
+    const message = body?.message || body?.error;
     if (message) return new Error(message);
   } catch {
     /* response had no/invalid JSON body */
@@ -93,9 +94,15 @@ export async function apiFetch<T>(
       : null;
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string> | undefined),
   };
+
+  // Only declare a JSON content-type when we actually send a body. Sending
+  // Content-Type: application/json on a bodyless request (e.g. DELETE) makes
+  // the server try to parse an empty body and reject it with 400 Bad Request.
+  if (options?.body !== undefined && headers['Content-Type'] === undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
