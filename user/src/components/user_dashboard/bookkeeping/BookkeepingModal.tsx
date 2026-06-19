@@ -58,7 +58,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
             dateOfInvoice: editing.dateOfInvoice,
             recurrence: editing.recurrence ?? 'once',
           }
-        : emptyForm);
+        : { ...emptyForm, dateOfInvoice: new Date().toISOString().slice(0, 10) });
     }
   }, [isOpen, editing]);
 
