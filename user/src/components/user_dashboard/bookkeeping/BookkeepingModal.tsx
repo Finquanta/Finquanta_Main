@@ -75,7 +75,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
     const payload = {
       type: (form.invoiceType === 'Cashflow' ? 'income' : 'expense') as 'income' | 'expense',
       category: form.invoiceName.trim(),
-      description: form.invoiceDescription.trim() || form.invoiceName.trim(),
+      description: form.invoiceDescription.trim() || undefined,
       amount,
       date: form.dateOfInvoice,
       recurrence: form.recurrence,
@@ -92,7 +92,10 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing }: 
         ]);
       } else {
         const saved = await createTransaction(payload);
-        if (receiptFile) await uploadReceipt(saved.id, receiptFile);
+        if (receiptFile) {
+          if (!saved?.id) throw new Error('Entry saved, but no id was returned — receipt not attached.');
+          await uploadReceipt(saved.id, receiptFile);
+        }
       }
 
       onSaved?.();

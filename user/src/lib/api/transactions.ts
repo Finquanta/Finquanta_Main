@@ -48,6 +48,7 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 /** Upload a receipt (PDF/image) for a transaction. */
 export async function uploadReceipt(transactionId: string, file: File): Promise<void> {
+  if (!transactionId) throw new Error('Cannot attach receipt: missing transaction id.');
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const form = new FormData();
   form.append('file', file);

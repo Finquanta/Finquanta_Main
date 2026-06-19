@@ -33,6 +33,7 @@ export interface DashboardOverviewResponse {
     id: string;
     date: string;
     type: string;
+    name: string;
     detail: string;
     price: number;
     amount: number;

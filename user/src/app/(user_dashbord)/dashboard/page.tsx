@@ -160,7 +160,7 @@ export default function DashboardPage() {
   const openEditBookkeeping = (tx: DashboardOverviewResponse['latestTransactions'][number]) => {
     setBookkeepingEditing({
       id: tx.id,
-      invoiceName: tx.detail,
+      invoiceName: tx.name,
       invoiceDescription: tx.detail,
       invoiceAmount: String(Math.abs(tx.price)),
       invoiceType: tx.type === 'Expense' ? 'Expense' : 'Cashflow',
@@ -199,7 +199,7 @@ export default function DashboardPage() {
     try {
       await createTransaction({
         type: entry.type === 'Expense' ? 'expense' : 'income',
-        category: entry.detail || 'General',
+        category: entry.name || 'General',
         description: entry.detail || undefined,
         amount: Math.abs(entry.price),
         date: entry.date,
@@ -536,7 +536,7 @@ export default function DashboardPage() {
             {/* Undo banner shown right after a delete */}
             {lastUndo && (
               <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 mb-3 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
-                <span>{t('dashboard', 'deleted')} “{lastUndo.detail}”.</span>
+                <span>{t('dashboard', 'deleted')} “{lastUndo.name || lastUndo.detail}”.</span>
                 <button onClick={() => restoreTransaction(lastUndo)} className="font-semibold text-blue-500 hover:text-blue-700">
                   {t('dashboard', 'undo')}
                 </button>
@@ -568,7 +568,10 @@ export default function DashboardPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-3">{transaction.detail}</td>
+                      <td className="py-3">
+                        <span>{transaction.name}</span>
+                        {transaction.detail && <span className={`block text-[10px] ${colors.subtext}`}>{transaction.detail}</span>}
+                      </td>
                       <td className="py-3">${transaction.price.toFixed(2)}</td>
                       <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
                       <td className="py-3 text-right">
@@ -617,7 +620,7 @@ export default function DashboardPage() {
                     {recentlyDeleted.map((entry) => (
                       <div key={entry.deletedAt} className={`flex items-center justify-between text-xs ${colors.text}`}>
                         <span className="flex-1 truncate">
-                          {entry.date} · {entry.type} · {entry.detail} · ${Math.abs(entry.price).toFixed(2)}
+                          {entry.date} · {entry.type} · {entry.name || entry.detail} · ${Math.abs(entry.price).toFixed(2)}
                         </span>
                         <button onClick={() => restoreTransaction(entry)} className="font-semibold text-blue-500 hover:text-blue-700 ml-3">
                           {t('dashboard', 'restore')}
