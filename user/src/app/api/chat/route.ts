@@ -5,16 +5,19 @@ import Anthropic from "@anthropic-ai/sdk";
 // Default to Opus 4.8; override with ANTHROPIC_MODEL if desired.
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
 
-const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
-
 export async function POST(req: NextRequest) {
   const { messages, isDashboard, language } = await req.json();
 
+  // Construct the client lazily (not at module scope): the Anthropic SDK throws
+  // if ANTHROPIC_API_KEY is missing, which would crash the build/import. Guard
+  // first, then instantiate, so a missing key degrades gracefully at runtime.
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({
       content: "Finna isn't configured yet — no Anthropic API key is set.",
     });
   }
+
+  const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
 
   let system = isDashboard
     ? "You are Finna, Finquanta's AI financial assistant. Help small-business owners with budgeting, expenses, cash flow, bookkeeping and general financial questions. Be friendly, practical and concise. Respond directly with the answer — no preamble and no visible step-by-step reasoning."
