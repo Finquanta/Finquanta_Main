@@ -25,6 +25,19 @@ export interface UserSettingsPayload {
   version?: string;
 }
 
+export interface BusinessProfile {
+  businessName?: string;
+  businessType?: string;
+  industry?: string;
+  niche?: string;
+  entityType?: string;
+  maturityStage?: string;
+  revenueRange?: string;
+  employeeCount?: string;
+  financialGoals?: string;
+  onboardingCompleted?: boolean;
+}
+
 export interface CurrentUserResponse {
   id: string;
   email: string;

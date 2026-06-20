@@ -13,6 +13,22 @@ export class ProfileController {
     }
   }
 
+  async getBusiness(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      return reply.send({ success: true, data: await this.service.getBusiness(request.user!.id) });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  async updateBusiness(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      return reply.send({ success: true, data: await this.service.updateBusiness(request.user!.id, request.body as any) });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
   async updateName(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       return reply.send({ success: true, data: await this.service.updateName(request.user!.id, request.body as any) });

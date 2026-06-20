@@ -1,10 +1,12 @@
-import { CurrentUserResponse, UserProfile, UserSettingsPayload } from './profile.types';
+import { BusinessProfile, CurrentUserResponse, UserProfile, UserSettingsPayload } from './profile.types';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
   updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile>;
   updateSettings(userId: string, data: UserSettingsPayload): Promise<UserSettingsPayload>;
   updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }>;
+  getBusiness(userId: string): Promise<BusinessProfile>;
+  upsertBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile>;
 }
 
 export class ProfileService {
@@ -24,6 +26,14 @@ export class ProfileService {
     }
 
     return this.repository.updateProfile(userId, data);
+  }
+
+  async getBusiness(userId: string): Promise<BusinessProfile> {
+    return this.repository.getBusiness(userId);
+  }
+
+  async updateBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile> {
+    return this.repository.upsertBusiness(userId, data);
   }
 
   async updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }> {

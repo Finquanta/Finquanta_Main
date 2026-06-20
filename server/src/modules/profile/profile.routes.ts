@@ -13,5 +13,7 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
   fastify.get('/v1/me', { preHandler: [authenticate] }, controller.getMe.bind(controller) as any);
   fastify.patch('/v1/me', { preHandler: [authenticate] }, controller.updateName.bind(controller) as any);
   fastify.patch('/v1/me/profile', { preHandler: [authenticate] }, controller.updateProfile.bind(controller) as any);
+  fastify.get('/v1/me/business', { preHandler: [authenticate] }, controller.getBusiness.bind(controller) as any);
+  fastify.put('/v1/me/business', { preHandler: [authenticate] }, controller.updateBusiness.bind(controller) as any);
   fastify.patch('/v1/me/settings', { preHandler: [authenticate] }, controller.updateSettings.bind(controller) as any);
 }

@@ -13,6 +13,7 @@ import { businessPlanRoutes } from '../modules/business-plans/business-plan.rout
 import { reminderRoutes } from '../modules/reminders/reminders.routes';
 import { RemindersRepository } from '../modules/reminders/reminders.repository';
 import { ReceiptRepository } from '../modules/financial/receipt.repository';
+import { ProfileRepository } from '../modules/profile/profile.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -141,6 +142,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     await new ReceiptRepository(database).ensureSchema();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure receipts schema');
+  }
+
+  // Ensure the business onboarding table exists (idempotent).
+  try {
+    await new ProfileRepository(database).ensureBusinessSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure business_profiles schema');
   }
 }
 
