@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, MailIcon, LockIcon, CheckIcon } from "lucide-react";
+import { Loader2Icon, MailIcon, LockIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
  
@@ -21,6 +21,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [emailValid, setEmailValid] = useState<boolean>(false);
   const [forgotPassword, setForgotPassword] = useState<boolean>(false);
   const [resetSent, setResetSent] = useState<boolean>(false);
@@ -265,16 +266,25 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               <LockIcon className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               value={password}
               onChange={handlePasswordChange}
-              className="pl-10 py-2 bg-white text-black border border-gray-300"
+              className="pl-10 pr-10 py-2 bg-white text-black border border-gray-300"
               placeholder={t("auth", "password")}
               autoCapitalize="none"
               autoComplete="current-password"
               disabled={isLoading}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+            </button>
           </div>
  
           <div className="flex justify-end">

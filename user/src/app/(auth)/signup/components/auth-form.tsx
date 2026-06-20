@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, MailIcon, LockIcon, CheckIcon, UserIcon } from "lucide-react";
+import { Loader2Icon, MailIcon, LockIcon, CheckIcon, UserIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
@@ -24,6 +24,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [emailValid, setEmailValid] = useState<boolean>(false);
   const [passwordMismatch, setPasswordMismatch] = useState<boolean>(false);
 
@@ -196,14 +198,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               <LockIcon className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="signup-password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (confirmPassword) setPasswordMismatch(confirmPassword !== e.target.value);
               }}
-              className="pl-10 py-2 bg-white text-black border border-gray-300"
+              className="pl-10 pr-10 py-2 bg-white text-black border border-gray-300"
               placeholder="Password (min 8 characters)"
               autoCapitalize="none"
               autoComplete="new-password"
@@ -211,6 +213,15 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               required
               minLength={8}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+            </button>
           </div>
 
           <div className="relative">
@@ -218,17 +229,26 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               <LockIcon className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               id="confirm-password"
               value={confirmPassword}
               onChange={handleConfirmPasswordChange}
-              className={cn("pl-10 py-2 bg-white text-black border border-gray-300", passwordMismatch ? "border-red-500" : confirmPassword && !passwordMismatch ? "border-green-500" : "")}
+              className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", passwordMismatch ? "border-red-500" : confirmPassword && !passwordMismatch ? "border-green-500" : "")}
               placeholder="Confirm password"
               autoCapitalize="none"
               autoComplete="new-password"
               disabled={isLoading}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+            </button>
           </div>
 
           {passwordMismatch && (
