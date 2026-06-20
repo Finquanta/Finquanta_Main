@@ -5,6 +5,26 @@ export function serverApiUrl(path: string): string {
 }
 
 /**
+ * The backend runs on Render's free tier, which sleeps after ~15 min idle and
+ * takes 20-50s to wake. While it's waking, fetch() rejects with a network-level
+ * TypeError ("Failed to fetch"). Retry those a few times with backoff so a cold
+ * start surfaces as a short delay instead of an error. Only network failures are
+ * retried — real HTTP responses (4xx/5xx) are returned to the caller as-is.
+ */
+export async function fetchWithRetry(url: string, init?: RequestInit, attempts = 4): Promise<Response> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err; // network error (server waking / offline) — wait then retry
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Attempt to refresh the JWT access token using the stored refresh token.
  * Returns true if the refresh succeeded, false otherwise.
  */
@@ -114,7 +134,7 @@ export async function apiFetch<T>(
     headers['X-Business-Id'] = businessId;
   }
 
-  const res = await fetch(serverApiUrl(path), {
+  const res = await fetchWithRetry(serverApiUrl(path), {
     ...options,
     headers,
   });
@@ -127,7 +147,7 @@ export async function apiFetch<T>(
       const newToken = localStorage.getItem('accessToken');
       headers['Authorization'] = `Bearer ${newToken}`;
 
-      const retryRes = await fetch(serverApiUrl(path), {
+      const retryRes = await fetchWithRetry(serverApiUrl(path), {
         ...options,
         headers,
       });
