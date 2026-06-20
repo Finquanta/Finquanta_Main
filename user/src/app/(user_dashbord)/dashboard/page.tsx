@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare } from 'lucide-react';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
@@ -337,8 +337,14 @@ export default function DashboardPage() {
     <div className={`flex h-screen ${colors.bg}`} onClick={() => setClickCount(c => c + 1)}>
       {/* SIDEBAR */}
       <div className={`w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4`}>
-        <div className="mb-8">
+        <div className="mb-6">
           <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+        </div>
+
+        {/* Workspace (business) switcher */}
+        <div className="mb-6">
+          <p className={`text-[10px] uppercase tracking-wide mb-1.5 ${colors.subtext}`}>{t('dashboard', 'workspace')}</p>
+          <WorkspaceSwitcher isDark={isDark} />
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -348,6 +354,15 @@ export default function DashboardPage() {
         </nav>
 
         <div className="mt-auto flex flex-col gap-2 text-xs">
+          <a
+            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 font-medium text-green-600 hover:text-green-700 hover:underline"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            {t('dashboard', 'sendFeedback')}
+          </a>
           <Link href="/profile-settings" className={`hover:underline ${colors.text}`}>
             {t('dashboard', 'profileSettings')}
           </Link>
@@ -401,7 +416,6 @@ export default function DashboardPage() {
               )}
             </div>
             <span className={`text-sm ${colors.text}`}>{t('dashboard', 'finquantaId')}: {accountId}</span>
-            <WorkspaceSwitcher isDark={isDark} />
           </div>
 
           {/* Right */}
