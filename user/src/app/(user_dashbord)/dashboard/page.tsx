@@ -337,14 +337,8 @@ export default function DashboardPage() {
     <div className={`flex h-screen ${colors.bg}`} onClick={() => setClickCount(c => c + 1)}>
       {/* SIDEBAR */}
       <div className={`w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4`}>
-        <div className="mb-6">
+        <div className="mb-8">
           <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
-        </div>
-
-        {/* Workspace (business) switcher */}
-        <div className="mb-6">
-          <p className={`text-[10px] uppercase tracking-wide mb-1.5 ${colors.subtext}`}>{t('dashboard', 'workspace')}</p>
-          <WorkspaceSwitcher isDark={isDark} />
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -378,7 +372,8 @@ export default function DashboardPage() {
           <button onClick={handleLogout} className="text-left text-red-400 hover:text-red-500 hover:underline transition-colors">
             {t('settings', 'logOut')}
           </button>
-          <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'version')} 1.0.0.0</p>
+          <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
+          <p className={colors.subtext}>{t('dashboard', 'version')} 1.0.0.0</p>
         </div>
       </div>
 
@@ -415,7 +410,7 @@ export default function DashboardPage() {
                 </button>
               )}
             </div>
-            <span className={`text-sm ${colors.text}`}>{t('dashboard', 'finquantaId')}: {accountId}</span>
+            <WorkspaceSwitcher isDark={isDark} />
           </div>
 
           {/* Right */}
