@@ -139,6 +139,15 @@ export class BusinessesRepository {
     return { id: row.id, name: row.name, ownerId: row.owner_id, role: 'Owner' };
   }
 
+  async rename(businessId: string, name: string): Promise<Business | null> {
+    const result = await this.database.query(
+      'UPDATE businesses SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, owner_id',
+      [name, businessId]
+    );
+    const r = result.rows[0];
+    return r ? { id: r.id, name: r.name, ownerId: r.owner_id, role: 'Owner' } : null;
+  }
+
   async getRole(businessId: string, userId: string): Promise<BusinessRole | null> {
     const result = await this.database.query(
       'SELECT role FROM business_members WHERE business_id = $1 AND user_id = $2',

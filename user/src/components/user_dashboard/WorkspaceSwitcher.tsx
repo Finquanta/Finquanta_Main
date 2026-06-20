@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Building2, ChevronDown, Plus, UserPlus, Copy, Check, X } from "lucide-react";
+import { Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil } from "lucide-react";
 import {
   Business, BusinessRole, BUSINESS_ROLES,
-  listBusinesses, createBusiness, createInvite,
+  listBusinesses, createBusiness, createInvite, renameBusiness,
 } from "@/lib/api/businesses";
 
 const ACTIVE_KEY = "activeBusinessId";
@@ -16,6 +16,8 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string>("");
+  const [editName, setEditName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   const load = () => listBusinesses().then((bs) => {
@@ -57,6 +59,21 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
     }
   };
 
+  const startRename = (b: Business) => { setEditingId(b.id); setEditName(b.name); };
+
+  const handleRename = async () => {
+    if (!editName.trim() || !editingId) { setEditingId(""); return; }
+    try {
+      await renameBusiness(editingId, editName.trim());
+      setEditingId("");
+      setEditName("");
+      await load();
+      window.dispatchEvent(new CustomEvent("finna:businessChanged", { detail: activeId }));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not rename business.");
+    }
+  };
+
   const colors = {
     btn: isDark ? "bg-gray-700 text-white border-gray-600" : "bg-gray-100 text-gray-900 border-gray-300",
     menu: isDark ? "bg-gray-800 border-gray-700 text-gray-200" : "bg-white border-gray-200 text-gray-900",
@@ -77,18 +94,37 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
         <div className={`absolute left-0 mt-2 w-64 rounded-xl border shadow-xl z-50 overflow-hidden ${colors.menu}`}>
           <div className={`px-3 py-2 text-[10px] uppercase tracking-wide ${colors.sub}`}>Your businesses</div>
           <div className="max-h-56 overflow-y-auto">
-            {businesses.map((b) => (
-              <button key={b.id} onClick={() => switchTo(b.id)} className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${colors.item}`}>
-                <span className="flex items-center gap-2 truncate">
-                  <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="truncate">{b.name}</span>
-                </span>
-                <span className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`text-[10px] ${colors.sub}`}>{b.role}</span>
-                  {b.id === activeId && <Check className="h-3.5 w-3.5 text-green-500" />}
-                </span>
-              </button>
-            ))}
+            {businesses.map((b) => {
+              const canRename = b.role === "Owner" || b.role === "Admin";
+              if (editingId === b.id) {
+                return (
+                  <div key={b.id} className="p-2 flex gap-2">
+                    <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingId(""); }}
+                      className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
+                    <button onClick={handleRename} className="text-green-500 hover:text-green-600" title="Save"><Check className="h-4 w-4" /></button>
+                    <button onClick={() => setEditingId("")} className="text-gray-400 hover:text-gray-600" title="Cancel"><X className="h-4 w-4" /></button>
+                  </div>
+                );
+              }
+              return (
+                <div key={b.id} className={`group w-full px-3 py-2 text-sm flex items-center justify-between ${colors.item}`}>
+                  <button onClick={() => switchTo(b.id)} className="flex items-center gap-2 truncate flex-1 text-left">
+                    <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">{b.name}</span>
+                  </button>
+                  <span className="flex items-center gap-2 flex-shrink-0">
+                    {canRename && (
+                      <button onClick={() => startRename(b)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600" title="Rename">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <span className={`text-[10px] ${colors.sub}`}>{b.role}</span>
+                    {b.id === activeId && <Check className="h-3.5 w-3.5 text-green-500" />}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className={`border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>

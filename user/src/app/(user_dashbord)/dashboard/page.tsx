@@ -348,15 +348,6 @@ export default function DashboardPage() {
         </nav>
 
         <div className="mt-auto flex flex-col gap-2 text-xs">
-          <a
-            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 font-medium text-green-600 hover:text-green-700 hover:underline"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            {t('dashboard', 'sendFeedback')}
-          </a>
           <Link href="/profile-settings" className={`hover:underline ${colors.text}`}>
             {t('dashboard', 'profileSettings')}
           </Link>
@@ -374,6 +365,15 @@ export default function DashboardPage() {
           </button>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
           <p className={colors.subtext}>{t('dashboard', 'version')} 1.0.0.0</p>
+          <a
+            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 mt-1 font-medium text-green-600 hover:text-green-700 hover:underline"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            {t('dashboard', 'sendFeedback')}
+          </a>
         </div>
       </div>
 

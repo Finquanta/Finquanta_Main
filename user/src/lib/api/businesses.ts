@@ -32,6 +32,10 @@ export async function createBusiness(name: string): Promise<Business> {
   return apiFetch<Business>('/v1/businesses', { method: 'POST', body: JSON.stringify({ name }) });
 }
 
+export async function renameBusiness(businessId: string, name: string): Promise<Business> {
+  return apiFetch<Business>(`/v1/businesses/${businessId}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+}
+
 export async function getMembers(businessId: string): Promise<BusinessMember[]> {
   return apiFetch<BusinessMember[]>(`/v1/businesses/${businessId}/members`);
 }

@@ -34,6 +34,23 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
     }
   }) as any);
 
+  // Rename a business (Owner/Admin)
+  fastify.patch('/v1/businesses/:id', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const { name } = request.body as { name?: string };
+      if (!name || !name.trim()) return reply.status(400).send({ success: false, error: 'Business name is required' });
+      const role = await repo.getRole(id, request.user!.id);
+      if (!canManage(role)) return reply.status(403).send({ success: false, error: 'Only an owner or admin can rename this business' });
+      const updated = await repo.rename(id, name.trim());
+      if (!updated) return reply.status(404).send({ success: false, error: 'Business not found' });
+      return reply.send({ success: true, data: { ...updated, role } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
   // List members of a business (members only)
   fastify.get('/v1/businesses/:id/members', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
