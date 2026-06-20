@@ -108,6 +108,12 @@ export async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Scope data requests to the active business (workspace).
+  const businessId = typeof window !== 'undefined' ? localStorage.getItem('activeBusinessId') : null;
+  if (businessId && headers['X-Business-Id'] === undefined) {
+    headers['X-Business-Id'] = businessId;
+  }
+
   const res = await fetch(serverApiUrl(path), {
     ...options,
     headers,

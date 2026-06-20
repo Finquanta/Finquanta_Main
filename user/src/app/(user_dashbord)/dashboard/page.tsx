@@ -142,12 +142,16 @@ export default function DashboardPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // When Finna (the AI assistant) creates/changes data via chat, refresh.
+  // Refresh when Finna changes data, or when the active business (workspace) switches.
   useEffect(() => {
-    const handler = () => { refresh(); };
+    const handler = () => { refresh(); loadReminders(); };
     window.addEventListener('finna:dataChanged', handler);
-    return () => window.removeEventListener('finna:dataChanged', handler);
-  }, [refresh]);
+    window.addEventListener('finna:businessChanged', handler);
+    return () => {
+      window.removeEventListener('finna:dataChanged', handler);
+      window.removeEventListener('finna:businessChanged', handler);
+    };
+  }, [refresh, loadReminders]);
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));

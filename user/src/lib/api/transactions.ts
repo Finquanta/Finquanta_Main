@@ -46,16 +46,26 @@ export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch(`/v1/financial/transactions/${id}`, { method: 'DELETE' });
 }
 
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    const businessId = localStorage.getItem('activeBusinessId');
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (businessId) headers['X-Business-Id'] = businessId;
+  }
+  return headers;
+}
+
 /** Upload a receipt (PDF/image) for a transaction. */
 export async function uploadReceipt(transactionId: string, file: File): Promise<void> {
   if (!transactionId) throw new Error('Cannot attach receipt: missing transaction id.');
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const form = new FormData();
   form.append('file', file);
 
   const res = await fetch(serverApiUrl(`/v1/financial/transactions/${transactionId}/receipt`), {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: authHeaders(),
     body: form,
   });
 
@@ -74,9 +84,8 @@ export async function uploadReceipt(transactionId: string, file: File): Promise<
  * tab — a plain link wouldn't send the Authorization header).
  */
 export async function getReceiptObjectUrl(transactionId: string): Promise<string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const res = await fetch(serverApiUrl(`/v1/financial/transactions/${transactionId}/receipt`), {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Could not load receipt');
   const blob = await res.blob();
