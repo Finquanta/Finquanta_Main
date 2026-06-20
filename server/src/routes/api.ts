@@ -14,6 +14,8 @@ import { reminderRoutes } from '../modules/reminders/reminders.routes';
 import { RemindersRepository } from '../modules/reminders/reminders.repository';
 import { ReceiptRepository } from '../modules/financial/receipt.repository';
 import { ProfileRepository } from '../modules/profile/profile.repository';
+import { businessRoutes } from '../modules/businesses/businesses.routes';
+import { BusinessesRepository } from '../modules/businesses/businesses.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -150,6 +152,15 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure business_profiles schema');
   }
+
+  // Ensure businesses/members/invites tables exist and every user has a default
+  // business (runs after business_profiles so the backfill can read its names).
+  try {
+    await new BusinessesRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure businesses schema');
+  }
+  await fastify.register(businessRoutes, { database });
 }
 
 export default apiRoutes;
