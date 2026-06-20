@@ -50,7 +50,6 @@ export default function ChatbotWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<"gemini" | "claude" | "chatgpt">("gemini");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isDashboard =
@@ -91,18 +90,23 @@ export default function ChatbotWidget() {
     setInput("");
     setLoading(true);
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          messages: newMessages, 
-          isDashboard, 
-          model: selectedModel,
+        body: JSON.stringify({
+          messages: newMessages,
+          isDashboard,
+          token,
           language
         }),
       });
       const data = await res.json();
       setMessages([...newMessages, { role: "assistant", content: data.content }]);
+      // Finna created/changed data — let the dashboard refresh itself.
+      if (data.dataChanged && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("finna:dataChanged"));
+      }
     } catch {
       const fallback = isDashboard
         ? getFallbackReply(text, true)
@@ -144,19 +148,11 @@ export default function ChatbotWidget() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="15" x2="8" y2="17"/><line x1="16" y1="15" x2="16" y2="17"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Fina</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Finna</div>
                 <div style={{ fontSize: 11, color: "#555" }}>{isDashboard ? "Your Financial Assistant" : "Finquanta AI"}</div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <select
-                value={selectedModel}
-                onChange={e => setSelectedModel(e.target.value as "gemini" | "claude" | "chatgpt")}
-                style={{ background: "#1a1a1a", border: "0.5px solid #2a2a2a", borderRadius: 6, padding: "3px 6px", fontSize: 10, color: "#22c55e", cursor: "pointer", outline: "none" }}>
-                <option value="gemini">Gemini</option>
-                <option value="claude">Claude</option>
-                <option value="chatgpt">ChatGPT</option>
-              </select>
               <button onClick={handleClose} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
             </div>
           </div>
@@ -169,7 +165,7 @@ export default function ChatbotWidget() {
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="15" x2="8" y2="17"/><line x1="16" y1="15" x2="16" y2="17"/></svg>
                 </div>
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: 14, color: "#fff", marginBottom: 4 }}>Hi, I'm Fina!</p>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: "#fff", marginBottom: 4 }}>Hi, I'm Finna!</p>
                   <p style={{ fontSize: 12, color: "#666", lineHeight: 1.6 }}>
                     {isDashboard ? "Your financial assistant for budgeting, investments, and planning." : "Ask me anything about Finquanta and how we can help your business."}
                   </p>

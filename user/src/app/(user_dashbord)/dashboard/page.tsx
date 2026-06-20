@@ -141,6 +141,13 @@ export default function DashboardPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // When Finna (the AI assistant) creates/changes data via chat, refresh.
+  useEffect(() => {
+    const handler = () => { refresh(); };
+    window.addEventListener('finna:dataChanged', handler);
+    return () => window.removeEventListener('finna:dataChanged', handler);
+  }, [refresh]);
+
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
   }, []);
