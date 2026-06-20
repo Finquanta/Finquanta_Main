@@ -117,11 +117,27 @@ export default function DashboardPage() {
     try { await deleteReminder(id); await loadReminders(); } catch { /* ignore */ }
   };
 
+  // Summary-card period (Balance/Cashflow/Expense + revenue context)
+  const [cardPeriod, setCardPeriod] = useState<'all' | '30d' | '3m' | 'month'>('all');
+  const [periodMonth, setPeriodMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+
+  const computeRange = useCallback((): { startDate: string; endDate: string } | undefined => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    if (cardPeriod === 'all') return { startDate: '1970-01-01', endDate: '2999-12-31' };
+    if (cardPeriod === '30d') { const s = new Date(today); s.setDate(s.getDate() - 29); return { startDate: iso(s), endDate: iso(today) }; }
+    if (cardPeriod === '3m') { const s = new Date(today); s.setMonth(s.getMonth() - 3); return { startDate: iso(s), endDate: iso(today) }; }
+    const [y, m] = periodMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, 1));
+    const end = new Date(Date.UTC(y, m, 0));
+    return { startDate: iso(start), endDate: iso(end) };
+  }, [cardPeriod, periodMonth]);
+
   const refresh = useCallback(() => {
-    return getDashboardOverview()
+    return getDashboardOverview(computeRange())
       .then(setDashboardData)
       .catch(() => setDashboardData(null));
-  }, []);
+  }, [computeRange]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -501,6 +517,34 @@ export default function DashboardPage() {
 
         {/* Dashboard Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Summary period selector */}
+          <div className="flex items-center flex-wrap gap-2 mb-3">
+            {([
+              { key: 'all', label: t('dashboard', 'allTime') },
+              { key: '30d', label: t('dashboard', 'last30Days') },
+              { key: '3m', label: t('dashboard', 'threeMonths') },
+              { key: 'month', label: t('dashboard', 'periodMonth') },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setCardPeriod(opt.key)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  cardPeriod === opt.key ? 'bg-blue-500 text-white' : colors.buttonBg
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {cardPeriod === 'month' && (
+              <input
+                type="month"
+                value={periodMonth}
+                onChange={(e) => setPeriodMonth(e.target.value)}
+                className={`text-xs rounded-lg px-2 py-1 border outline-none ${colors.input}`}
+              />
+            )}
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[

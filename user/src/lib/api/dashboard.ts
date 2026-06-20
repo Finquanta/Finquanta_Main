@@ -42,8 +42,11 @@ export interface DashboardOverviewResponse {
   }[];
 }
 
-export async function getDashboardOverview(): Promise<DashboardOverviewResponse> {
-  return apiFetch<DashboardOverviewResponse>('/v1/dashboard/overview');
+export async function getDashboardOverview(params?: { startDate?: string; endDate?: string }): Promise<DashboardOverviewResponse> {
+  const qs = params?.startDate && params?.endDate
+    ? `?startDate=${params.startDate}&endDate=${params.endDate}`
+    : '';
+  return apiFetch<DashboardOverviewResponse>(`/v1/dashboard/overview${qs}`);
 }
 
 export interface GoalInput {

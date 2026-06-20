@@ -490,8 +490,26 @@ const dashboardExtra: Record<string, Record<string, string>> = {
   },
 };
 
+// Summary-card period selector labels (last30Days already exists per language).
+const dashboardPeriods: Record<string, Record<string, string>> = {
+  en: { allTime: "All time", threeMonths: "3 months", periodMonth: "Month" },
+  nl: { allTime: "Alle tijd", threeMonths: "3 maanden", periodMonth: "Maand" },
+  de: { allTime: "Gesamte Zeit", threeMonths: "3 Monate", periodMonth: "Monat" },
+  fr: { allTime: "Tout le temps", threeMonths: "3 mois", periodMonth: "Mois" },
+  es: { allTime: "Todo el tiempo", threeMonths: "3 meses", periodMonth: "Mes" },
+  pt: { allTime: "Todo o período", threeMonths: "3 meses", periodMonth: "Mês" },
+  ar: { allTime: "كل الوقت", threeMonths: "3 أشهر", periodMonth: "شهر" },
+  zh: { allTime: "全部时间", threeMonths: "3个月", periodMonth: "月份" },
+  ja: { allTime: "全期間", threeMonths: "3か月", periodMonth: "月" },
+  ru: { allTime: "За всё время", threeMonths: "3 месяца", periodMonth: "Месяц" },
+};
+
 for (const lang of Object.keys(translations)) {
-  translations[lang].dashboard = { ...translations[lang].dashboard, ...(dashboardExtra[lang] ?? dashboardExtra.en) };
+  translations[lang].dashboard = {
+    ...translations[lang].dashboard,
+    ...(dashboardExtra[lang] ?? dashboardExtra.en),
+    ...(dashboardPeriods[lang] ?? dashboardPeriods.en),
+  };
 }
 
 interface LanguageContextType {
