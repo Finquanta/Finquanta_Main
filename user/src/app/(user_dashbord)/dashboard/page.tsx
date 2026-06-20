@@ -12,6 +12,7 @@ import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence }
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
+import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
 
@@ -396,6 +397,7 @@ export default function DashboardPage() {
               )}
             </div>
             <span className={`text-sm ${colors.text}`}>{t('dashboard', 'finquantaId')}: {accountId}</span>
+            <WorkspaceSwitcher isDark={isDark} />
           </div>
 
           {/* Right */}
