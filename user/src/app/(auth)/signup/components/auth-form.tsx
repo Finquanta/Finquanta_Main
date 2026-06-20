@@ -85,7 +85,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           }
         });
         ui.toast("success", `Welcome, ${data.user.firstName || data.user.email}!`, 4000);
-        router.push('/dashboard');
+        router.push('/onboarding');
       } else {
         const apiData = await res.json().catch(() => ({}));
         const errorMessage = apiData?.detail || apiData?.message || "Registration failed. Please try again.";
