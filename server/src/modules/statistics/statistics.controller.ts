@@ -9,7 +9,7 @@ export class StatisticsController {
     try {
       const query = request.query as { year?: string };
       const year = query.year ? Number.parseInt(query.year, 10) : new Date().getUTCFullYear();
-      const data = await this.service.getOverview(request.user!.id, year);
+      const data = await this.service.getOverview(request.businessId!, year);
       return reply.send({ success: true, data });
     } catch (error) {
       request.log.error(error);

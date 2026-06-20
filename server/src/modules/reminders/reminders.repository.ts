@@ -39,27 +39,27 @@ export class RemindersRepository {
     );
   }
 
-  async list(userId: string): Promise<Reminder[]> {
+  async list(businessId: string): Promise<Reminder[]> {
     const result = await this.database.query(
       `SELECT id, text, remind_at, done FROM reminders
-       WHERE user_id = $1
+       WHERE business_id = $1
        ORDER BY done ASC, remind_at ASC NULLS LAST, created_at DESC`,
-      [userId]
+      [businessId]
     );
     return result.rows.map((row: any) => this.mapRow(row));
   }
 
-  async create(userId: string, data: CreateReminderData): Promise<Reminder> {
+  async create(businessId: string, userId: string, data: CreateReminderData): Promise<Reminder> {
     const result = await this.database.query(
-      `INSERT INTO reminders (user_id, text, remind_at, created_at, updated_at)
-       VALUES ($1, $2, $3, NOW(), NOW())
+      `INSERT INTO reminders (business_id, user_id, text, remind_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
        RETURNING id, text, remind_at, done`,
-      [userId, data.text, data.remindAt ?? null]
+      [businessId, userId, data.text, data.remindAt ?? null]
     );
     return this.mapRow(result.rows[0]);
   }
 
-  async update(userId: string, id: string, data: UpdateReminderData): Promise<Reminder | null> {
+  async update(businessId: string, id: string, data: UpdateReminderData): Promise<Reminder | null> {
     const setClause: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -70,28 +70,28 @@ export class RemindersRepository {
 
     if (setClause.length === 0) {
       const existing = await this.database.query(
-        'SELECT id, text, remind_at, done FROM reminders WHERE id = $1 AND user_id = $2',
-        [id, userId]
+        'SELECT id, text, remind_at, done FROM reminders WHERE id = $1 AND business_id = $2',
+        [id, businessId]
       );
       return existing.rows[0] ? this.mapRow(existing.rows[0]) : null;
     }
 
     setClause.push('updated_at = NOW()');
-    values.push(id, userId);
+    values.push(id, businessId);
 
     const result = await this.database.query(
       `UPDATE reminders SET ${setClause.join(', ')}
-       WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}
+       WHERE id = $${paramIndex++} AND business_id = $${paramIndex++}
        RETURNING id, text, remind_at, done`,
       values
     );
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
-  async delete(userId: string, id: string): Promise<boolean> {
+  async delete(businessId: string, id: string): Promise<boolean> {
     const result = await this.database.query(
-      'DELETE FROM reminders WHERE id = $1 AND user_id = $2',
-      [id, userId]
+      'DELETE FROM reminders WHERE id = $1 AND business_id = $2',
+      [id, businessId]
     );
     return (result.rowCount ?? 0) > 0;
   }

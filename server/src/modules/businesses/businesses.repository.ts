@@ -84,6 +84,35 @@ export class BusinessesRepository {
     `);
   }
 
+  /** The user's default (earliest) business — used when no active business is specified. */
+  async getDefaultBusinessId(userId: string): Promise<string | null> {
+    const result = await this.database.query(
+      `SELECT b.id FROM business_members m JOIN businesses b ON b.id = m.business_id
+       WHERE m.user_id = $1 ORDER BY b.created_at ASC LIMIT 1`,
+      [userId]
+    );
+    return result.rows[0]?.id ?? null;
+  }
+
+  /**
+   * Add business_id to the data tables and backfill from each row's owner's
+   * default business. Idempotent — safe on every boot. Run after the default
+   * businesses have been created.
+   */
+  async ensureDataScoping(): Promise<void> {
+    const tables = ['financial_transactions', 'user_goals', 'reminders'];
+    for (const table of tables) {
+      await this.database.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS business_id UUID`);
+      // Backfill: assign existing rows to the owning user's earliest business.
+      await this.database.query(`
+        UPDATE ${table} t SET business_id = (
+          SELECT b.id FROM businesses b WHERE b.owner_id = t.user_id ORDER BY b.created_at ASC LIMIT 1
+        ) WHERE t.business_id IS NULL
+      `);
+      await this.database.query(`CREATE INDEX IF NOT EXISTS idx_${table}_business ON ${table}(business_id)`);
+    }
+  }
+
   async listForUser(userId: string): Promise<Business[]> {
     const result = await this.database.query(
       `SELECT b.id, b.name, b.owner_id, m.role

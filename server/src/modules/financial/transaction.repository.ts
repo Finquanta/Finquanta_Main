@@ -14,18 +14,19 @@ import {
 export class TransactionRepository {
   constructor(private database: Database) {}
 
-  async create(userId: string, data: CreateTransactionData): Promise<Transaction> {
+  async create(businessId: string, userId: string, data: CreateTransactionData): Promise<Transaction> {
     const query = `
       INSERT INTO financial_transactions (
-        user_id, type, category, subcategory, amount, description, date,
+        business_id, user_id, type, category, subcategory, amount, description, date,
         invoice, status, metadata, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
       )
       RETURNING *
     `;
 
     const result = await this.database.query(query, [
+      businessId,
       userId,
       data.type,
       data.category,
@@ -41,13 +42,13 @@ export class TransactionRepository {
     return this.mapRowToTransaction(result.rows[0]);
   }
 
-  async findById(id: string, userId: string): Promise<Transaction | null> {
+  async findById(id: string, businessId: string): Promise<Transaction | null> {
     const query = `
       SELECT * FROM financial_transactions
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND business_id = $2
     `;
 
-    const result = await this.database.query(query, [id, userId]);
+    const result = await this.database.query(query, [id, businessId]);
 
     if (result.rows.length === 0) {
       return null;
@@ -57,11 +58,11 @@ export class TransactionRepository {
   }
 
   async getUserTransactions(
-    userId: string,
+    businessId: string,
     filters: TransactionFilters = {}
   ): Promise<TransactionListResponse> {
-    let whereClauses = ['user_id = $1'];
-    let queryParams: any[] = [userId];
+    let whereClauses = ['business_id = $1'];
+    let queryParams: any[] = [businessId];
     let paramIndex = 2;
 
     // Add filters
@@ -137,7 +138,7 @@ export class TransactionRepository {
     };
   }
 
-  async update(id: string, userId: string, data: UpdateTransactionData): Promise<Transaction | null> {
+  async update(id: string, businessId: string, data: UpdateTransactionData): Promise<Transaction | null> {
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -189,16 +190,16 @@ export class TransactionRepository {
 
     if (setClause.length === 0) {
       // No updates to make
-      return this.findById(id, userId);
+      return this.findById(id, businessId);
     }
 
     setClause.push(`updated_at = NOW()`);
-    values.push(id, userId);
+    values.push(id, businessId);
 
     const query = `
       UPDATE financial_transactions
       SET ${setClause.join(', ')}
-      WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}
+      WHERE id = $${paramIndex++} AND business_id = $${paramIndex++}
       RETURNING *
     `;
 
@@ -211,14 +212,14 @@ export class TransactionRepository {
     return this.mapRowToTransaction(result.rows[0]);
   }
 
-  async delete(id: string, userId: string): Promise<boolean> {
-    const query = 'DELETE FROM financial_transactions WHERE id = $1 AND user_id = $2';
-    const result = await this.database.query(query, [id, userId]);
+  async delete(id: string, businessId: string): Promise<boolean> {
+    const query = 'DELETE FROM financial_transactions WHERE id = $1 AND business_id = $2';
+    const result = await this.database.query(query, [id, businessId]);
     return result.rowCount > 0;
   }
 
   async calculateSummary(
-    userId: string,
+    businessId: string,
     dateRange: { startDate: string; endDate: string }
   ): Promise<FinancialSummary> {
     const query = `
@@ -227,14 +228,14 @@ export class TransactionRepository {
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expenses,
         COUNT(*) as transaction_count
       FROM financial_transactions
-      WHERE user_id = $1
+      WHERE business_id = $1
         AND date >= $2
         AND date <= $3
         AND status = 'completed'
     `;
 
     const result = await this.database.query(query, [
-      userId,
+      businessId,
       dateRange.startDate,
       dateRange.endDate
     ]);
@@ -255,7 +256,7 @@ export class TransactionRepository {
   }
 
   async getCategoryBreakdown(
-    userId: string,
+    businessId: string,
     type: TransactionType,
     dateRange: { startDate: string; endDate: string }
   ): Promise<any[]> {
@@ -265,7 +266,7 @@ export class TransactionRepository {
         SUM(amount) as total_amount,
         COUNT(*) as transaction_count
       FROM financial_transactions
-      WHERE user_id = $1
+      WHERE business_id = $1
         AND type = $2
         AND date >= $3
         AND date <= $4
@@ -275,7 +276,7 @@ export class TransactionRepository {
     `;
 
     const result = await this.database.query(query, [
-      userId,
+      businessId,
       type,
       dateRange.startDate,
       dateRange.endDate

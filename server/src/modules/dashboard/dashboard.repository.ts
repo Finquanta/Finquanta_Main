@@ -10,34 +10,34 @@ const segmentColors = ['#1e1b4b', '#0f766e', '#f97316', '#06b6d4', '#778da9'];
 export class DashboardRepository {
   constructor(private database: Database) {}
 
-  async getSummary(userId: string, startDate: string, endDate: string) {
+  async getSummary(businessId: string, startDate: string, endDate: string) {
     const query = `
       SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expenses,
         COUNT(*) as transaction_count
       FROM financial_transactions
-      WHERE user_id = $1 AND date >= $2 AND date <= $3 AND status = 'completed'
+      WHERE business_id = $1 AND date >= $2 AND date <= $3 AND status = 'completed'
     `;
-    const result = await this.database.query(query, [userId, startDate, endDate]);
+    const result = await this.database.query(query, [businessId, startDate, endDate]);
     return this.mapSummary(result.rows[0], startDate, endDate);
   }
 
-  async getPreviousSummary(userId: string, startDate: string) {
+  async getPreviousSummary(businessId: string, startDate: string) {
     const previous = getPreviousMonthRange(startDate);
-    return this.getSummary(userId, previous.startDate, previous.endDate);
+    return this.getSummary(businessId, previous.startDate, previous.endDate);
   }
 
-  async getWeeklyTrend(userId: string, startDate: string, endDate: string): Promise<WeeklyData[]> {
+  async getWeeklyTrend(businessId: string, startDate: string, endDate: string): Promise<WeeklyData[]> {
     const query = `
       SELECT EXTRACT(DOW FROM date)::INT as day_index,
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense
       FROM financial_transactions
-      WHERE user_id = $1 AND date >= $2 AND date <= $3 AND status = 'completed'
+      WHERE business_id = $1 AND date >= $2 AND date <= $3 AND status = 'completed'
       GROUP BY EXTRACT(DOW FROM date)
     `;
-    const result = await this.database.query(query, [userId, startDate, endDate]);
+    const result = await this.database.query(query, [businessId, startDate, endDate]);
     const labels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
     const rows = new Map<number, any>(result.rows.map((row: any) => [Number(row.day_index), row]));
 
@@ -48,16 +48,16 @@ export class DashboardRepository {
     }));
   }
 
-  async getExpenseSegments(userId: string, startDate: string, endDate: string): Promise<ExpenseSegment[]> {
+  async getExpenseSegments(businessId: string, startDate: string, endDate: string): Promise<ExpenseSegment[]> {
     const query = `
       SELECT category, SUM(amount) as total_amount
       FROM financial_transactions
-      WHERE user_id = $1 AND type = 'expense' AND date >= $2 AND date <= $3 AND status = 'completed'
+      WHERE business_id = $1 AND type = 'expense' AND date >= $2 AND date <= $3 AND status = 'completed'
       GROUP BY category
       ORDER BY total_amount DESC
       LIMIT 5
     `;
-    const result = await this.database.query(query, [userId, startDate, endDate]);
+    const result = await this.database.query(query, [businessId, startDate, endDate]);
     const total = result.rows.reduce((sum: number, row: any) => sum + Number.parseFloat(row.total_amount), 0);
 
     return result.rows.map((row: any, index: number) => ({
@@ -67,15 +67,15 @@ export class DashboardRepository {
     }));
   }
 
-  async getRevenueSeries(userId: string, range: RevenueRange): Promise<RevenuePoint[]> {
+  async getRevenueSeries(businessId: string, range: RevenueRange): Promise<RevenuePoint[]> {
     if (range === 'day') {
       const result = await this.database.query(
         `SELECT date::date as bucket, COALESCE(SUM(amount), 0) as v
          FROM financial_transactions
-         WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+         WHERE business_id = $1 AND type = 'income' AND status = 'completed'
            AND date >= (CURRENT_DATE - INTERVAL '29 days') AND date <= CURRENT_DATE
          GROUP BY date::date`,
-        [userId]
+        [businessId]
       );
       const map = new Map<string, number>(
         result.rows.map((r: any) => [new Date(r.bucket).toISOString().slice(0, 10), Number.parseFloat(r.v)])
@@ -99,10 +99,10 @@ export class DashboardRepository {
       const result = await this.database.query(
         `SELECT EXTRACT(MONTH FROM date)::int as bucket, COALESCE(SUM(amount), 0) as v
          FROM financial_transactions
-         WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+         WHERE business_id = $1 AND type = 'income' AND status = 'completed'
            AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
          GROUP BY bucket`,
-        [userId]
+        [businessId]
       );
       const map = new Map<number, number>(result.rows.map((r: any) => [Number(r.bucket), Number.parseFloat(r.v)]));
       const year = new Date().getUTCFullYear();
@@ -120,7 +120,7 @@ export class DashboardRepository {
        WHERE user_id = $1 AND type = 'income' AND status = 'completed'
          AND date >= (CURRENT_DATE - INTERVAL '4 years')
        GROUP BY bucket`,
-      [userId]
+      [businessId]
     );
     const map = new Map<number, number>(result.rows.map((r: any) => [Number(r.bucket), Number.parseFloat(r.v)]));
     const currentYear = new Date().getUTCFullYear();
@@ -131,21 +131,22 @@ export class DashboardRepository {
     return points;
   }
 
-  async getGoals(userId: string) {
+  async getGoals(businessId: string) {
     const result = await this.database.query(
-      'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
+      'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE business_id = $1 ORDER BY created_at DESC',
+      [businessId]
     );
 
     return result.rows.map((row: any) => this.mapGoal(row));
   }
 
-  async createGoal(userId: string, data: CreateGoalData) {
+  async createGoal(businessId: string, userId: string, data: CreateGoalData) {
     const result = await this.database.query(
-      `INSERT INTO user_goals (user_id, name, current_amount, target_amount, color, period, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `INSERT INTO user_goals (business_id, user_id, name, current_amount, target_amount, color, period, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
        RETURNING id, name, current_amount, target_amount, color, updated_at`,
       [
+        businessId,
         userId,
         data.name,
         data.current ?? 0,
@@ -158,7 +159,7 @@ export class DashboardRepository {
     return this.mapGoal(result.rows[0]);
   }
 
-  async updateGoal(userId: string, id: string, data: UpdateGoalData) {
+  async updateGoal(businessId: string, id: string, data: UpdateGoalData) {
     const setClause: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -171,18 +172,18 @@ export class DashboardRepository {
 
     if (setClause.length === 0) {
       const existing = await this.database.query(
-        'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE id = $1 AND user_id = $2',
-        [id, userId]
+        'SELECT id, name, current_amount, target_amount, color, updated_at FROM user_goals WHERE id = $1 AND business_id = $2',
+        [id, businessId]
       );
       return existing.rows[0] ? this.mapGoal(existing.rows[0]) : null;
     }
 
     setClause.push('updated_at = NOW()');
-    values.push(id, userId);
+    values.push(id, businessId);
 
     const result = await this.database.query(
       `UPDATE user_goals SET ${setClause.join(', ')}
-       WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}
+       WHERE id = $${paramIndex++} AND business_id = $${paramIndex++}
        RETURNING id, name, current_amount, target_amount, color, updated_at`,
       values
     );
@@ -190,10 +191,10 @@ export class DashboardRepository {
     return result.rows[0] ? this.mapGoal(result.rows[0]) : null;
   }
 
-  async deleteGoal(userId: string, id: string): Promise<boolean> {
+  async deleteGoal(businessId: string, id: string): Promise<boolean> {
     const result = await this.database.query(
-      'DELETE FROM user_goals WHERE id = $1 AND user_id = $2',
-      [id, userId]
+      'DELETE FROM user_goals WHERE id = $1 AND business_id = $2',
+      [id, businessId]
     );
     return (result.rowCount ?? 0) > 0;
   }
@@ -209,15 +210,15 @@ export class DashboardRepository {
     };
   }
 
-  async getLatestTransactions(userId: string, limit = 5): Promise<LatestTransaction[]> {
+  async getLatestTransactions(businessId: string, limit = 5): Promise<LatestTransaction[]> {
     const result = await this.database.query(
       `SELECT t.id, t.date, t.type, t.category, t.description, t.invoice, t.amount, t.metadata,
               EXISTS (SELECT 1 FROM transaction_receipts r WHERE r.transaction_id = t.id) AS has_receipt
        FROM financial_transactions t
-       WHERE t.user_id = $1
+       WHERE t.business_id = $1
        ORDER BY t.date DESC, t.created_at DESC
        LIMIT $2`,
-      [userId, limit]
+      [businessId, limit]
     );
 
     return result.rows.map((row: any) => ({

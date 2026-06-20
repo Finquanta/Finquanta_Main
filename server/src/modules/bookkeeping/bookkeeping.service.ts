@@ -5,10 +5,10 @@ import { BookkeepingOverview, BookkeepingTransaction } from './bookkeeping.types
 export class BookkeepingService {
   constructor(private transactionService: Pick<TransactionService, 'getFinancialSummary' | 'getUserTransactions'> & Partial<Pick<TransactionService, 'createTransaction' | 'updateTransaction' | 'deleteTransaction'>>) {}
 
-  async getOverview(userId: string, startDate: string, endDate: string): Promise<BookkeepingOverview> {
+  async getOverview(businessId: string, startDate: string, endDate: string): Promise<BookkeepingOverview> {
     const [summary, list] = await Promise.all([
-      this.transactionService.getFinancialSummary(userId, { startDate, endDate }),
-      this.transactionService.getUserTransactions(userId, { startDate, endDate, limit: 100, sortBy: 'date', sortOrder: 'desc' })
+      this.transactionService.getFinancialSummary(businessId, { startDate, endDate }),
+      this.transactionService.getUserTransactions(businessId, { startDate, endDate, limit: 100, sortBy: 'date', sortOrder: 'desc' })
     ]);
 
     const mapped = list.transactions.map((transaction: any) => this.mapTransaction(transaction));
@@ -25,25 +25,25 @@ export class BookkeepingService {
     };
   }
 
-  createTransaction(userId: string, data: any) {
+  createTransaction(businessId: string, userId: string, data: any) {
     if (!this.transactionService.createTransaction) {
       throw new Error('Transaction creation is not available');
     }
-    return this.transactionService.createTransaction(userId, data);
+    return this.transactionService.createTransaction(businessId, userId, data);
   }
 
-  updateTransaction(id: string, userId: string, data: any) {
+  updateTransaction(id: string, businessId: string, data: any) {
     if (!this.transactionService.updateTransaction) {
       throw new Error('Transaction updates are not available');
     }
-    return this.transactionService.updateTransaction(id, userId, data);
+    return this.transactionService.updateTransaction(id, businessId, data);
   }
 
-  deleteTransaction(id: string, userId: string) {
+  deleteTransaction(id: string, businessId: string) {
     if (!this.transactionService.deleteTransaction) {
       throw new Error('Transaction deletion is not available');
     }
-    return this.transactionService.deleteTransaction(id, userId);
+    return this.transactionService.deleteTransaction(id, businessId);
   }
 
   private mapTransaction(transaction: any): BookkeepingTransaction {

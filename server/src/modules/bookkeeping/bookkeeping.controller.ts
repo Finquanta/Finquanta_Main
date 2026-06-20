@@ -9,7 +9,7 @@ export class BookkeepingController {
   async getOverview(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const range = normalizeDateRange(request.query as { startDate?: string; endDate?: string });
-      const data = await this.service.getOverview(request.user!.id, range.startDate, range.endDate);
+      const data = await this.service.getOverview(request.businessId!, range.startDate, range.endDate);
       return reply.send({ success: true, data });
     } catch (error) {
       return this.handleError(error, reply);
@@ -18,7 +18,7 @@ export class BookkeepingController {
 
   async createTransaction(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      const data = await this.service.createTransaction(request.user!.id, request.body);
+      const data = await this.service.createTransaction(request.businessId!, request.user!.id, request.body);
       return reply.status(201).send({ success: true, data });
     } catch (error) {
       return this.handleError(error, reply);
@@ -28,7 +28,7 @@ export class BookkeepingController {
   async updateTransaction(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const data = await this.service.updateTransaction(id, request.user!.id, request.body);
+      const data = await this.service.updateTransaction(id, request.businessId!, request.body);
       if (!data) {
         return reply.status(404).send({ success: false, error: 'Transaction not found' });
       }
@@ -41,7 +41,7 @@ export class BookkeepingController {
   async deleteTransaction(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const deleted = await this.service.deleteTransaction(id, request.user!.id);
+      const deleted = await this.service.deleteTransaction(id, request.businessId!);
       if (!deleted) {
         return reply.status(404).send({ success: false, error: 'Transaction not found' });
       }

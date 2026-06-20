@@ -156,7 +156,10 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Ensure businesses/members/invites tables exist and every user has a default
   // business (runs after business_profiles so the backfill can read its names).
   try {
-    await new BusinessesRepository(database).ensureSchema();
+    const businessesRepo = new BusinessesRepository(database);
+    await businessesRepo.ensureSchema();
+    // Add business_id to data tables + backfill (after default businesses exist).
+    await businessesRepo.ensureDataScoping();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
   }

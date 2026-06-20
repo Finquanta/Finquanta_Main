@@ -9,6 +9,8 @@ export interface AuthenticatedUser {
 
 export type AuthenticatedRequest = Omit<FastifyRequest, 'user'> & {
   user?: AuthenticatedUser;
+  // Active business for the request, resolved by the withBusiness preHandler.
+  businessId?: string;
 };
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {

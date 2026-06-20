@@ -24,11 +24,11 @@ export class ReceiptRepository {
     `);
   }
 
-  /** Confirm a transaction belongs to the user before attaching a receipt. */
-  async transactionBelongsToUser(transactionId: string, userId: string): Promise<boolean> {
+  /** Confirm a transaction belongs to the active business before attaching/reading a receipt. */
+  async transactionInBusiness(transactionId: string, businessId: string): Promise<boolean> {
     const result = await this.database.query(
-      'SELECT 1 FROM financial_transactions WHERE id = $1 AND user_id = $2',
-      [transactionId, userId]
+      'SELECT 1 FROM financial_transactions WHERE id = $1 AND business_id = $2',
+      [transactionId, businessId]
     );
     return result.rows.length > 0;
   }
@@ -46,10 +46,10 @@ export class ReceiptRepository {
     );
   }
 
-  async get(userId: string, transactionId: string): Promise<ReceiptFile | null> {
+  async get(transactionId: string): Promise<ReceiptFile | null> {
     const result = await this.database.query(
-      'SELECT filename, mime_type, data FROM transaction_receipts WHERE transaction_id = $1 AND user_id = $2',
-      [transactionId, userId]
+      'SELECT filename, mime_type, data FROM transaction_receipts WHERE transaction_id = $1',
+      [transactionId]
     );
     if (result.rows.length === 0) return null;
     const row = result.rows[0];

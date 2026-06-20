@@ -12,26 +12,26 @@ import {
 } from './dashboard.types';
 
 export interface DashboardRepositoryPort {
-  createGoal(userId: string, data: CreateGoalData): Promise<DashboardGoal>;
-  updateGoal(userId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal | null>;
-  deleteGoal(userId: string, id: string): Promise<boolean>;
-  getRevenueSeries(userId: string, range: RevenueRange): Promise<RevenuePoint[]>;
-  getSummary(userId: string, startDate: string, endDate: string): Promise<{
+  createGoal(businessId: string, userId: string, data: CreateGoalData): Promise<DashboardGoal>;
+  updateGoal(businessId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal | null>;
+  deleteGoal(businessId: string, id: string): Promise<boolean>;
+  getRevenueSeries(businessId: string, range: RevenueRange): Promise<RevenuePoint[]>;
+  getSummary(businessId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
     netIncome: string;
     transactionCount: number;
   }>;
-  getPreviousSummary(userId: string, startDate: string, endDate: string): Promise<{
+  getPreviousSummary(businessId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
     netIncome: string;
     transactionCount: number;
   }>;
-  getWeeklyTrend(userId: string, startDate: string, endDate: string): Promise<WeeklyData[]>;
-  getExpenseSegments(userId: string, startDate: string, endDate: string): Promise<ExpenseSegment[]>;
-  getGoals(userId: string): Promise<DashboardOverviewResponse['goalsData']['goals']>;
-  getLatestTransactions(userId: string, limit?: number): Promise<LatestTransaction[]>;
+  getWeeklyTrend(businessId: string, startDate: string, endDate: string): Promise<WeeklyData[]>;
+  getExpenseSegments(businessId: string, startDate: string, endDate: string): Promise<ExpenseSegment[]>;
+  getGoals(businessId: string): Promise<DashboardOverviewResponse['goalsData']['goals']>;
+  getLatestTransactions(businessId: string, limit?: number): Promise<LatestTransaction[]>;
 }
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -39,14 +39,14 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export class DashboardService {
   constructor(private repository: DashboardRepositoryPort) {}
 
-  async getOverview(userId: string, startDate: string, endDate: string): Promise<DashboardOverviewResponse> {
+  async getOverview(businessId: string, startDate: string, endDate: string): Promise<DashboardOverviewResponse> {
     const [summary, previous, weeklyData, segments, goals, latestTransactions] = await Promise.all([
-      this.repository.getSummary(userId, startDate, endDate),
-      this.repository.getPreviousSummary(userId, startDate, endDate),
-      this.repository.getWeeklyTrend(userId, startDate, endDate),
-      this.repository.getExpenseSegments(userId, startDate, endDate),
-      this.repository.getGoals(userId),
-      this.repository.getLatestTransactions(userId, 5)
+      this.repository.getSummary(businessId, startDate, endDate),
+      this.repository.getPreviousSummary(businessId, startDate, endDate),
+      this.repository.getWeeklyTrend(businessId, startDate, endDate),
+      this.repository.getExpenseSegments(businessId, startDate, endDate),
+      this.repository.getGoals(businessId),
+      this.repository.getLatestTransactions(businessId, 5)
     ]);
 
     const income = toNumber(summary.totalIncome);
@@ -106,7 +106,7 @@ export class DashboardService {
     };
   }
 
-  async createGoal(userId: string, data: CreateGoalData): Promise<DashboardGoal> {
+  async createGoal(businessId: string, userId: string, data: CreateGoalData): Promise<DashboardGoal> {
     const name = (data.name ?? '').trim();
     if (!name) {
       throw new Error('Invalid goal name');
@@ -120,10 +120,10 @@ export class DashboardService {
       throw new Error('Invalid goal current amount');
     }
 
-    return this.repository.createGoal(userId, { ...data, name, target, current });
+    return this.repository.createGoal(businessId, userId, { ...data, name, target, current });
   }
 
-  async updateGoal(userId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal> {
+  async updateGoal(businessId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal> {
     if (data.name !== undefined && !data.name.trim()) {
       throw new Error('Invalid goal name');
     }
@@ -140,23 +140,23 @@ export class DashboardService {
       }
     }
 
-    const updated = await this.repository.updateGoal(userId, id, data);
+    const updated = await this.repository.updateGoal(businessId, id, data);
     if (!updated) {
       throw new Error('Goal not found');
     }
     return updated;
   }
 
-  async deleteGoal(userId: string, id: string): Promise<void> {
-    const deleted = await this.repository.deleteGoal(userId, id);
+  async deleteGoal(businessId: string, id: string): Promise<void> {
+    const deleted = await this.repository.deleteGoal(businessId, id);
     if (!deleted) {
       throw new Error('Goal not found');
     }
   }
 
-  async getRevenue(userId: string, range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
+  async getRevenue(businessId: string, range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
     const normalized: RevenueRange = range === 'day' || range === 'month' || range === 'year' ? range : 'month';
-    const points = await this.repository.getRevenueSeries(userId, normalized);
+    const points = await this.repository.getRevenueSeries(businessId, normalized);
     return { range: normalized, points };
   }
 }

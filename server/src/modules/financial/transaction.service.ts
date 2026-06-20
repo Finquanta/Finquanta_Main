@@ -21,22 +21,22 @@ export class TransactionService {
     private notificationService?: WebSocketNotificationService
   ) {}
 
-  async createTransaction(userId: string, data: CreateTransactionData): Promise<Transaction> {
+  async createTransaction(businessId: string, userId: string, data: CreateTransactionData): Promise<Transaction> {
     // Validate required fields
     this.validateCreateData(data);
 
-    // Business logic validations
-    await this.validateBusinessRules(userId, data);
+    // Business logic validations (scoped to the business)
+    await this.validateBusinessRules(businessId, data);
 
     // Create transaction through repository
-    const transaction = await this.repository.create(userId, data);
+    const transaction = await this.repository.create(businessId, userId, data);
 
     // Send WebSocket notification if available
     if (this.notificationService) {
       this.notificationService.notifyTransactionCreated(userId, transaction);
 
       // Check for spending limits and send notifications
-      await this.checkAndNotifyLimits(userId, data);
+      await this.checkAndNotifyLimits(businessId, data);
     }
 
     return transaction;
@@ -44,14 +44,14 @@ export class TransactionService {
 
   async updateTransaction(
     id: string,
-    userId: string,
+    businessId: string,
     data: UpdateTransactionData
   ): Promise<Transaction | null> {
     // Validate update data
     this.validateUpdateData(data);
 
-    // Check if transaction exists and belongs to user
-    const existingTransaction = await this.repository.findById(id, userId);
+    // Check if transaction exists in this business
+    const existingTransaction = await this.repository.findById(id, businessId);
     if (!existingTransaction) {
       return null;
     }
@@ -61,60 +61,60 @@ export class TransactionService {
       const mergedData = { ...existingTransaction, ...data };
       // Exclude the transaction being edited so it isn't flagged as a
       // duplicate of itself or double-counted against daily limits.
-      await this.validateBusinessRules(userId, mergedData as CreateTransactionData, id);
+      await this.validateBusinessRules(businessId, mergedData as CreateTransactionData, id);
     }
 
     // Update transaction through repository
-    const updatedTransaction = await this.repository.update(id, userId, data);
+    const updatedTransaction = await this.repository.update(id, businessId, data);
 
     // Send WebSocket notification if available and update was successful
     if (this.notificationService && updatedTransaction) {
-      this.notificationService.notifyTransactionUpdated(userId, updatedTransaction);
+      this.notificationService.notifyTransactionUpdated(businessId, updatedTransaction);
     }
 
     return updatedTransaction;
   }
 
-  async deleteTransaction(id: string, userId: string): Promise<boolean> {
-    // Check if transaction exists and belongs to user
-    const existingTransaction = await this.repository.findById(id, userId);
+  async deleteTransaction(id: string, businessId: string): Promise<boolean> {
+    // Check if transaction exists in this business
+    const existingTransaction = await this.repository.findById(id, businessId);
     if (!existingTransaction) {
       return false;
     }
 
     // Delete transaction through repository
-    const deleted = await this.repository.delete(id, userId);
+    const deleted = await this.repository.delete(id, businessId);
 
     // Send WebSocket notification if available and deletion was successful
     if (this.notificationService && deleted) {
-      this.notificationService.notifyTransactionDeleted(userId, existingTransaction);
+      this.notificationService.notifyTransactionDeleted(businessId, existingTransaction);
     }
 
     return deleted;
   }
 
   async getUserTransactions(
-    userId: string,
+    businessId: string,
     filters: TransactionFilters = {}
   ) {
     // Validate filters
     this.validateFilters(filters);
 
-    return await this.repository.getUserTransactions(userId, filters);
+    return await this.repository.getUserTransactions(businessId, filters);
   }
 
   async getFinancialSummary(
-    userId: string,
+    businessId: string,
     dateRange: { startDate: string; endDate: string }
   ): Promise<FinancialSummary> {
     // Validate date range
     this.validateDateRange(dateRange.startDate, dateRange.endDate);
 
-    return await this.repository.calculateSummary(userId, dateRange);
+    return await this.repository.calculateSummary(businessId, dateRange);
   }
 
-  async getTransactionById(id: string, userId: string): Promise<Transaction | null> {
-    return await this.repository.findById(id, userId);
+  async getTransactionById(id: string, businessId: string): Promise<Transaction | null> {
+    return await this.repository.findById(id, businessId);
   }
 
   private validateCreateData(data: CreateTransactionData): void {
@@ -276,7 +276,7 @@ export class TransactionService {
     }
   }
 
-  private async validateBusinessRules(userId: string, data: CreateTransactionData, excludeId?: string): Promise<void> {
+  private async validateBusinessRules(businessId: string, data: CreateTransactionData, excludeId?: string): Promise<void> {
     // Rule 1: Expense transactions cannot have future dates
     if (data.type === TransactionType.EXPENSE) {
       const transactionDate = new Date(data.date + 'T00:00:00.000Z');
@@ -290,7 +290,7 @@ export class TransactionService {
 
     // Rule 2: Daily transaction limit. When editing, ignore the transaction
     // being updated so it doesn't count against the user's own limits.
-    const dayQuery = await this.repository.getUserTransactions(userId, {
+    const dayQuery = await this.repository.getUserTransactions(businessId, {
       startDate: data.date,
       endDate: data.date,
       limit: TransactionService.MAX_TRANSACTIONS_PER_DAY + 1
@@ -329,14 +329,14 @@ export class TransactionService {
   /**
    * Check for spending limits and send notifications via WebSocket
    */
-  private async checkAndNotifyLimits(userId: string, data: CreateTransactionData): Promise<void> {
+  private async checkAndNotifyLimits(businessId: string, data: CreateTransactionData): Promise<void> {
     if (!this.notificationService || data.type !== TransactionType.EXPENSE) {
       return;
     }
 
     // Check daily spending limit (80% warning threshold)
     const today = new Date().toISOString().split('T')[0];
-    const dayTransactions = await this.repository.getUserTransactions(userId, {
+    const dayTransactions = await this.repository.getUserTransactions(businessId, {
       startDate: today,
       endDate: today
     });
@@ -349,7 +349,7 @@ export class TransactionService {
     const dailyLimitWarning = TransactionService.MAX_DAILY_EXPENSE_AMOUNT * 0.8; // 80% of limit
 
     if (totalAfterNewExpense > dailyLimitWarning && totalAfterNewExpense <= TransactionService.MAX_DAILY_EXPENSE_AMOUNT) {
-      this.notificationService.notifyLimitReached(userId, {
+      this.notificationService.notifyLimitReached(businessId, {
         type: 'daily_spending',
         currentAmount: totalAfterNewExpense,
         limitAmount: TransactionService.MAX_DAILY_EXPENSE_AMOUNT
@@ -366,7 +366,7 @@ export class TransactionService {
     const categoryWarning = categoryLimit * 0.9; // 90% of category limit
 
     if (totalCategoryExpense > categoryWarning) {
-      this.notificationService.notifyLimitReached(userId, {
+      this.notificationService.notifyLimitReached(businessId, {
         type: 'category_limit',
         currentAmount: totalCategoryExpense,
         limitAmount: categoryLimit,

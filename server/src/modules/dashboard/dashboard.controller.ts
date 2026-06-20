@@ -9,7 +9,7 @@ export class DashboardController {
   async getOverview(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const range = normalizeDateRange(request.query as { startDate?: string; endDate?: string });
-      const data = await this.service.getOverview(request.user!.id, range.startDate, range.endDate);
+      const data = await this.service.getOverview(request.businessId!, range.startDate, range.endDate);
       return reply.send({ success: true, data });
     } catch (error) {
       request.log.error(error);
@@ -20,7 +20,7 @@ export class DashboardController {
   async getRevenue(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const { range } = request.query as { range?: string };
-      const data = await this.service.getRevenue(request.user!.id, range as any);
+      const data = await this.service.getRevenue(request.businessId!, range as any);
       return reply.send({ success: true, data });
     } catch (error) {
       request.log.error(error);
@@ -30,7 +30,7 @@ export class DashboardController {
 
   async createGoal(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      const data = await this.service.createGoal(request.user!.id, request.body as any);
+      const data = await this.service.createGoal(request.businessId!, request.user!.id, request.body as any);
       return reply.status(201).send({ success: true, data });
     } catch (error) {
       return this.handleError(error, reply);
@@ -40,7 +40,7 @@ export class DashboardController {
   async updateGoal(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const data = await this.service.updateGoal(request.user!.id, id, request.body as any);
+      const data = await this.service.updateGoal(request.businessId!, id, request.body as any);
       return reply.send({ success: true, data });
     } catch (error) {
       return this.handleError(error, reply);
@@ -50,7 +50,7 @@ export class DashboardController {
   async deleteGoal(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      await this.service.deleteGoal(request.user!.id, id);
+      await this.service.deleteGoal(request.businessId!, id);
       return reply.send({ success: true, data: { id } });
     } catch (error) {
       return this.handleError(error, reply);

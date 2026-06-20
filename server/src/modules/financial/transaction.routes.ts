@@ -5,6 +5,7 @@ import { TransactionRepository } from './transaction.repository';
 import { Database } from '../../infrastructure/database';
 import { CreateTransactionData, UpdateTransactionData } from './transaction.types';
 import { authenticate } from '../shared/authenticate';
+import { withBusiness } from '../shared/business-context';
 import { ReceiptRepository } from './receipt.repository';
 
 const ALLOWED_RECEIPT_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
@@ -86,7 +87,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   fastify.post<{
     Body: CreateTransactionData;
   }>('/v1/financial/transactions', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       body: createTransactionSchema,
       response: {
@@ -112,7 +113,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
 
   // GET /api/v1/financial/transactions - Get user transactions
   fastify.get('/v1/financial/transactions', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       querystring: transactionQuerySchema,
       response: {
@@ -141,7 +142,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   fastify.get<{
     Params: { id: string };
   }>('/v1/financial/transactions/:id', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       params: transactionParamsSchema,
       response: {
@@ -170,7 +171,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
     Params: { id: string };
     Body: UpdateTransactionData;
   }>('/v1/financial/transactions/:id', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       params: transactionParamsSchema,
       body: updateTransactionSchema,
@@ -199,7 +200,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
   fastify.delete<{
     Params: { id: string };
   }>('/v1/financial/transactions/:id', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       params: transactionParamsSchema,
       response: {
@@ -225,7 +226,7 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
 
   // GET /api/v1/financial/summary - Get financial summary
   fastify.get('/v1/financial/summary', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, withBusiness(database)],
     schema: {
       querystring: financialSummaryQuerySchema,
       response: {
@@ -261,13 +262,14 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
 
   // POST /api/v1/financial/transactions/:id/receipt — upload a receipt (PDF/image)
   fastify.post('/v1/financial/transactions/:id/receipt', {
-    preHandler: [authenticate]
+    preHandler: [authenticate, withBusiness(database)]
   }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const userId = request.user!.id;
+      const businessId = (request as any).businessId as string;
 
-      if (!(await receiptRepository.transactionBelongsToUser(id, userId))) {
+      if (!(await receiptRepository.transactionInBusiness(id, businessId))) {
         return reply.status(404).send({ success: false, error: 'Transaction not found' });
       }
 
@@ -311,11 +313,15 @@ export async function transactionRoutes(fastify: FastifyInstance, options: { dat
 
   // GET /api/v1/financial/transactions/:id/receipt — download/view the receipt
   fastify.get('/v1/financial/transactions/:id/receipt', {
-    preHandler: [authenticate]
+    preHandler: [authenticate, withBusiness(database)]
   }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const receipt = await receiptRepository.get(request.user!.id, id);
+      const businessId = (request as any).businessId as string;
+      if (!(await receiptRepository.transactionInBusiness(id, businessId))) {
+        return reply.status(404).send({ success: false, error: 'Receipt not found' });
+      }
+      const receipt = await receiptRepository.get(id);
       if (!receipt) {
         return reply.status(404).send({ success: false, error: 'Receipt not found' });
       }

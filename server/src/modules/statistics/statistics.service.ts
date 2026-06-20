@@ -2,8 +2,8 @@ import { formatCurrency, formatPercentChange } from '../shared/formatters';
 import { CategoryData, MonthlyTrend, PerformanceMetric, StatisticsOverview, StatisticsTableData } from './statistics.types';
 
 export interface StatisticsRepositoryPort {
-  getMonthlyRows(userId: string, year: number): Promise<Array<{ month: string; income: number; expenses: number; transactions: number }>>;
-  getCategoryBreakdown(userId: string, year: number): Promise<{ incomeSources: CategoryData[]; expenseCategories: CategoryData[] }>;
+  getMonthlyRows(businessId: string, year: number): Promise<Array<{ month: string; income: number; expenses: number; transactions: number }>>;
+  getCategoryBreakdown(businessId: string, year: number): Promise<{ incomeSources: CategoryData[]; expenseCategories: CategoryData[] }>;
 }
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -15,10 +15,10 @@ const fullMonthLabels = [
 export class StatisticsService {
   constructor(private repository: StatisticsRepositoryPort) {}
 
-  async getOverview(userId: string, year: number): Promise<StatisticsOverview> {
+  async getOverview(businessId: string, year: number): Promise<StatisticsOverview> {
     const [monthlyRows, categories] = await Promise.all([
-      this.repository.getMonthlyRows(userId, year),
-      this.repository.getCategoryBreakdown(userId, year)
+      this.repository.getMonthlyRows(businessId, year),
+      this.repository.getCategoryBreakdown(businessId, year)
     ]);
 
     const rowMap = new Map(monthlyRows.map(row => [row.month, row]));

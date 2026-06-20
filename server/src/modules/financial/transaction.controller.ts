@@ -61,8 +61,9 @@ export class TransactionController {
         });
       }
 
-      // Create transaction through service
-      const transaction = await this.transactionService.createTransaction(userId, transactionData);
+      // Create transaction through service (scoped to the active business)
+      const businessId = (request as any).businessId as string;
+      const transaction = await this.transactionService.createTransaction(businessId, userId, transactionData);
 
       return reply.status(201).send({
         success: true,
@@ -164,8 +165,8 @@ export class TransactionController {
         }
       }
 
-      // Get transactions through service
-      const result = await this.transactionService.getUserTransactions(userId, filters);
+      // Get transactions through service (scoped to the active business)
+      const result = await this.transactionService.getUserTransactions((request as any).businessId, filters);
 
       return reply.status(200).send({
         success: true,
@@ -213,8 +214,8 @@ export class TransactionController {
         });
       }
 
-      // Get transaction through service
-      const transaction = await this.transactionService.getTransactionById(id, userId);
+      // Get transaction through service (scoped to the active business)
+      const transaction = await this.transactionService.getTransactionById(id, (request as any).businessId);
 
       if (!transaction) {
         return reply.status(404).send({
@@ -279,8 +280,8 @@ export class TransactionController {
         });
       }
 
-      // Update transaction through service
-      const updatedTransaction = await this.transactionService.updateTransaction(id, userId, updateData);
+      // Update transaction through service (scoped to the active business)
+      const updatedTransaction = await this.transactionService.updateTransaction(id, (request as any).businessId, updateData);
 
       if (!updatedTransaction) {
         return reply.status(404).send({
@@ -335,8 +336,8 @@ export class TransactionController {
         });
       }
 
-      // Delete transaction through service
-      const deleted = await this.transactionService.deleteTransaction(id, userId);
+      // Delete transaction through service (scoped to the active business)
+      const deleted = await this.transactionService.deleteTransaction(id, (request as any).businessId);
 
       if (!deleted) {
         return reply.status(404).send({
@@ -380,8 +381,8 @@ export class TransactionController {
         });
       }
 
-      // Get financial summary through service
-      const summary = await this.transactionService.getFinancialSummary(userId, {
+      // Get financial summary through service (scoped to the active business)
+      const summary = await this.transactionService.getFinancialSummary((request as any).businessId, {
         startDate,
         endDate
       });

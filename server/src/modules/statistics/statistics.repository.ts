@@ -7,16 +7,17 @@ const expenseColors = ['#150578', '#ff8600', '#63d51d', '#f97316', '#06b6d4'];
 export class StatisticsRepository {
   constructor(private database: Database) {}
 
-  async getMonthlyRows(userId: string, year: number) {
+  async getMonthlyRows(businessId: string, year: number) {
     const result = await this.database.query(
-      `SELECT TO_CHAR(month, 'YYYY-MM') as month,
-        total_income as income,
-        total_expenses as expenses,
-        transaction_count as transactions
-       FROM monthly_summary
-       WHERE user_id = $1 AND EXTRACT(YEAR FROM month) = $2
+      `SELECT TO_CHAR(date, 'YYYY-MM') as month,
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expenses,
+        COUNT(*) as transactions
+       FROM financial_transactions
+       WHERE business_id = $1 AND EXTRACT(YEAR FROM date) = $2 AND status = 'completed'
+       GROUP BY TO_CHAR(date, 'YYYY-MM')
        ORDER BY month ASC`,
-      [userId, year]
+      [businessId, year]
     );
 
     return result.rows.map((row: any) => ({
@@ -27,15 +28,16 @@ export class StatisticsRepository {
     }));
   }
 
-  async getCategoryBreakdown(userId: string, year: number): Promise<{ incomeSources: CategoryData[]; expenseCategories: CategoryData[] }> {
+  async getCategoryBreakdown(businessId: string, year: number): Promise<{ incomeSources: CategoryData[]; expenseCategories: CategoryData[] }> {
     const result = await this.database.query(
-      `SELECT type, category, SUM(total_amount) as amount
-       FROM transaction_summary
-       WHERE user_id = $1
-         AND EXTRACT(YEAR FROM latest_date) = $2
+      `SELECT type, category, SUM(amount) as amount
+       FROM financial_transactions
+       WHERE business_id = $1
+         AND EXTRACT(YEAR FROM date) = $2
+         AND status = 'completed'
        GROUP BY type, category
        ORDER BY amount DESC`,
-      [userId, year]
+      [businessId, year]
     );
 
     const incomeRows = result.rows.filter((row: any) => row.type === 'income');
