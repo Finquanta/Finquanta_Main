@@ -5,11 +5,14 @@ import { UserRepository } from '../users/user.repository';
 import { UserRole } from '../users/types';
 import { AdminRepository } from './admin.repository';
 
-const VALID_ROLES = ['user', 'admin', 'super_admin'];
+const VALID_ROLES = ['user', 'admin', 'super_admin', 'owner'];
+const ADMIN_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.OWNER];
+const RANK: Record<string, number> = { user: 0, admin: 1, super_admin: 2, owner: 3 };
+const rank = (r: string) => RANK[r] ?? 0;
 
 /**
- * Guard that allows only admin / super_admin users. The JWT carries no role, so
- * we look the user up by id and check their DB role. Run after `authenticate`.
+ * Guard that allows only admin / super_admin / owner. The JWT carries no role,
+ * so we look the user up by id and check their DB role. Run after `authenticate`.
  */
 function requireAdmin(database: Database) {
   const users = new UserRepository(database);
@@ -20,23 +23,23 @@ function requireAdmin(database: Database) {
       return reply.status(401).send({ success: false, error: 'Authentication required' });
     }
     const user = await users.findById(id);
-    if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN)) {
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
       return reply.status(403).send({ success: false, error: 'Admin access required' });
     }
     authed.user!.role = user.role;
   };
 }
 
-/**
- * Who can manage whom:
- * - super_admin (owner): can manage admins and users, but NOT other super_admins.
- * - admin: can manage regular users only.
- */
-function canManage(callerRole: string | undefined, targetRole: string): boolean {
-  if (callerRole === 'super_admin') return targetRole !== 'super_admin';
-  if (callerRole === 'admin') return targetRole === 'user';
-  return false;
-}
+// Capability matrix (caller role acting on a target role):
+// - owner: restrict/delete/edit/changeRole on everyone.
+// - super_admin: restrict + delete admins and users (rank <= 1); no edit/role.
+// - admin: restrict regular users only; nothing else.
+const canRestrict = (caller: string | undefined, target: string) =>
+  caller === 'owner' || (caller === 'super_admin' && rank(target) <= 1) || (caller === 'admin' && target === 'user');
+const canDelete = (caller: string | undefined, target: string) =>
+  caller === 'owner' || (caller === 'super_admin' && rank(target) <= 1);
+const canEdit = (caller: string | undefined, _target: string) => caller === 'owner';
+const canChangeRole = (caller: string | undefined) => caller === 'owner';
 
 export async function adminRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new AdminRepository(options.database);
@@ -65,25 +68,30 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       const callerRole = request.user!.role;
 
       if (id === request.user!.id) {
-        return reply.status(400).send({ success: false, error: 'You cannot modify your own admin account here.' });
+        return reply.status(400).send({ success: false, error: 'You cannot modify your own account here.' });
       }
       const target = await repo.getById(id);
       if (!target) return reply.status(404).send({ success: false, error: 'User not found' });
-      if (!canManage(callerRole, target.role)) {
-        return reply.status(403).send({ success: false, error: 'You do not have permission to manage this account.' });
-      }
 
-      // Role changes are super_admin (owner) only.
+      // Each requested change is checked against its own capability.
       if (body.role !== undefined) {
-        if (callerRole !== 'super_admin') {
-          return reply.status(403).send({ success: false, error: 'Only the owner can change roles.' });
+        if (!canChangeRole(callerRole)) {
+          return reply.status(403).send({ success: false, error: 'Only the owner can assign roles.' });
         }
         if (!VALID_ROLES.includes(body.role)) {
           return reply.status(400).send({ success: false, error: 'Invalid role.' });
         }
       }
-      if (body.status !== undefined && !['active', 'suspended'].includes(body.status)) {
-        return reply.status(400).send({ success: false, error: 'Invalid status.' });
+      if ((body.firstName !== undefined || body.lastName !== undefined) && !canEdit(callerRole, target.role)) {
+        return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
+      }
+      if (body.status !== undefined) {
+        if (!['active', 'suspended'].includes(body.status)) {
+          return reply.status(400).send({ success: false, error: 'Invalid status.' });
+        }
+        if (!canRestrict(callerRole, target.role)) {
+          return reply.status(403).send({ success: false, error: 'You do not have permission to restrict this account.' });
+        }
       }
 
       await repo.updateUser(id, {
@@ -108,7 +116,7 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       }
       const target = await repo.getById(id);
       if (!target) return reply.status(404).send({ success: false, error: 'User not found' });
-      if (!canManage(request.user!.role, target.role)) {
+      if (!canDelete(request.user!.role, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to delete this account.' });
       }
       await repo.deleteUser(id);

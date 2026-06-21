@@ -30,25 +30,19 @@ export class AdminRepository {
     );
   }
 
-  /** Promote emails to admin at boot (ADMIN_EMAILS). Never demotes admins/super_admins. */
-  async ensureAdmins(emails: string[]): Promise<void> {
+  /**
+   * Promote emails to a role at boot, upgrade-only (never downgrades a higher
+   * role). Role rank: user < admin < super_admin < owner.
+   */
+  async ensureRole(role: 'admin' | 'super_admin' | 'owner', emails: string[]): Promise<void> {
     const cleaned = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
     if (cleaned.length === 0) return;
+    const rank: Record<string, number> = { user: 0, admin: 1, super_admin: 2, owner: 3 };
     await this.database.query(
-      `UPDATE users SET role = 'admin', updated_at = NOW()
-       WHERE lower(email) = ANY($1::text[]) AND role NOT IN ('admin', 'super_admin')`,
-      [cleaned]
-    );
-  }
-
-  /** Promote emails to super_admin (owner) at boot (SUPER_ADMIN_EMAILS). Upgrades admins too. */
-  async ensureSuperAdmins(emails: string[]): Promise<void> {
-    const cleaned = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
-    if (cleaned.length === 0) return;
-    await this.database.query(
-      `UPDATE users SET role = 'super_admin', updated_at = NOW()
-       WHERE lower(email) = ANY($1::text[]) AND role <> 'super_admin'`,
-      [cleaned]
+      `UPDATE users SET role = $2, updated_at = NOW()
+       WHERE lower(email) = ANY($1::text[])
+         AND (CASE role WHEN 'owner' THEN 3 WHEN 'super_admin' THEN 2 WHEN 'admin' THEN 1 ELSE 0 END) < $3`,
+      [cleaned, role, rank[role]]
     );
   }
 

@@ -11,6 +11,7 @@ import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/l
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
 import { getBusinessProfile } from '@/lib/api/business';
+import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
@@ -156,6 +157,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
+  }, []);
+
+  // Show the Admin Panel link only to admins / super admins / owners.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    checkAdmin().then(() => setIsAdmin(true)).catch(() => setIsAdmin(false));
   }, []);
 
   // If onboarding wasn't completed, send the user to finish it — unless they
@@ -356,6 +363,11 @@ export default function DashboardPage() {
           <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
+          {isAdmin && (
+            <Link href="/admin-users" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+              {t('dashboard', 'adminPanel')}
+            </Link>
+          )}
         </nav>
 
         <div className="mt-auto flex flex-col gap-2 text-xs">

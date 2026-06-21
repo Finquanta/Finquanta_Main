@@ -309,7 +309,7 @@ const translations: Record<string, Record<string, Record<string, string>>> = {
 // editing the large inline maps above. Missing keys fall back to English via t().
 const dashboardExtra: Record<string, Record<string, string>> = {
   en: {
-    workspace: "Workspace", sendFeedback: "Send feedback",
+    workspace: "Workspace", sendFeedback: "Send feedback", adminPanel: "Admin Panel",
     finquantaId: "Finquanta ID", yourName: "Your name", editNameTitle: "Click to edit your name",
     reminders: "Reminders", addReminderPlaceholder: "Add a reminder…", add: "Add", noReminders: "No reminders yet. Add one above.",
     restore: "Restore", clear: "Clear", recentlyDeleted: "Recently deleted", deleted: "Deleted", undo: "Undo",

@@ -174,8 +174,11 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   try {
     const adminRepo = new AdminRepository(database);
     await adminRepo.ensureSchema();
-    await adminRepo.ensureSuperAdmins([
-      ...(process.env.SUPER_ADMIN_EMAILS || '').split(','),
+    // Roles are upgrade-only. SUPER_ADMIN_EMAILS -> super_admin; ADMIN_EMAILS /
+    // OWNER_EMAILS -> owner (top role; owners assign admin/super_admin in-app).
+    await adminRepo.ensureRole('super_admin', (process.env.SUPER_ADMIN_EMAILS || '').split(','));
+    await adminRepo.ensureRole('owner', [
+      ...(process.env.OWNER_EMAILS || '').split(','),
       ...(process.env.ADMIN_EMAILS || '').split(','),
     ]);
   } catch (error) {
