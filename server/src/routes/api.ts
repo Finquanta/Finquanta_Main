@@ -16,6 +16,8 @@ import { ReceiptRepository } from '../modules/financial/receipt.repository';
 import { ProfileRepository } from '../modules/profile/profile.repository';
 import { businessRoutes } from '../modules/businesses/businesses.routes';
 import { BusinessesRepository } from '../modules/businesses/businesses.repository';
+import { adminRoutes } from '../modules/admin/admin.routes';
+import { AdminRepository } from '../modules/admin/admin.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -164,6 +166,16 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
   }
   await fastify.register(businessRoutes, { database });
+
+  // Promote configured emails to admin (ADMIN_EMAILS="a@x.com,b@y.com"), then
+  // mount the admin-only routes.
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',');
+    await new AdminRepository(database).ensureAdmins(adminEmails);
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure admin users');
+  }
+  await fastify.register(adminRoutes, { database });
 }
 
 export default apiRoutes;
