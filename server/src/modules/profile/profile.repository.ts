@@ -75,11 +75,16 @@ export class ProfileRepository {
         revenue_range VARCHAR(60),
         employee_count VARCHAR(60),
         financial_goals TEXT,
+        country VARCHAR(120),
+        incorporation_location VARCHAR(160),
         onboarding_completed BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    // Add columns to pre-existing tables (CREATE TABLE IF NOT EXISTS won't).
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS country VARCHAR(120)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS incorporation_location VARCHAR(160)`);
   }
 
   async getBusiness(userId: string): Promise<BusinessProfile> {
@@ -92,8 +97,9 @@ export class ProfileRepository {
       INSERT INTO business_profiles (
         user_id, business_name, business_type, industry, niche, entity_type,
         maturity_stage, revenue_range, employee_count, financial_goals,
+        country, incorporation_location,
         onboarding_completed, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NOW())
       ON CONFLICT (user_id) DO UPDATE SET
         business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
         business_type = COALESCE(EXCLUDED.business_type, business_profiles.business_type),
@@ -104,6 +110,8 @@ export class ProfileRepository {
         revenue_range = COALESCE(EXCLUDED.revenue_range, business_profiles.revenue_range),
         employee_count = COALESCE(EXCLUDED.employee_count, business_profiles.employee_count),
         financial_goals = COALESCE(EXCLUDED.financial_goals, business_profiles.financial_goals),
+        country = COALESCE(EXCLUDED.country, business_profiles.country),
+        incorporation_location = COALESCE(EXCLUDED.incorporation_location, business_profiles.incorporation_location),
         onboarding_completed = business_profiles.onboarding_completed OR EXCLUDED.onboarding_completed,
         updated_at = NOW()
       RETURNING *
@@ -119,6 +127,8 @@ export class ProfileRepository {
       data.revenueRange ?? null,
       data.employeeCount ?? null,
       data.financialGoals ?? null,
+      data.country ?? null,
+      data.incorporationLocation ?? null,
       data.onboardingCompleted ?? false
     ]);
     return this.mapBusiness(result.rows[0]);
@@ -135,6 +145,8 @@ export class ProfileRepository {
       revenueRange: row.revenue_range ?? undefined,
       employeeCount: row.employee_count ?? undefined,
       financialGoals: row.financial_goals ?? undefined,
+      country: row.country ?? undefined,
+      incorporationLocation: row.incorporation_location ?? undefined,
       onboardingCompleted: row.onboarding_completed ?? false
     };
   }

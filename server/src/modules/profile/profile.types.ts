@@ -35,6 +35,8 @@ export interface BusinessProfile {
   revenueRange?: string;
   employeeCount?: string;
   financialGoals?: string;
+  country?: string;
+  incorporationLocation?: string;
   onboardingCompleted?: boolean;
 }
 

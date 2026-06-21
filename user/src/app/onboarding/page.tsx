@@ -11,6 +11,7 @@ const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "2
 const empty: BusinessProfile = {
   businessName: "", businessType: "", industry: "", niche: "",
   entityType: "", maturityStage: "", revenueRange: "", employeeCount: "", financialGoals: "",
+  country: "", incorporationLocation: "",
 };
 
 export default function OnboardingPage() {
@@ -74,6 +75,14 @@ export default function OnboardingPage() {
               <option value="">Select…</option>
               {ENTITY_TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
+          </div>
+          <div>
+            <label className={label}>Country</label>
+            <input className={input} value={form.country ?? ""} onChange={(e) => set("country", e.target.value)} placeholder="e.g. United States" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label}>Place of incorporation</label>
+            <input className={input} value={form.incorporationLocation ?? ""} onChange={(e) => set("incorporationLocation", e.target.value)} placeholder="e.g. Delaware, USA" />
           </div>
           <div>
             <label className={label}>Maturity stage</label>
