@@ -179,13 +179,18 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     await adminRepo.ensureSchema();
     const split = (v?: string) => (v || '').split(',');
     // Upgrade-only, applied lowest role first so an email listed in several
-    // ends up at the highest role it qualifies for.
-    await adminRepo.ensureRole('admin', split(process.env.MODERATOR_EMAILS));
-    await adminRepo.ensureRole('super_admin', [
+    // ends up at the highest role it qualifies for. Log how many rows each
+    // role matched so a misconfigured *_EMAILS var is visible in the logs.
+    const moderators = await adminRepo.ensureRole('admin', split(process.env.MODERATOR_EMAILS));
+    const admins = await adminRepo.ensureRole('super_admin', [
       ...split(process.env.ADMIN_EMAILS),
       ...split(process.env.SUPER_ADMIN_EMAILS),
     ]);
-    await adminRepo.ensureRole('owner', split(process.env.OWNER_EMAILS));
+    const owners = await adminRepo.ensureRole('owner', split(process.env.OWNER_EMAILS));
+    fastify.log.info(
+      { owners, admins, moderators, ownerEmailsSet: Boolean(process.env.OWNER_EMAILS) },
+      'Role bootstrap complete (rows upgraded per role)'
+    );
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }

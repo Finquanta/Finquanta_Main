@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import AiFocusSection from "@/components/pages/home/AiFocusSection";
 import FaqSection from "@/components/pages/home/FaqSection";
 import HeroSection from "@/components/pages/home/HeroSection";
@@ -12,8 +13,19 @@ import { useLanguage } from "@/hooks/context/LanguageContext"; // ← ADD THIS
 
 export default function Home() {
   const { t } = useLanguage(); // ← ADD THIS
+  const router = useRouter();
   const [showCTA, setShowCTA] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Already logged in? Skip the marketing homepage and go straight to the
+  // dashboard. The session is "saved" via the access token in localStorage.
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("accessToken")) {
+      setRedirecting(true);
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +44,9 @@ export default function Home() {
     setShowCTA(false);
     setDismissed(true);
   };
+
+  // Don't flash the marketing page while we bounce a logged-in user to /dashboard.
+  if (redirecting) return null;
 
   return (
     <main>

@@ -32,18 +32,23 @@ export class AdminRepository {
 
   /**
    * Promote emails to a role at boot, upgrade-only (never downgrades a higher
-   * role). Role rank: user < admin < super_admin < owner.
+   * role). Role rank: user < admin < super_admin < owner. Returns the number of
+   * user rows actually upgraded. Tolerates surrounding quotes/whitespace in the
+   * configured values (a common env-var mistake) and matches case-insensitively.
    */
-  async ensureRole(role: 'admin' | 'super_admin' | 'owner', emails: string[]): Promise<void> {
-    const cleaned = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
-    if (cleaned.length === 0) return;
+  async ensureRole(role: 'admin' | 'super_admin' | 'owner', emails: string[]): Promise<number> {
+    const cleaned = emails
+      .map((e) => e.trim().replace(/^["']+|["']+$/g, '').trim().toLowerCase())
+      .filter(Boolean);
+    if (cleaned.length === 0) return 0;
     const rank: Record<string, number> = { user: 0, admin: 1, super_admin: 2, owner: 3 };
-    await this.database.query(
+    const result = await this.database.query(
       `UPDATE users SET role = $2, updated_at = NOW()
        WHERE lower(email) = ANY($1::text[])
          AND (CASE role WHEN 'owner' THEN 3 WHEN 'super_admin' THEN 2 WHEN 'admin' THEN 1 ELSE 0 END) < $3`,
       [cleaned, role, rank[role]]
     );
+    return result.rowCount ?? 0;
   }
 
   /** All users with their business profile info, newest first. Admin-only. */
