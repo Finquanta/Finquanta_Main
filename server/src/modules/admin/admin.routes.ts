@@ -30,16 +30,20 @@ function requireAdmin(database: Database) {
   };
 }
 
-// Capability matrix (caller role acting on a target role):
-// - owner: restrict/delete/edit/changeRole on everyone.
-// - super_admin: restrict + delete admins and users (rank <= 1); no edit/role.
-// - admin: restrict regular users only; nothing else.
+// Capability matrix (caller role acting on a target role). Internal keys map to
+// UI names: user=User, admin=Moderator, super_admin=Admin, owner=Owner.
+// - owner (Owner): restrict/delete/editName/assignRole on everyone.
+// - super_admin (Admin): manage Moderators & Users (rank <= 1) — editName,
+//   restrict, delete, and promote/demote between User and Moderator only.
+// - admin (Moderator): editName + restrict regular Users only.
 const canRestrict = (caller: string | undefined, target: string) =>
   caller === 'owner' || (caller === 'super_admin' && rank(target) <= 1) || (caller === 'admin' && target === 'user');
 const canDelete = (caller: string | undefined, target: string) =>
   caller === 'owner' || (caller === 'super_admin' && rank(target) <= 1);
-const canEdit = (caller: string | undefined, _target: string) => caller === 'owner';
-const canChangeRole = (caller: string | undefined) => caller === 'owner';
+const canEditName = (caller: string | undefined, target: string) =>
+  caller === 'owner' || (caller === 'super_admin' && rank(target) <= 1) || (caller === 'admin' && target === 'user');
+const canAssignRole = (caller: string | undefined, targetRole: string, newRole: string) =>
+  caller === 'owner' || (caller === 'super_admin' && rank(targetRole) <= 1 && rank(newRole) <= 1);
 
 export async function adminRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new AdminRepository(options.database);
@@ -78,14 +82,14 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
 
       // Each requested change is checked against its own capability.
       if (body.role !== undefined) {
-        if (!canChangeRole(callerRole)) {
-          return reply.status(403).send({ success: false, error: 'Only the owner can assign roles.' });
-        }
         if (!VALID_ROLES.includes(body.role)) {
           return reply.status(400).send({ success: false, error: 'Invalid role.' });
         }
+        if (!canAssignRole(callerRole, target.role, body.role)) {
+          return reply.status(403).send({ success: false, error: 'You do not have permission to assign this role.' });
+        }
       }
-      if ((body.firstName !== undefined || body.lastName !== undefined) && !isSelf && !canEdit(callerRole, target.role)) {
+      if ((body.firstName !== undefined || body.lastName !== undefined) && !isSelf && !canEditName(callerRole, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
       }
       if (body.status !== undefined) {

@@ -35,13 +35,20 @@ export default function AdminUsersPage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  // Capability matrix (mirrors the backend). Rank: user<admin<super_admin<owner.
+  // Capability matrix (mirrors the backend). Internal rank: user<admin<super_admin<owner,
+  // shown as User < Moderator (admin) < Admin (super_admin) < Owner.
+  // - Owner: edit/restrict/delete anyone; assign any role.
+  // - Admin (super_admin): manage Moderators & Users (rank<=1); promote/demote User<->Moderator only.
+  // - Moderator (admin): edit/restrict Users only.
   const rank = (r: string) => ({ user: 0, admin: 1, super_admin: 2, owner: 3 } as Record<string, number>)[r] ?? 0;
   const canRestrict = (t: string) => myRole === "owner" || (myRole === "super_admin" && rank(t) <= 1) || (myRole === "admin" && t === "user");
   const canDelete = (t: string) => myRole === "owner" || (myRole === "super_admin" && rank(t) <= 1);
-  const canEdit = () => myRole === "owner";
-  const canRole = () => myRole === "owner";
-  const canManage = (t: string) => canRestrict(t) || canDelete(t) || canEdit() || canRole();
+  const canEditName = (t: string) => myRole === "owner" || (myRole === "super_admin" && rank(t) <= 1) || (myRole === "admin" && t === "user");
+  // Assign `newRole` to a `targetRole` account. Owner: anything. Admin: only set
+  // Users/Moderators to User or Moderator (can't create Admins/Owners).
+  const canAssign = (targetRole: string, newRole: string) =>
+    myRole === "owner" || (myRole === "super_admin" && rank(targetRole) <= 1 && rank(newRole) <= 1);
+  const canManage = (t: string) => canRestrict(t) || canDelete(t) || canEditName(t);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -98,11 +105,9 @@ export default function AdminUsersPage() {
         <div style={{ padding: "0 16px 20px" }}><img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 32, width: "auto" }} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: dark ? "#14532d33" : "#f0fdf4", color: "#16a34a", fontWeight: 600, fontSize: 13, borderRight: "2px solid #22c55e" }}>Users</div>
         <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", color: d.muted, fontSize: 11 }}>
-          <span>Signed in as</span>{myRole ? roleBadge(myRole) : <span>…</span>}
-        </div>
         <div onClick={() => setDark((v) => !v)} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
         <div onClick={logout} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>
+        <div style={{ padding: "8px 16px 0", color: d.muted, fontSize: 11 }}>v1.0.0.0</div>
       </div>
 
       {/* Main */}
@@ -168,11 +173,11 @@ export default function AdminUsersPage() {
                               <>
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                                 <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
-                                  {(isSelf || canEdit()) && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
-                                  {!isSelf && canRole() && u.role !== "user" && <MenuItem label={`Make ${roleLabel("user")}`} onClick={() => setRole(u.id, "user")} />}
-                                  {!isSelf && canRole() && u.role !== "admin" && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
-                                  {!isSelf && canRole() && u.role !== "super_admin" && <MenuItem label={`Make ${roleLabel("super_admin")}`} onClick={() => setRole(u.id, "super_admin")} />}
-                                  {!isSelf && canRole() && u.role !== "owner" && <MenuItem label={`Make ${roleLabel("owner")}`} onClick={() => setRole(u.id, "owner")} />}
+                                  {(isSelf || canEditName(u.role)) && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
+                                  {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Make ${roleLabel("user")}`} onClick={() => setRole(u.id, "user")} />}
+                                  {!isSelf && u.role !== "admin" && canAssign(u.role, "admin") && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
+                                  {!isSelf && u.role !== "super_admin" && canAssign(u.role, "super_admin") && <MenuItem label={`Make ${roleLabel("super_admin")}`} onClick={() => setRole(u.id, "super_admin")} />}
+                                  {!isSelf && u.role !== "owner" && canAssign(u.role, "owner") && <MenuItem label={`Make ${roleLabel("owner")}`} onClick={() => setRole(u.id, "owner")} />}
                                   {!isSelf && canRestrict(u.role) && <MenuItem label={u.status === "suspended" ? "Unrestrict" : "Restrict"} onClick={() => toggleStatus(u)} />}
                                   {!isSelf && canDelete(u.role) && <MenuItem label="Delete" danger onClick={() => remove(u)} />}
                                 </div>
