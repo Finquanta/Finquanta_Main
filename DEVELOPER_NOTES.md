@@ -47,6 +47,7 @@ cd user && corepack pnpm@9 install --lockfile-only
 **Render (backend):**
 - `DATABASE_URL` (Neon), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - `CORS_ORIGIN` = comma-separated allowed origins (must include the Vercel URL; add `http://localhost:3000` for local).
+- `SUPER_ADMIN_EMAILS` = comma-separated emails to auto-promote to `super_admin` (owner) on boot.
 - `ADMIN_EMAILS` = comma-separated emails to auto-promote to `admin` on boot (see Admin Panel below).
 - `ANTHROPIC_MODEL` (optional) — overrides Finna's model.
 
@@ -93,19 +94,23 @@ cd user && corepack pnpm@9 install --lockfile-only
 
 ## 7. Admin panel  ← newest
 
+- **Roles:** `super_admin` (= **owner**), `admin`, `user`. The JWT has no role — it's always looked up from the DB.
+- **Permission model** (`canManage` in `admin.routes.ts`): super_admin manages admins + users and can change roles; admin manages regular users only; **nobody can act on themselves or on another super_admin**.
+- **Restrict = `users.status`** (`active` | `suspended`). Suspended accounts are **blocked at login** (`auth.service.login`). Column added idempotently by `AdminRepository.ensureSchema()`.
 - **Backend** (`server/src/modules/admin/`):
-  - `AdminRepository.listUsers()` — all users joined with their `business_profiles` (name, email, role, joined date, company, country, industry).
-  - `AdminRepository.ensureAdmins(emails)` — promotes `ADMIN_EMAILS` to `role='admin'` at boot (idempotent; never demotes).
-  - `admin.routes.ts` — `requireAdmin` guard looks up the DB role (JWT has none) and allows only `admin`/`super_admin`. Endpoints: `GET /v1/admin/users`, `GET /v1/admin/me`. Registered in `api.ts`.
+  - `AdminRepository`: `listUsers()` (users + `business_profiles`), `getById()`, `updateUser()`, `deleteUser()`, `ensureSchema()`, `ensureAdmins(emails)`, `ensureSuperAdmins(emails)`.
+  - `admin.routes.ts` — `requireAdmin` guard (DB role check). Endpoints: `GET /v1/admin/users`, `GET /v1/admin/me` (caller id+role), `PATCH /v1/admin/users/:id` (name / role[owner-only] / status), `DELETE /v1/admin/users/:id`. Registered in `api.ts`.
 - **Frontend** (`user/src/app/(admin)/`):
   - `admin-login` — real login via `/api/login`, then checks `user.role` is admin/super_admin (rejects everyone else). Stores tokens so `apiFetch` is authenticated.
-  - `admin-users` — fetches `GET /v1/admin/users` (live data, replacing the old hardcoded `MOCK_USERS`), with search, light/dark, logout. Redirects non-admins to `/admin-login`.
-  - API helper: `user/src/lib/api/admin.ts`.
-- **How to make someone an admin:**
+  - `admin-users` — fetches live users (replaced the `MOCK_USERS`), shows role/status, and per-row **Edit** (inline name), **role dropdown** (owner only), **Restrict/Unrestrict**, **Delete** — each gated by `canManage(callerRole, targetRole)`. Search, light/dark, logout. Non-admins are redirected to `/admin-login`.
+  - API helper: `user/src/lib/api/admin.ts` (`listAdminUsers`, `checkAdmin`, `updateAdminUser`, `deleteAdminUser`).
+- **How to make someone an admin / owner:**
   1. They sign up normally (creates the user row).
-  2. Add their email to **`ADMIN_EMAILS`** in Render env (comma-separated), and redeploy/restart so the boot bootstrap promotes them.
-  3. They log in at **`/admin-login`** with their normal credentials → admin panel.
-- Currently **read-only** (view users). Editing/deleting users, business list, and analytics are possible follow-ups.
+  2. Add their email to **`ADMIN_EMAILS`** (admin) or **`SUPER_ADMIN_EMAILS`** (owner) in Render env, then redeploy/restart so the boot bootstrap promotes them. *After that, the owner can promote others to admin in-app via the role dropdown — no env edit needed.*
+  3. Log in at **`/admin-login`** with normal credentials → admin panel.
+
+### Removed global UI (2026-06-21)
+`SocialSidebar` (incl. its scroll-to-top button) and the Finna `ChatbotWidget` were removed from `app/layout.tsx`, and the duplicate `SocialSidebar` from the home page. **The component files still exist** (`components/SocialSidebar.tsx`, `components/ChatbotWidget.tsx`) — re-add the imports/renders to bring them back.
 
 ---
 
