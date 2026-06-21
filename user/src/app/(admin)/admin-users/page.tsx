@@ -70,7 +70,10 @@ export default function AdminUsersPage() {
     head: dark ? "#0f172a" : "#fafafa", menuHover: dark ? "#334155" : "#f3f4f6",
   };
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—");
-  const roleLabel = (role: string) => (role === "super_admin" ? "super admin" : role);
+  // Display names: internal keys stay (user<admin<super_admin<owner), but the UI
+  // shows Owner > Admin (super_admin) > Moderator (admin) > User.
+  const roleLabel = (role: string) =>
+    (({ owner: "Owner", super_admin: "Admin", admin: "Moderator", user: "User" } as Record<string, string>)[role] || role);
   const roleBadge = (role: string) => {
     const map: Record<string, [string, string]> = { admin: ["#dbeafe", "#1e40af"], super_admin: ["#f3e8ff", "#6b21a8"], owner: ["#fce7f3", "#be185d"], user: ["#f3f4f6", "#6b7280"] };
     const [bg, fg] = map[role] || map.user;
@@ -95,7 +98,9 @@ export default function AdminUsersPage() {
         <div style={{ padding: "0 16px 20px" }}><img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 32, width: "auto" }} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: dark ? "#14532d33" : "#f0fdf4", color: "#16a34a", fontWeight: 600, fontSize: 13, borderRight: "2px solid #22c55e" }}>Users</div>
         <div style={{ flex: 1 }} />
-        <div style={{ padding: "4px 16px", color: d.muted, fontSize: 11 }}>Signed in as <b>{myRole === "super_admin" ? "owner" : myRole || "…"}</b></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", color: d.muted, fontSize: 11 }}>
+          <span>Signed in as</span>{myRole ? roleBadge(myRole) : <span>…</span>}
+        </div>
         <div onClick={() => setDark((v) => !v)} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
         <div onClick={logout} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>
       </div>
@@ -125,7 +130,9 @@ export default function AdminUsersPage() {
               <tbody>
                 {filtered.map((u) => {
                   const isSelf = u.id === myId;
-                  const manage = !isSelf && canManage(u.role);
+                  // You can always edit your own name; role/restrict/delete on
+                  // yourself stay blocked so you can't lock yourself out.
+                  const manage = isSelf || canManage(u.role);
                   const busy = busyId === u.id;
                   return (
                     <tr key={u.id} style={{ borderBottom: `0.5px solid ${d.border}`, opacity: u.status === "suspended" ? 0.55 : 1 }}>
@@ -161,13 +168,13 @@ export default function AdminUsersPage() {
                               <>
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                                 <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
-                                  {canEdit() && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
-                                  {canRole() && u.role !== "user" && <MenuItem label="Make user" onClick={() => setRole(u.id, "user")} />}
-                                  {canRole() && u.role !== "admin" && <MenuItem label="Make admin" onClick={() => setRole(u.id, "admin")} />}
-                                  {canRole() && u.role !== "super_admin" && <MenuItem label="Make super admin" onClick={() => setRole(u.id, "super_admin")} />}
-                                  {canRole() && u.role !== "owner" && <MenuItem label="Make owner" onClick={() => setRole(u.id, "owner")} />}
-                                  {canRestrict(u.role) && <MenuItem label={u.status === "suspended" ? "Unrestrict" : "Restrict"} onClick={() => toggleStatus(u)} />}
-                                  {canDelete(u.role) && <MenuItem label="Delete" danger onClick={() => remove(u)} />}
+                                  {(isSelf || canEdit()) && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
+                                  {!isSelf && canRole() && u.role !== "user" && <MenuItem label={`Make ${roleLabel("user")}`} onClick={() => setRole(u.id, "user")} />}
+                                  {!isSelf && canRole() && u.role !== "admin" && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
+                                  {!isSelf && canRole() && u.role !== "super_admin" && <MenuItem label={`Make ${roleLabel("super_admin")}`} onClick={() => setRole(u.id, "super_admin")} />}
+                                  {!isSelf && canRole() && u.role !== "owner" && <MenuItem label={`Make ${roleLabel("owner")}`} onClick={() => setRole(u.id, "owner")} />}
+                                  {!isSelf && canRestrict(u.role) && <MenuItem label={u.status === "suspended" ? "Unrestrict" : "Restrict"} onClick={() => toggleStatus(u)} />}
+                                  {!isSelf && canDelete(u.role) && <MenuItem label="Delete" danger onClick={() => remove(u)} />}
                                 </div>
                               </>
                             )}

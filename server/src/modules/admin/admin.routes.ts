@@ -66,9 +66,12 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       const { id } = request.params as { id: string };
       const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string };
       const callerRole = request.user!.role;
+      const isSelf = id === request.user!.id;
 
-      if (id === request.user!.id) {
-        return reply.status(400).send({ success: false, error: 'You cannot modify your own account here.' });
+      // You can edit your own name, but you can't change your own role or
+      // status here — that's how you'd accidentally lock yourself out.
+      if (isSelf && (body.role !== undefined || body.status !== undefined)) {
+        return reply.status(400).send({ success: false, error: 'You cannot change your own role or status.' });
       }
       const target = await repo.getById(id);
       if (!target) return reply.status(404).send({ success: false, error: 'User not found' });
@@ -82,7 +85,7 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
           return reply.status(400).send({ success: false, error: 'Invalid role.' });
         }
       }
-      if ((body.firstName !== undefined || body.lastName !== undefined) && !canEdit(callerRole, target.role)) {
+      if ((body.firstName !== undefined || body.lastName !== undefined) && !isSelf && !canEdit(callerRole, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
       }
       if (body.status !== undefined) {
