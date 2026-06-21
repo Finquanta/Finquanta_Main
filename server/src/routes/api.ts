@@ -167,14 +167,17 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   }
   await fastify.register(businessRoutes, { database });
 
-  // Ensure the users.status column exists, then promote configured emails:
-  // SUPER_ADMIN_EMAILS -> super_admin (owner), ADMIN_EMAILS -> admin. Finally
-  // mount the admin-only routes.
+  // Ensure the users.status column exists, then promote configured emails to
+  // owner (super_admin). Accounts in ADMIN_EMAILS / SUPER_ADMIN_EMAILS are the
+  // owners; they assign the "admin" role to other accounts in-app. Finally mount
+  // the admin-only routes.
   try {
     const adminRepo = new AdminRepository(database);
     await adminRepo.ensureSchema();
-    await adminRepo.ensureSuperAdmins((process.env.SUPER_ADMIN_EMAILS || '').split(','));
-    await adminRepo.ensureAdmins((process.env.ADMIN_EMAILS || '').split(','));
+    await adminRepo.ensureSuperAdmins([
+      ...(process.env.SUPER_ADMIN_EMAILS || '').split(','),
+      ...(process.env.ADMIN_EMAILS || '').split(','),
+    ]);
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }
