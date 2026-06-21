@@ -93,6 +93,11 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
+    // Block suspended ("restricted") accounts.
+    if (user.status === 'suspended') {
+      throw new Error('Your account has been suspended. Please contact support.');
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 

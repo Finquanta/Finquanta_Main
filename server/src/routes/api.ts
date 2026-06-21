@@ -167,11 +167,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   }
   await fastify.register(businessRoutes, { database });
 
-  // Promote configured emails to admin (ADMIN_EMAILS="a@x.com,b@y.com"), then
+  // Ensure the users.status column exists, then promote configured emails:
+  // SUPER_ADMIN_EMAILS -> super_admin (owner), ADMIN_EMAILS -> admin. Finally
   // mount the admin-only routes.
   try {
-    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',');
-    await new AdminRepository(database).ensureAdmins(adminEmails);
+    const adminRepo = new AdminRepository(database);
+    await adminRepo.ensureSchema();
+    await adminRepo.ensureSuperAdmins((process.env.SUPER_ADMIN_EMAILS || '').split(','));
+    await adminRepo.ensureAdmins((process.env.ADMIN_EMAILS || '').split(','));
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }

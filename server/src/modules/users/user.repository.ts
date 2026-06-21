@@ -9,7 +9,7 @@ export class UserRepository {
     const query = `
       INSERT INTO users (id, email, password_hash, first_name, last_name, role, created_at, updated_at)
       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
-      RETURNING id, email, password_hash, first_name, last_name, role, created_at, updated_at
+      RETURNING id, email, password_hash, first_name, last_name, role, status, created_at, updated_at
     `;
 
     const result = await this.database.query(query, [
@@ -26,7 +26,7 @@ export class UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const query = `
-      SELECT id, email, password_hash, first_name, last_name, role, created_at, updated_at
+      SELECT id, email, password_hash, first_name, last_name, role, status, created_at, updated_at
       FROM users
       WHERE email = $1
     `;
@@ -42,7 +42,7 @@ export class UserRepository {
 
   async findById(id: string): Promise<User | null> {
     const query = `
-      SELECT id, email, password_hash, first_name, last_name, role, created_at, updated_at
+      SELECT id, email, password_hash, first_name, last_name, role, status, created_at, updated_at
       FROM users
       WHERE id = $1
     `;
@@ -76,6 +76,11 @@ export class UserRepository {
       values.push(updateData.role);
     }
 
+    if (updateData.status !== undefined) {
+      setClause.push(`status = $${paramIndex++}`);
+      values.push(updateData.status);
+    }
+
     if (setClause.length === 0) {
       // No updates to make
       return this.findById(id);
@@ -88,7 +93,7 @@ export class UserRepository {
       UPDATE users
       SET ${setClause.join(', ')}
       WHERE id = $${paramIndex}
-      RETURNING id, email, password_hash, first_name, last_name, role, created_at, updated_at
+      RETURNING id, email, password_hash, first_name, last_name, role, status, created_at, updated_at
     `;
 
     const result = await this.database.query(query, values);
@@ -114,6 +119,7 @@ export class UserRepository {
       firstName: row.first_name,
       lastName: row.last_name,
       role: row.role as UserRole,
+      status: row.status ?? 'active',
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     }).toJSON();

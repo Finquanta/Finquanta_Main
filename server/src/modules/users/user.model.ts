@@ -7,6 +7,7 @@ export class UserModel implements User {
   public readonly firstName: string;
   public readonly lastName: string;
   public readonly role: UserRole;
+  public readonly status: string;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -17,6 +18,7 @@ export class UserModel implements User {
     this.firstName = data.firstName;
     this.lastName = data.lastName;
     this.role = data.role;
+    this.status = data.status ?? 'active';
     this.createdAt = data.createdAt;
     this.updatedAt = data.updatedAt;
   }
@@ -30,6 +32,7 @@ export class UserModel implements User {
       firstName: userData.firstName,
       lastName: userData.lastName,
       role: userData.role,
+      status: 'active',
       createdAt: now,
       updatedAt: now
     });
@@ -41,6 +44,7 @@ export class UserModel implements User {
       firstName: updateData.firstName ?? this.firstName,
       lastName: updateData.lastName ?? this.lastName,
       role: updateData.role ?? this.role,
+      status: updateData.status ?? this.status,
       updatedAt: new Date()
     });
   }
@@ -53,6 +57,7 @@ export class UserModel implements User {
       firstName: this.firstName,
       lastName: this.lastName,
       role: this.role,
+      status: this.status,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };

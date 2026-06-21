@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 import { AppProvider } from "@/hooks/context/SimpleAppProvider";
 import { LanguageProvider } from "@/hooks/context/LanguageContext";
 import { ThemeProvider } from "@/hooks/context/ThemeContext";
-import SocialSidebar from "@/components/SocialSidebar";
-import ChatbotWidget from "@/components/ChatbotWidget";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,8 +40,6 @@ export default function RootLayout({
           <ThemeProvider>
             <LanguageProvider>
               {children}
-              <SocialSidebar />
-              <ChatbotWidget />
             </LanguageProvider>
           </ThemeProvider>
         </AppProvider>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import SocialSidebar from "@/components/SocialSidebar";
 import AiFocusSection from "@/components/pages/home/AiFocusSection";
 import FaqSection from "@/components/pages/home/FaqSection";
 import HeroSection from "@/components/pages/home/HeroSection";
@@ -38,7 +37,6 @@ export default function Home() {
     <main>
       <HeroSection />
       <AiFocusSection />
-      <SocialSidebar />
       <MobilePromoSection />
       <FaqSection />
       <NewsletterSection />

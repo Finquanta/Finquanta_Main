@@ -11,6 +11,7 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  status: string; // 'active' | 'suspended'
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,4 +28,5 @@ export interface UpdateUserData {
   firstName?: string;
   lastName?: string;
   role?: UserRole;
+  status?: string;
 }
