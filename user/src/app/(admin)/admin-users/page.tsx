@@ -139,9 +139,13 @@ export default function AdminUsersPage() {
                   // yourself stay blocked so you can't lock yourself out.
                   const manage = isSelf || canManage(u.role);
                   const busy = busyId === u.id;
+                  // Dim only the content cells for restricted accounts — never the
+                  // actions cell, or its dropdown would inherit the low opacity
+                  // (CSS opacity on a parent caps its children) and look transparent.
+                  const dim = u.status === "suspended" ? 0.55 : 1;
                   return (
-                    <tr key={u.id} style={{ borderBottom: `0.5px solid ${d.border}`, opacity: u.status === "suspended" ? 0.55 : 1 }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 600 }}>
+                    <tr key={u.id} style={{ borderBottom: `0.5px solid ${d.border}` }}>
+                      <td style={{ padding: "10px 12px", fontWeight: 600, opacity: dim }}>
                         {editingId === u.id ? (
                           <span style={{ display: "flex", gap: 6 }}>
                             <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} placeholder="First" style={{ width: 80, padding: "4px 6px", border: `0.5px solid ${d.border}`, borderRadius: 6, background: d.input, color: d.text }} />
@@ -149,14 +153,14 @@ export default function AdminUsersPage() {
                           </span>
                         ) : (<>{u.name}{isSelf && <span style={{ color: d.muted, fontWeight: 400 }}> (you)</span>}</>)}
                       </td>
-                      <td style={{ padding: "10px 12px", color: d.muted }}>{u.email}</td>
-                      <td style={{ padding: "10px 12px" }}>{u.company || "—"}</td>
-                      <td style={{ padding: "10px 12px" }}>{u.country || "—"}</td>
-                      <td style={{ padding: "10px 12px" }}>{roleBadge(u.role)}</td>
-                      <td style={{ padding: "10px 12px" }}>
+                      <td style={{ padding: "10px 12px", color: d.muted, opacity: dim }}>{u.email}</td>
+                      <td style={{ padding: "10px 12px", opacity: dim }}>{u.company || "—"}</td>
+                      <td style={{ padding: "10px 12px", opacity: dim }}>{u.country || "—"}</td>
+                      <td style={{ padding: "10px 12px", opacity: dim }}>{roleBadge(u.role)}</td>
+                      <td style={{ padding: "10px 12px", opacity: dim }}>
                         <span style={{ color: u.status === "suspended" ? "#dc2626" : "#16a34a", fontWeight: 600, fontSize: 12 }}>{u.status === "suspended" ? "restricted" : "active"}</span>
                       </td>
-                      <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap" }}>{fmtDate(u.joinedAt)}</td>
+                      <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{fmtDate(u.joinedAt)}</td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", position: "relative", textAlign: "right" }}>
                         {editingId === u.id ? (
                           <span style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
