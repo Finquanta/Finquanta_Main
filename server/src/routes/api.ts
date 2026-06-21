@@ -168,19 +168,24 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   await fastify.register(businessRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
-  // owner (super_admin). Accounts in ADMIN_EMAILS / SUPER_ADMIN_EMAILS are the
-  // owners; they assign the "admin" role to other accounts in-app. Finally mount
-  // the admin-only routes.
+  // their role at boot, then mount the admin-only routes. Env vars map to the
+  // four UI roles (internal key in parens):
+  //   OWNER_EMAILS      -> Owner     (owner)       — full control, assigns roles
+  //   ADMIN_EMAILS      -> Admin     (super_admin) — manages Moderators & Users
+  //   MODERATOR_EMAILS  -> Moderator (admin)       — manages Users
+  // SUPER_ADMIN_EMAILS is a legacy alias for ADMIN_EMAILS (-> super_admin).
   try {
     const adminRepo = new AdminRepository(database);
     await adminRepo.ensureSchema();
-    // Roles are upgrade-only. SUPER_ADMIN_EMAILS -> super_admin; ADMIN_EMAILS /
-    // OWNER_EMAILS -> owner (top role; owners assign admin/super_admin in-app).
-    await adminRepo.ensureRole('super_admin', (process.env.SUPER_ADMIN_EMAILS || '').split(','));
-    await adminRepo.ensureRole('owner', [
-      ...(process.env.OWNER_EMAILS || '').split(','),
-      ...(process.env.ADMIN_EMAILS || '').split(','),
+    const split = (v?: string) => (v || '').split(',');
+    // Upgrade-only, applied lowest role first so an email listed in several
+    // ends up at the highest role it qualifies for.
+    await adminRepo.ensureRole('admin', split(process.env.MODERATOR_EMAILS));
+    await adminRepo.ensureRole('super_admin', [
+      ...split(process.env.ADMIN_EMAILS),
+      ...split(process.env.SUPER_ADMIN_EMAILS),
     ]);
+    await adminRepo.ensureRole('owner', split(process.env.OWNER_EMAILS));
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }

@@ -47,9 +47,11 @@ cd user && corepack pnpm@9 install --lockfile-only
 **Render (backend):**
 - `DATABASE_URL` (Neon), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - `CORS_ORIGIN` = comma-separated allowed origins (must include the Vercel URL; add `http://localhost:3000` for local).
-- `OWNER_EMAILS` / `ADMIN_EMAILS` = comma-separated emails to auto-promote to `owner` (top role) on boot.
-- `SUPER_ADMIN_EMAILS` = comma-separated emails to auto-promote to `super_admin` on boot.
-- (Promotion is **upgrade-only** — it never demotes a higher role. Owners assign all other roles in-app.)
+- Role bootstrap (comma-separated emails, auto-promoted on boot). UI name → internal key:
+  - `OWNER_EMAILS` → **Owner** (`owner`) — full control, assigns all roles.
+  - `ADMIN_EMAILS` → **Admin** (`super_admin`) — manages Moderators & Users. (`SUPER_ADMIN_EMAILS` is a legacy alias for this.)
+  - `MODERATOR_EMAILS` → **Moderator** (`admin`) — manages Users.
+- (Promotion is **upgrade-only** — it never demotes a higher role. Owners assign all other roles in-app. Promotion runs at backend **startup**, so changing these vars requires a redeploy/restart, and the affected user must log out and back in.)
 - `ANTHROPIC_MODEL` (optional) — overrides Finna's model.
 
 ---
@@ -109,9 +111,9 @@ cd user && corepack pnpm@9 install --lockfile-only
   - `admin-login` — real login via `/api/login`, then checks `user.role` is admin/super_admin (rejects everyone else). Stores tokens so `apiFetch` is authenticated.
   - `admin-users` — fetches live users (replaced the `MOCK_USERS`), shows role/status, and per-row **Edit** (inline name), **role dropdown** (owner only), **Restrict/Unrestrict**, **Delete** — each gated by `canManage(callerRole, targetRole)`. Search, light/dark, logout. Non-admins are redirected to `/admin-login`.
   - API helper: `user/src/lib/api/admin.ts` (`listAdminUsers`, `checkAdmin`, `updateAdminUser`, `deleteAdminUser`).
-- **How to make someone an admin / owner:**
+- **How to grant a role via env (bootstrap):**
   1. They sign up normally (creates the user row).
-  2. Add their email to **`ADMIN_EMAILS`** (admin) or **`SUPER_ADMIN_EMAILS`** (owner) in Render env, then redeploy/restart so the boot bootstrap promotes them. *After that, the owner can promote others to admin in-app via the role dropdown — no env edit needed.*
+  2. Add their email to **`OWNER_EMAILS`** (Owner), **`ADMIN_EMAILS`** (Admin), or **`MODERATOR_EMAILS`** (Moderator) in Render env, then redeploy/restart so the boot bootstrap promotes them, and have them log out/in. *After that, the Owner can assign roles in-app via the role dropdown — no env edit needed.*
   3. Log in at **`/admin-login`** with normal credentials → admin panel.
 
 ### Removed global UI (2026-06-21)
