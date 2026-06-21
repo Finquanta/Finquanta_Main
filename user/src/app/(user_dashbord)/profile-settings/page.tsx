@@ -16,6 +16,7 @@ const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "2
 
 export default function ProfileSettingsPage() {
   const [activeSection, setActiveSection] = useState('profile-settings');
+  const [menuSearch, setMenuSearch] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -96,22 +97,24 @@ export default function ProfileSettingsPage() {
       <div className={`w-64 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'profileSettings')}</h2>
         <div className="relative mb-4">
-          <input 
-            type="text" 
-            placeholder={t('dashboard', 'search')} 
+          <input
+            type="text"
+            value={menuSearch}
+            onChange={(e) => setMenuSearch(e.target.value)}
+            placeholder={t('dashboard', 'search')}
             className={`w-full border rounded-lg px-3 py-2 text-sm ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'}`}
           />
         </div>
         <nav className="flex flex-col gap-1">
           {[
             { id: 'profile-settings', label: t('dashboard', 'profileSettings') },
-            { id: 'business-profile', label: 'Business Profile' },
+            { id: 'business-profile', label: t('settings', 'bizProfile') },
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
             { id: 'notifications', label: t('settings', 'notificationSettings') },
             { id: 'feedback', label: t('settings', 'giveFeedback') },
             { id: 'logout', label: t('settings', 'logOut') },
-          ].map((item) => (
+          ].filter((item) => item.label.toLowerCase().includes(menuSearch.trim().toLowerCase())).map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveSection(item.id)}
@@ -232,71 +235,71 @@ export default function ProfileSettingsPage() {
           const labelCls = `text-sm mb-1 block ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`;
           return (
             <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-              <h2 className={`text-xl font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Business Profile</h2>
-              <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>The details you entered during onboarding. Update them any time — they’re saved to your account.</p>
+              <h2 className={`text-xl font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('settings', 'bizProfile')}</h2>
+              <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('settings', 'bizProfileDesc')}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className={labelCls}>Business name</label>
+                  <label className={labelCls}>{t('settings', 'fBusinessName')}</label>
                   <input className={inputCls} value={biz.businessName ?? ''} onChange={(e) => setBizField('businessName', e.target.value)} placeholder="e.g. Acme Co." />
                 </div>
                 <div>
-                  <label className={labelCls}>Business type</label>
+                  <label className={labelCls}>{t('settings', 'fBusinessType')}</label>
                   <input className={inputCls} value={biz.businessType ?? ''} onChange={(e) => setBizField('businessType', e.target.value)} placeholder="e.g. SaaS, Retail, Agency" />
                 </div>
                 <div>
-                  <label className={labelCls}>Industry</label>
+                  <label className={labelCls}>{t('settings', 'fIndustry')}</label>
                   <input className={inputCls} value={biz.industry ?? ''} onChange={(e) => setBizField('industry', e.target.value)} placeholder="e.g. Technology, Food" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className={labelCls}>Business niche</label>
+                  <label className={labelCls}>{t('settings', 'fNiche')}</label>
                   <input className={inputCls} value={biz.niche ?? ''} onChange={(e) => setBizField('niche', e.target.value)} placeholder="e.g. vegan meal prep" />
                 </div>
                 <div>
-                  <label className={labelCls}>Business structure</label>
+                  <label className={labelCls}>{t('settings', 'fStructure')}</label>
                   <select className={inputCls} value={biz.entityType ?? ''} onChange={(e) => setBizField('entityType', e.target.value)}>
-                    <option value="">Select…</option>
+                    <option value="">{t('settings', 'selectOption')}</option>
                     {ENTITY_TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Country</label>
+                  <label className={labelCls}>{t('settings', 'fCountry')}</label>
                   <input className={inputCls} value={biz.country ?? ''} onChange={(e) => setBizField('country', e.target.value)} placeholder="e.g. United States" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className={labelCls}>Place of incorporation</label>
+                  <label className={labelCls}>{t('settings', 'fPlaceOfIncorporation')}</label>
                   <input className={inputCls} value={biz.incorporationLocation ?? ''} onChange={(e) => setBizField('incorporationLocation', e.target.value)} placeholder="e.g. Delaware, USA" />
                 </div>
                 <div>
-                  <label className={labelCls}>Maturity stage</label>
+                  <label className={labelCls}>{t('settings', 'fMaturityStage')}</label>
                   <select className={inputCls} value={biz.maturityStage ?? ''} onChange={(e) => setBizField('maturityStage', e.target.value)}>
-                    <option value="">Select…</option>
+                    <option value="">{t('settings', 'selectOption')}</option>
                     {MATURITY_STAGES.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Revenue range</label>
+                  <label className={labelCls}>{t('settings', 'fRevenueRange')}</label>
                   <select className={inputCls} value={biz.revenueRange ?? ''} onChange={(e) => setBizField('revenueRange', e.target.value)}>
-                    <option value="">Select…</option>
+                    <option value="">{t('settings', 'selectOption')}</option>
                     {REVENUE_RANGES.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Employees</label>
+                  <label className={labelCls}>{t('settings', 'fEmployees')}</label>
                   <select className={inputCls} value={biz.employeeCount ?? ''} onChange={(e) => setBizField('employeeCount', e.target.value)}>
-                    <option value="">Select…</option>
+                    <option value="">{t('settings', 'selectOption')}</option>
                     {EMPLOYEE_COUNTS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className={labelCls}>Financial goals</label>
+                  <label className={labelCls}>{t('settings', 'fFinancialGoals')}</label>
                   <textarea className={`${inputCls} min-h-[80px]`} value={biz.financialGoals ?? ''} onChange={(e) => setBizField('financialGoals', e.target.value)} placeholder="e.g. Reach $20k/month, build 6-month runway" />
                 </div>
               </div>
               <div className="flex items-center gap-3 mt-6">
                 <button onClick={saveBiz} disabled={bizSaving} className={`px-6 py-2 rounded-lg text-white font-medium disabled:opacity-60 ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}>
-                  {bizSaving ? 'Saving…' : t('settings', 'saveChanges')}
+                  {bizSaving ? t('onboarding', 'saving') : t('settings', 'saveChanges')}
                 </button>
-                {bizSaved && <span className="text-sm text-green-500">Saved ✓</span>}
+                {bizSaved && <span className="text-sm text-green-500">{t('settings', 'bizSaved')}</span>}
               </div>
             </div>
           );

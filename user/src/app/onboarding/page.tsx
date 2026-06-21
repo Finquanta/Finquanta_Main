@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -12,8 +13,8 @@ type StepType = "text" | "select" | "textarea";
 
 interface Step {
   key: keyof BusinessProfile;
-  question: string;
-  hint?: string;
+  qKey: string;
+  hintKey?: string;
   type: StepType;
   placeholder?: string;
   options?: string[];
@@ -21,21 +22,22 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { key: "businessName", question: "What's your business name?", type: "text", placeholder: "e.g. Acme Co.", required: true },
-  { key: "businessType", question: "What type of business is it?", type: "text", placeholder: "e.g. SaaS, Retail, Agency" },
-  { key: "industry", question: "What industry are you in?", type: "text", placeholder: "e.g. Technology, Food" },
-  { key: "niche", question: "What's your business niche?", hint: "Get specific — it helps us tailor things.", type: "text", placeholder: "e.g. vegan meal prep, real estate wholesaling" },
-  { key: "entityType", question: "What's your business structure?", type: "select", options: ENTITY_TYPES },
-  { key: "country", question: "What country are you based in?", type: "text", placeholder: "e.g. United States" },
-  { key: "incorporationLocation", question: "Where is your business incorporated?", hint: "State / region / country of incorporation.", type: "text", placeholder: "e.g. Delaware, USA" },
-  { key: "maturityStage", question: "What stage is your business at?", type: "select", options: MATURITY_STAGES },
-  { key: "revenueRange", question: "What's your revenue range?", type: "select", options: REVENUE_RANGES },
-  { key: "employeeCount", question: "How many people work in the business?", type: "select", options: EMPLOYEE_COUNTS },
-  { key: "financialGoals", question: "What are your financial goals?", hint: "A sentence or two is plenty.", type: "textarea", placeholder: "e.g. Reach $20k/month, cut expenses 15%, build a 6-month runway" },
+  { key: "businessName", qKey: "qBusinessName", type: "text", placeholder: "e.g. Acme Co.", required: true },
+  { key: "businessType", qKey: "qBusinessType", type: "text", placeholder: "e.g. SaaS, Retail, Agency" },
+  { key: "industry", qKey: "qIndustry", type: "text", placeholder: "e.g. Technology, Food" },
+  { key: "niche", qKey: "qNiche", hintKey: "hintNiche", type: "text", placeholder: "e.g. vegan meal prep, real estate wholesaling" },
+  { key: "entityType", qKey: "qEntity", type: "select", options: ENTITY_TYPES },
+  { key: "country", qKey: "qCountry", type: "text", placeholder: "e.g. United States" },
+  { key: "incorporationLocation", qKey: "qIncorporation", hintKey: "hintIncorporation", type: "text", placeholder: "e.g. Delaware, USA" },
+  { key: "maturityStage", qKey: "qMaturity", type: "select", options: MATURITY_STAGES },
+  { key: "revenueRange", qKey: "qRevenue", type: "select", options: REVENUE_RANGES },
+  { key: "employeeCount", qKey: "qEmployees", type: "select", options: EMPLOYEE_COUNTS },
+  { key: "financialGoals", qKey: "qGoals", hintKey: "hintGoals", type: "textarea", placeholder: "e.g. Reach $20k/month, cut expenses 15%, build a 6-month runway" },
 ];
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [form, setForm] = useState<BusinessProfile>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -55,20 +57,19 @@ export default function OnboardingPage() {
   const goNext = async () => {
     setError(null);
     if (step.required && !value.trim()) {
-      setError("This one's required to continue.");
+      setError(t("onboarding", "required"));
       return;
     }
     if (!isLast) {
       setStepIndex((i) => i + 1);
       return;
     }
-    // Last step → save everything.
     setSaving(true);
     try {
       await saveBusinessProfile({ ...form, onboardingCompleted: true });
       router.push("/dashboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save. Please try again.");
+      setError(e instanceof Error ? e.message : t("onboarding", "saveError"));
     } finally {
       setSaving(false);
     }
@@ -77,12 +78,15 @@ export default function OnboardingPage() {
   const goBack = () => { setError(null); setStepIndex((i) => Math.max(0, i - 1)); };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    // Enter advances (except in the textarea, where Enter makes a new line).
     if (e.key === "Enter" && step.type !== "textarea") {
       e.preventDefault();
       goNext();
     }
   };
+
+  const progressLabel = t("onboarding", "progress")
+    .replace("{current}", String(stepIndex + 1))
+    .replace("{total}", String(STEPS.length));
 
   const fieldBase = "w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg text-gray-900 outline-none focus:border-blue-500 transition-colors";
 
@@ -97,21 +101,18 @@ export default function OnboardingPage() {
       <div className="flex items-center justify-between px-6 py-4">
         <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-24 h-auto" />
         <button onClick={() => { if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1"); router.push("/dashboard"); }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
-          Skip for now
+          {t("onboarding", "skip")}
         </button>
       </div>
 
       {/* Centered question */}
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-xl">
-          <p className="text-sm font-medium text-blue-500 mb-3">
-            Question {stepIndex + 1} of {STEPS.length}
-          </p>
+          <p className="text-sm font-medium text-blue-500 mb-3">{progressLabel}</p>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {step.question}{step.required && <span className="text-blue-500"> *</span>}
+            {t("onboarding", step.qKey)}{step.required && <span className="text-blue-500"> *</span>}
           </h1>
-          {step.hint && <p className="text-gray-500 mb-6">{step.hint}</p>}
-          {!step.hint && <div className="mb-6" />}
+          {step.hintKey ? <p className="text-gray-500 mb-6">{t("onboarding", step.hintKey)}</p> : <div className="mb-6" />}
 
           {step.type === "text" && (
             <input autoFocus className={fieldBase} value={value} onChange={(e) => set(e.target.value)} onKeyDown={onKeyDown} placeholder={step.placeholder} />
@@ -144,18 +145,18 @@ export default function OnboardingPage() {
               disabled={stepIndex === 0}
               className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-0 disabled:cursor-default"
             >
-              ← Back
+              ← {t("onboarding", "back")}
             </button>
             <button
               onClick={goNext}
               disabled={saving}
               className="bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold px-8 py-3 rounded-xl text-base"
             >
-              {saving ? "Saving…" : isLast ? "Finish" : "Continue"}
+              {saving ? t("onboarding", "saving") : isLast ? t("onboarding", "finish") : t("onboarding", "continue")}
             </button>
           </div>
           {step.type !== "textarea" && (
-            <p className="text-xs text-gray-400 mt-3">Press <span className="font-medium">Enter ↵</span> to continue</p>
+            <p className="text-xs text-gray-400 mt-3">{t("onboarding", "enterHint")}</p>
           )}
         </div>
       </div>
