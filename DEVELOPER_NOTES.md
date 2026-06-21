@@ -47,8 +47,9 @@ cd user && corepack pnpm@9 install --lockfile-only
 **Render (backend):**
 - `DATABASE_URL` (Neon), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - `CORS_ORIGIN` = comma-separated allowed origins (must include the Vercel URL; add `http://localhost:3000` for local).
-- `SUPER_ADMIN_EMAILS` = comma-separated emails to auto-promote to `super_admin` (owner) on boot.
-- `ADMIN_EMAILS` = comma-separated emails to auto-promote to `admin` on boot (see Admin Panel below).
+- `OWNER_EMAILS` / `ADMIN_EMAILS` = comma-separated emails to auto-promote to `owner` (top role) on boot.
+- `SUPER_ADMIN_EMAILS` = comma-separated emails to auto-promote to `super_admin` on boot.
+- (Promotion is **upgrade-only** — it never demotes a higher role. Owners assign all other roles in-app.)
 - `ANTHROPIC_MODEL` (optional) — overrides Finna's model.
 
 ---
@@ -94,8 +95,12 @@ cd user && corepack pnpm@9 install --lockfile-only
 
 ## 7. Admin panel  ← newest
 
-- **Roles:** `super_admin` (= **owner**), `admin`, `user`. The JWT has no role — it's always looked up from the DB.
-- **Permission model** (`canManage` in `admin.routes.ts`): super_admin manages admins + users and can change roles; admin manages regular users only; **nobody can act on themselves or on another super_admin**.
+- **Roles (rank):** `owner` (3) > `super_admin` (2) > `admin` (1) > `user` (0). The JWT has no role — it's always looked up from the DB. Displayed as: owner / super admin / admin / user.
+- **Permission model** (`canRestrict`/`canDelete`/`canEdit`/`canChangeRole` in `admin.routes.ts`, mirrored on the frontend):
+  - **owner** — restrict, delete, edit, and assign roles on **all** accounts; the **only** role that can assign roles.
+  - **super_admin** — restrict + delete **admins and users** (rank ≤ 1); cannot touch super_admins/owners; no edit, no role changes.
+  - **admin** — restrict **regular users only**; nothing else.
+  - Nobody can act on their **own** account via the panel (prevents lockout).
 - **Restrict = `users.status`** (`active` | `suspended`). Suspended accounts are **blocked at login** (`auth.service.login`). Column added idempotently by `AdminRepository.ensureSchema()`.
 - **Backend** (`server/src/modules/admin/`):
   - `AdminRepository`: `listUsers()` (users + `business_profiles`), `getById()`, `updateUser()`, `deleteUser()`, `ensureSchema()`, `ensureAdmins(emails)`, `ensureSuperAdmins(emails)`.
