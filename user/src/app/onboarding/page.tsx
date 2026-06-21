@@ -96,7 +96,7 @@ export default function OnboardingPage() {
       {/* Top bar: logo + skip */}
       <div className="flex items-center justify-between px-6 py-4">
         <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-24 h-auto" />
-        <button onClick={() => router.push("/dashboard")} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+        <button onClick={() => { if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1"); router.push("/dashboard"); }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
           Skip for now
         </button>
       </div>

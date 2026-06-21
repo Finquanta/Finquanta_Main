@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/lib/api/dashboard';
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
+import { getBusinessProfile } from '@/lib/api/business';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
@@ -156,6 +157,16 @@ export default function DashboardPage() {
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
   }, []);
+
+  // If onboarding wasn't completed, send the user to finish it — unless they
+  // chose "Skip for now" earlier this session. This means an unfinished
+  // onboarding keeps being asked each time they log back in.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('onboardingSkipped')) return;
+    getBusinessProfile()
+      .then((b) => { if (!b?.onboardingCompleted) router.replace('/onboarding'); })
+      .catch(() => {});
+  }, [router]);
 
   // Remind the user to check on their goals if they have some but haven't
   // updated any of them recently (and we haven't nagged them lately).
