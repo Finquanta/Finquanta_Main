@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
         return;
       }
       const role = data?.user?.role;
-      if (role !== "admin" && role !== "super_admin") {
+      if (!["admin", "super_admin", "owner"].includes(role)) {
         setError("This account doesn't have admin access.");
         return;
       }
