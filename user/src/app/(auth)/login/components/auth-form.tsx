@@ -49,9 +49,18 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     e.preventDefault();
     if (!emailValid) return;
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setResetSent(true);
-    setIsLoading(false);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      /* Always show the same confirmation — never reveal whether the email exists. */
+    } finally {
+      setResetSent(true);
+      setIsLoading(false);
+    }
   };
  
   const handleSubmit = async (e: React.FormEvent) => {

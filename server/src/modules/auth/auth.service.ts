@@ -1,8 +1,10 @@
+import crypto from 'crypto';
 import { Database } from '../../infrastructure/database';
 import { UserRepository } from '../users/user.repository';
 import { UserRole } from '../users/types';
 import { JWTManager, JWTPayload } from './jwt';
 import { PasswordManager } from './password';
+import { sendEmail } from '../../infrastructure/email';
 
 export interface RegisterData {
   email: string;
@@ -129,6 +131,49 @@ export class AuthService {
     } catch (error) {
       throw new Error('Invalid refresh token');
     }
+  }
+
+  /**
+   * Start a password reset: if the email belongs to an active account, store a
+   * hashed, 1-hour token and email a reset link. Resolves silently when the
+   * email is unknown so we never reveal which addresses are registered.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user || user.status === 'suspended') return;
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.userRepository.setResetToken(user.id, tokenHash, expiresAt);
+
+    const base = (process.env.APP_URL || (process.env.CORS_ORIGIN || '').split(',')[0] || '')
+      .trim()
+      .replace(/\/$/, '');
+    const link = `${base}/reset-password?token=${rawToken}`;
+    const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#0f172a">Reset your Finquanta password</h2>
+        <p style="color:#475569">We received a request to reset your password. This link is valid for 1 hour.</p>
+        <p style="margin:24px 0">
+          <a href="${link}" style="background:#22c55e;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Reset password</a>
+        </p>
+        <p style="color:#94a3b8;font-size:13px">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+        <p style="color:#94a3b8;font-size:12px;word-break:break-all">Or paste this link into your browser:<br>${link}</p>
+      </div>`;
+    await sendEmail({ to: user.email, subject: 'Reset your Finquanta password', html });
+  }
+
+  /** Complete a password reset using a token from the emailed link. */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    if (!token) throw new Error('Invalid or expired reset link');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await this.userRepository.findByValidResetTokenHash(tokenHash);
+    if (!user) throw new Error('Invalid or expired reset link');
+
+    this.validatePassword(newPassword);
+    const passwordHash = await this.passwordManager.hash(newPassword);
+    await this.userRepository.setPassword(user.id, passwordHash);
   }
 
   private async generateTokens(user: any): Promise<{ accessToken: string; refreshToken: string }> {

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Basic Finna runs on Claude (Anthropic / Claude Console).
-// Default to the lower-cost Haiku model to conserve credits; override with
-// ANTHROPIC_MODEL (e.g. claude-sonnet-4-6 or claude-opus-4-8) if desired.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
+// Locked to the lower-cost Haiku model to conserve credits. This is intentionally
+// hardcoded (not overridable via ANTHROPIC_MODEL) so Finna always uses Haiku.
+const MODEL = "claude-haiku-4-5";
 
 export async function POST(req: NextRequest) {
   const { messages, isDashboard, language } = await req.json();

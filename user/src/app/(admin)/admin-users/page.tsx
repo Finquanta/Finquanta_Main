@@ -178,7 +178,7 @@ export default function AdminUsersPage() {
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                                 <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
-                                  {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Make ${roleLabel("user")}`} onClick={() => setRole(u.id, "user")} />}
+                                  {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Remove ${roleLabel(u.role)}`} onClick={() => setRole(u.id, "user")} />}
                                   {!isSelf && u.role !== "admin" && canAssign(u.role, "admin") && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
                                   {!isSelf && u.role !== "super_admin" && canAssign(u.role, "super_admin") && <MenuItem label={`Make ${roleLabel("super_admin")}`} onClick={() => setRole(u.id, "super_admin")} />}
                                   {!isSelf && u.role !== "owner" && canAssign(u.role, "owner") && <MenuItem label={`Make ${roleLabel("owner")}`} onClick={() => setRole(u.id, "owner")} />}

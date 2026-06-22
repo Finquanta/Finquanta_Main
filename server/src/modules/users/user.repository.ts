@@ -5,6 +5,39 @@ import { UserModel } from './user.model';
 export class UserRepository {
   constructor(private database: Database) {}
 
+  /** Add the columns used for password resets. Idempotent. */
+  async ensureSchema(): Promise<void> {
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash TEXT`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ`);
+  }
+
+  /** Store a hashed, expiring password-reset token for a user. */
+  async setResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET reset_token_hash = $2, reset_token_expires_at = $3, updated_at = NOW() WHERE id = $1`,
+      [userId, tokenHash, expiresAt]
+    );
+  }
+
+  /** Find a user by a still-valid reset token hash (returns null if expired/used). */
+  async findByValidResetTokenHash(tokenHash: string): Promise<{ id: string; email: string } | null> {
+    const result = await this.database.query(
+      `SELECT id, email FROM users
+       WHERE reset_token_hash = $1 AND reset_token_expires_at IS NOT NULL AND reset_token_expires_at > NOW()`,
+      [tokenHash]
+    );
+    const r = result.rows[0];
+    return r ? { id: r.id, email: r.email } : null;
+  }
+
+  /** Set a new password hash and clear any outstanding reset token (single-use). */
+  async setPassword(userId: string, passwordHash: string): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET password_hash = $2, reset_token_hash = NULL, reset_token_expires_at = NULL, updated_at = NOW() WHERE id = $1`,
+      [userId, passwordHash]
+    );
+  }
+
   async create(userData: CreateUserData): Promise<User> {
     const query = `
       INSERT INTO users (id, email, password_hash, first_name, last_name, role, created_at, updated_at)

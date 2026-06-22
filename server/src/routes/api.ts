@@ -18,6 +18,7 @@ import { businessRoutes } from '../modules/businesses/businesses.routes';
 import { BusinessesRepository } from '../modules/businesses/businesses.repository';
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { AdminRepository } from '../modules/admin/admin.repository';
+import { UserRepository } from '../modules/users/user.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -119,6 +120,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     prefix: '/v1/auth',
     database
   });
+
+  // Ensure the password-reset columns exist (idempotent).
+  try {
+    await new UserRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure users reset schema');
+  }
 
   // Register financial transaction routes
   await fastify.register(transactionRoutes, {

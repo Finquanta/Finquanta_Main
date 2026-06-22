@@ -52,6 +52,10 @@ cd user && corepack pnpm@9 install --lockfile-only
   - `ADMIN_EMAILS` → **Admin** (`super_admin`) — manages Moderators & Users. (`SUPER_ADMIN_EMAILS` is a legacy alias for this.)
   - `MODERATOR_EMAILS` → **Moderator** (`admin`) — manages Users.
 - (Promotion is **upgrade-only** — it never demotes a higher role. Owners assign all other roles in-app. Promotion runs at backend **startup**, so changing these vars requires a redeploy/restart, and the affected user must log out and back in.)
+- Password reset (Resend) — used by `POST /v1/auth/forgot-password` + `/reset-password`:
+  - `RESEND_API_KEY` — Resend API key (required to actually send mail; without it, the request still succeeds silently).
+  - `RESET_EMAIL_FROM` — verified sender, e.g. `Finquanta <no-reply@yourdomain.com>` (defaults to Resend's shared `onboarding@resend.dev`, which only delivers to the Resend account owner until you verify a domain).
+  - `APP_URL` — frontend base URL used to build the reset link (defaults to the first `CORS_ORIGIN`). The emailed link is `${APP_URL}/reset-password?token=…`.
 - `ANTHROPIC_MODEL` (optional) — overrides Finna's model.
 
 ---

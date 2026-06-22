@@ -61,6 +61,35 @@ export class AuthController {
     }
   }
 
+  async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
+    const { email } = (request.body as { email?: string }) || {};
+    try {
+      if (email) {
+        await this.authService.requestPasswordReset(email);
+      }
+    } catch (error) {
+      // Log but still return success — never reveal whether the email exists,
+      // and don't surface email-provider hiccups to the caller.
+      console.error('FORGOT PASSWORD ERROR:', error instanceof Error ? error.message : String(error));
+    }
+    // Always the same response regardless of whether the account exists.
+    return reply.status(200).send({ success: true });
+  }
+
+  async resetPassword(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { token, password } = (request.body as { token?: string; password?: string }) || {};
+      if (!token || !password) {
+        return reply.status(400).send({ error: 'Missing required fields: token, password' });
+      }
+      await this.authService.resetPassword(token, password);
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not reset password';
+      return reply.status(400).send({ error: msg });
+    }
+  }
+
   async refreshToken(request: FastifyRequest, reply: FastifyReply) {
     try {
       const refreshData = request.body as RefreshTokenData;

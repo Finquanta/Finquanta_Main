@@ -12,9 +12,18 @@ export default function AdminForgotPasswordPage() {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1000)); // replace with real API call
-    setSent(true);
-    setLoading(false);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      /* Always show the same confirmation regardless of outcome. */
+    } finally {
+      setSent(true);
+      setLoading(false);
+    }
   };
 
   return (
