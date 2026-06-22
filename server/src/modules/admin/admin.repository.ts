@@ -23,10 +23,21 @@ export interface AdminTargetUser {
 export class AdminRepository {
   constructor(private database: Database) {}
 
-  /** Add the `status` column to users (for restrict/suspend). Idempotent. */
+  /**
+   * Add the `status` column to users (for restrict/suspend) and make sure the
+   * role CHECK constraint allows all four roles. Idempotent.
+   *
+   * The original `users_role_check` predates the owner/super_admin roles and
+   * rejects them, which made the boot promotion to `owner` throw. We drop and
+   * recreate it with the full role set so promotions can succeed.
+   */
   async ensureSchema(): Promise<void> {
     await this.database.query(
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`
+    );
+    await this.database.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+    await this.database.query(
+      `ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin', 'super_admin', 'owner'))`
     );
   }
 
