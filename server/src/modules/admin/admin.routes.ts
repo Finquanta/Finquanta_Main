@@ -4,8 +4,17 @@ import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { UserRepository } from '../users/user.repository';
 import { UserRole } from '../users/types';
 import { AdminRepository } from './admin.repository';
+import { PasswordManager } from '../auth/password';
 
 const VALID_ROLES = ['user', 'admin', 'super_admin', 'owner'];
+
+// Mirrors auth.service password rules. Returns an error message, or null if OK.
+function passwordError(pw: string): string | null {
+  if (!pw || pw.length < 8) return 'Password must be at least 8 characters long';
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(pw)) return 'Password must contain a lowercase letter, an uppercase letter, and a number';
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(pw)) return 'Password must contain at least one special character';
+  return null;
+}
 const ADMIN_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.OWNER];
 const RANK: Record<string, number> = { user: 0, admin: 1, super_admin: 2, owner: 3 };
 const rank = (r: string) => RANK[r] ?? 0;
@@ -47,6 +56,8 @@ const canAssignRole = (caller: string | undefined, targetRole: string, newRole: 
 
 export async function adminRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new AdminRepository(options.database);
+  const users = new UserRepository(options.database);
+  const passwords = new PasswordManager();
   const pre = [authenticate, requireAdmin(options.database)];
 
   // List all users (admin only)
@@ -127,6 +138,30 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         return reply.status(403).send({ success: false, error: 'You do not have permission to delete this account.' });
       }
       await repo.deleteUser(id);
+      return reply.send({ success: true, data: { id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  // Set a user's password directly. Same hierarchy as editing a profile
+  // (owner -> anyone; super_admin -> moderators & users; admin -> users; plus
+  // self). Lets an owner help a locked-out user when email reset isn't usable.
+  fastify.patch('/v1/admin/users/:id/password', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const { password } = (request.body as { password?: string }) || {};
+      const err = passwordError(password || '');
+      if (err) return reply.status(400).send({ success: false, error: err });
+      const target = await repo.getById(id);
+      if (!target) return reply.status(404).send({ success: false, error: 'User not found' });
+      const isSelf = id === request.user!.id;
+      if (!isSelf && !canEditName(request.user!.role, target.role)) {
+        return reply.status(403).send({ success: false, error: "You do not have permission to set this account's password." });
+      }
+      const hash = await passwords.hash(password!);
+      await users.setPassword(id, hash);
       return reply.send({ success: true, data: { id } });
     } catch (error) {
       request.log.error(error);

@@ -34,3 +34,8 @@ export async function updateAdminUser(
 export async function deleteAdminUser(id: string): Promise<void> {
   await apiFetch(`/v1/admin/users/${id}`, { method: 'DELETE' });
 }
+
+/** Set a user's password directly (admin-only, subject to role hierarchy). */
+export async function setAdminUserPassword(id: string, password: string): Promise<void> {
+  await apiFetch(`/v1/admin/users/${id}/password`, { method: 'PATCH', body: JSON.stringify({ password }) });
+}
