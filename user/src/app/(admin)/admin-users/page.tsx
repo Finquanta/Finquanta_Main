@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ textAlign: "left", color: d.muted, background: d.head }}>
-                  {["Name", "Email", "Company", "Country", "Role", "Status", "Joined", ""].map((h, i) => (
+                  {["Name", "Email", "Company", "Country", "Role", "Status", "Joined", "DOB", ""].map((h, i) => (
                     <th key={i} style={{ padding: "10px 12px", fontWeight: 600, borderBottom: `0.5px solid ${d.border}`, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -167,6 +167,7 @@ export default function AdminUsersPage() {
                         <span style={{ color: u.status === "suspended" ? "#dc2626" : "#16a34a", fontWeight: 600, fontSize: 12 }}>{u.status === "suspended" ? "restricted" : "active"}</span>
                       </td>
                       <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{fmtDate(u.joinedAt)}</td>
+                      <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{u.dateOfBirth ? fmtDate(u.dateOfBirth) : "—"}</td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", position: "relative", textAlign: "right" }}>
                         {editingId === u.id ? (
                           <span style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>

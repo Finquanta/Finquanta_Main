@@ -12,6 +12,19 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
+const MIN_AGE = 16;
+
+/** Whole years between a 'YYYY-MM-DD' date and today. NaN if invalid. */
+function ageFrom(dob: string): number {
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return NaN;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const router = useRouter();
   const auth = useAuth();
@@ -28,6 +41,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [emailValid, setEmailValid] = useState<boolean>(false);
   const [passwordMismatch, setPasswordMismatch] = useState<boolean>(false);
+  const [dateOfBirth, setDateOfBirth] = useState<string>('');
+  const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState<boolean>(false);
+  const [acceptedRisk, setAcceptedRisk] = useState<boolean>(false);
+
+  const age = dateOfBirth ? ageFrom(dateOfBirth) : NaN;
+  const ageValid = !isNaN(age) && age >= MIN_AGE;
+  const allAccepted = acceptedTerms && acceptedPrivacy && acceptedRisk;
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,6 +76,19 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       return;
     }
 
+    if (!dateOfBirth || isNaN(age)) {
+      ui.toast("error", "Please enter your date of birth", 4000);
+      return;
+    }
+    if (!ageValid) {
+      ui.toast("error", `You must be at least ${MIN_AGE} years old to create an account`, 5000);
+      return;
+    }
+    if (!allAccepted) {
+      ui.toast("error", "Please accept the Terms, Privacy Policy, and Risk Disclosure", 5000);
+      return;
+    }
+
     setIsLoading(true);
     ui.beginLoading();
     auth.setAuthLoading(true);
@@ -63,7 +97,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email, password, firstName, lastName, dateOfBirth, acceptedTerms, acceptedPrivacy, acceptedRisk }),
       });
 
       if (res.ok) {
@@ -104,7 +138,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
 
-  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && password.length >= 8;
+  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && password.length >= 8 && ageValid && allAccepted;
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
@@ -224,6 +258,40 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           {passwordMismatch && (
             <p className="text-xs text-red-500 -mt-2">Passwords do not match</p>
           )}
+
+          {/* Date of birth — enforces the 16+ age requirement */}
+          <div>
+            <label htmlFor="dob" className="block text-xs font-medium text-gray-600 mb-1">Date of birth</label>
+            <Input
+              type="date"
+              id="dob"
+              value={dateOfBirth}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              className={cn("py-2 bg-white text-black border border-gray-300", dateOfBirth && !ageValid ? "border-red-500" : dateOfBirth && ageValid ? "border-green-500" : "")}
+              disabled={isLoading}
+              required
+            />
+            {dateOfBirth !== '' && !ageValid && (
+              <p className="text-xs text-red-500 mt-1">You must be at least {MIN_AGE} years old to sign up.</p>
+            )}
+          </div>
+
+          {/* Required legal agreements */}
+          <div className="grid gap-2 text-xs text-gray-600">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
+              <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Terms &amp; Conditions</a></span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
+              <span>I agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Privacy Policy</a></span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={acceptedRisk} onChange={(e) => setAcceptedRisk(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
+              <span>I acknowledge the <a href="/ai-risk-disclosure" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Risk Disclosure</a></span>
+            </label>
+          </div>
 
           <Button
             type="submit"

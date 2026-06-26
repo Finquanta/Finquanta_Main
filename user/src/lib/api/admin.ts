@@ -7,6 +7,7 @@ export interface AdminUser {
   role: string;
   status: string;
   joinedAt: string | null;
+  dateOfBirth: string | null;
   company: string;
   country: string;
   industry: string;

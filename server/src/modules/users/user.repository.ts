@@ -5,10 +5,16 @@ import { UserModel } from './user.model';
 export class UserRepository {
   constructor(private database: Database) {}
 
-  /** Add the columns used for password resets. Idempotent. */
+  /** Add the columns used for password resets and signup compliance. Idempotent. */
   async ensureSchema(): Promise<void> {
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash TEXT`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ`);
+    // Date of birth (16+ age gate) and timestamps recording acceptance of each
+    // required legal agreement at registration.
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_terms_at TIMESTAMPTZ`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_privacy_at TIMESTAMPTZ`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_risk_at TIMESTAMPTZ`);
   }
 
   /** Store a hashed, expiring password-reset token for a user. */
@@ -40,17 +46,23 @@ export class UserRepository {
 
   async create(userData: CreateUserData): Promise<User> {
     const query = `
-      INSERT INTO users (id, email, password_hash, first_name, last_name, role, created_at, updated_at)
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
+      INSERT INTO users (id, email, password_hash, first_name, last_name, role,
+        date_of_birth, accepted_terms_at, accepted_privacy_at, accepted_risk_at, created_at, updated_at)
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
       RETURNING id, email, password_hash, first_name, last_name, role, status, created_at, updated_at
     `;
 
+    const now = new Date();
     const result = await this.database.query(query, [
       userData.email,
       userData.passwordHash,
       userData.firstName,
       userData.lastName,
-      userData.role
+      userData.role,
+      userData.dateOfBirth ?? null,
+      userData.acceptedTerms ? now : null,
+      userData.acceptedPrivacy ? now : null,
+      userData.acceptedRisk ? now : null
     ]);
 
     const user = this.mapRowToUser(result.rows[0]);

@@ -11,6 +11,23 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
+  dateOfBirth?: string; // 'YYYY-MM-DD'
+  acceptedTerms?: boolean;
+  acceptedPrivacy?: boolean;
+  acceptedRisk?: boolean;
+}
+
+const MIN_AGE_YEARS = 16;
+
+/** Whole years between a 'YYYY-MM-DD' date of birth and now. NaN if invalid. */
+function ageInYears(dob: string): number {
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return NaN;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
 }
 
 export interface LoginData {
@@ -52,19 +69,37 @@ export class AuthService {
       throw new Error('Email already exists');
     }
 
+    // Age gate: must be at least 16, computed from a valid date of birth.
+    const age = ageInYears(userData.dateOfBirth || '');
+    if (isNaN(age)) {
+      throw new Error('Please enter a valid date of birth');
+    }
+    if (age < MIN_AGE_YEARS) {
+      throw new Error(`You must be at least ${MIN_AGE_YEARS} years old to create an account`);
+    }
+
+    // All required legal agreements must be accepted.
+    if (!userData.acceptedTerms || !userData.acceptedPrivacy || !userData.acceptedRisk) {
+      throw new Error('You must accept the Terms & Conditions, Privacy Policy, and Risk Disclosure');
+    }
+
     // Validate password strength
     this.validatePassword(userData.password);
 
     // Hash password
     const passwordHash = await this.passwordManager.hash(userData.password);
 
-    // Create user
+    // Create user (records DOB and acceptance timestamps)
     const user = await this.userRepository.create({
       email: userData.email,
       passwordHash,
       firstName: userData.firstName,
       lastName: userData.lastName,
-      role: UserRole.USER
+      role: UserRole.USER,
+      dateOfBirth: userData.dateOfBirth,
+      acceptedTerms: userData.acceptedTerms,
+      acceptedPrivacy: userData.acceptedPrivacy,
+      acceptedRisk: userData.acceptedRisk
     });
 
     // Generate tokens

@@ -23,6 +23,10 @@ export interface CreateUserData {
   firstName: string;
   lastName: string;
   role: UserRole;
+  dateOfBirth?: string; // 'YYYY-MM-DD'
+  acceptedTerms?: boolean;
+  acceptedPrivacy?: boolean;
+  acceptedRisk?: boolean;
 }
 
 export interface UpdateUserData {
