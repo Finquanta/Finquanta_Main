@@ -113,7 +113,7 @@ export default function AdminUsersPage() {
         <div style={{ flex: 1 }} />
         <div onClick={() => setDark((v) => !v)} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
         <div onClick={logout} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>
-        <div style={{ padding: "8px 16px 0", color: d.muted, fontSize: 11 }}>Version 1.0.0.0</div>
+        <div style={{ padding: "8px 16px 0", color: d.muted, fontSize: 11 }}>Version 1.1.0</div>
       </div>
 
       {/* Main */}

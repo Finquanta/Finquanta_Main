@@ -89,7 +89,7 @@ export default function ProfileSettingsPage() {
           <Link href="/privacy" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'privacyPolicy')}</Link>
           <Link href="/ai-risk-disclosure" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'aiRiskDisclosure')}</Link>
           <button onClick={() => router.push('/login')} className={`text-left hover:underline ${theme === 'dark' ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-600'}`}>{t('settings', 'logOut')}</button>
-          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard', 'version')} 1.0.0.0</p>
+          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard', 'version')} 1.1.0</p>
         </div>
       </div>
  

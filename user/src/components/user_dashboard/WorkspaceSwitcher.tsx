@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil } from "lucide-react";
+import { Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil, Users, Trash2 } from "lucide-react";
 import {
-  Business, BusinessRole, BUSINESS_ROLES,
-  listBusinesses, createBusiness, createInvite, renameBusiness,
+  Business, BusinessMember, BusinessRole, BUSINESS_ROLES,
+  listBusinesses, createBusiness, createInvite, renameBusiness, getMembers, removeMember,
 } from "@/lib/api/businesses";
 
 const ACTIVE_KEY = "activeBusinessId";
@@ -16,6 +16,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
   const [editingId, setEditingId] = useState<string>("");
   const [editName, setEditName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -140,6 +141,9 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                 <Plus className="h-3.5 w-3.5" /> Create business
               </button>
             )}
+            <button onClick={() => { setOpen(false); setTeamOpen(true); }} className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${colors.item}`}>
+              <Users className="h-3.5 w-3.5" /> View team
+            </button>
             <button onClick={() => { setOpen(false); setInviteOpen(true); }} className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${colors.item}`}>
               <UserPlus className="h-3.5 w-3.5" /> Invite team member
             </button>
@@ -150,6 +154,78 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
       {inviteOpen && active && (
         <InviteModal business={active} isDark={isDark} onClose={() => setInviteOpen(false)} />
       )}
+
+      {teamOpen && active && (
+        <TeamModal business={active} isDark={isDark} onClose={() => setTeamOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function TeamModal({ business, isDark, onClose }: { business: Business; isDark: boolean; onClose: () => void }) {
+  const [members, setMembers] = useState<BusinessMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string>("");
+
+  const canManage = business.role === "Owner" || business.role === "Admin";
+
+  const load = () => {
+    setLoading(true);
+    getMembers(business.id)
+      .then(setMembers)
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load team."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const remove = async (m: BusinessMember) => {
+    if (!window.confirm(`Remove ${m.name || m.email} from ${business.name}?`)) return;
+    setBusyId(m.userId); setError(null);
+    try { await removeMember(business.id, m.userId); setMembers((prev) => prev.filter((x) => x.userId !== m.userId)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not remove member."); }
+    finally { setBusyId(""); }
+  };
+
+  const card = isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900";
+  const rowBorder = isDark ? "border-gray-700" : "border-gray-100";
+  const sub = isDark ? "text-gray-400" : "text-gray-500";
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className={`rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl ${card}`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">Team · {business.name}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+        </div>
+
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+        {loading ? (
+          <p className={`text-sm ${sub}`}>Loading team…</p>
+        ) : members.length === 0 ? (
+          <p className={`text-sm ${sub}`}>No team members yet.</p>
+        ) : (
+          <div className="divide-y max-h-72 overflow-y-auto -mx-1">
+            {members.map((m) => (
+              <div key={m.userId} className={`flex items-center justify-between gap-3 px-1 py-2.5 ${rowBorder}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{m.name || m.email}</p>
+                  <p className={`text-xs truncate ${sub}`}>{m.email}</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className={`text-xs ${sub}`}>{m.role}</span>
+                  {canManage && m.role !== "Owner" && (
+                    <button onClick={() => remove(m)} disabled={busyId === m.userId} title="Remove from team"
+                      className="text-gray-400 hover:text-red-500 disabled:opacity-50">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

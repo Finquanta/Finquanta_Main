@@ -387,7 +387,7 @@ export default function DashboardPage() {
             {t('settings', 'logOut')}
           </button>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          <p className={colors.subtext}>{t('dashboard', 'version')} 1.0.0.0</p>
+          <p className={colors.subtext}>{t('dashboard', 'version')} 1.1.0</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
