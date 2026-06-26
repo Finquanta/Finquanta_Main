@@ -19,6 +19,8 @@ import { BusinessesRepository } from '../modules/businesses/businesses.repositor
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { AdminRepository } from '../modules/admin/admin.repository';
 import { UserRepository } from '../modules/users/user.repository';
+import { blogRoutes } from '../modules/blog/blog.routes';
+import { BlogRepository } from '../modules/blog/blog.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -148,6 +150,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure reminders schema');
   }
   await fastify.register(reminderRoutes, { database });
+
+  // Ensure the blog table exists (idempotent), then register blog routes.
+  try {
+    await new BlogRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure blog schema');
+  }
+  await fastify.register(blogRoutes, { database });
 
   // Ensure the receipts table exists (idempotent).
   try {

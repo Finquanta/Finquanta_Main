@@ -8,6 +8,7 @@ import HeroSection from "@/components/pages/home/HeroSection";
 import MobilePromoSection from "@/components/pages/home/MobilePromoSection";
 import NewsletterSection from "@/components/pages/home/NewsletterSection";
 import SocialConnectSection from "@/components/pages/home/SocialConnectSection";
+import BlogPreviewSection from "@/components/pages/home/BlogPreviewSection";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/context/LanguageContext"; // ← ADD THIS
 
@@ -54,6 +55,7 @@ export default function Home() {
       <AiFocusSection />
       <MobilePromoSection />
       <FaqSection />
+      <BlogPreviewSection />
       <NewsletterSection />
       <SocialConnectSection />
 

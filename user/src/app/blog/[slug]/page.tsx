@@ -1,127 +1,59 @@
+"use client";
 
-import Image from "next/image";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { fetchAPI, getStrapiMedia, BlogPost } from "@/utils/strapi-client";
-import { Button } from "@/components/ui/button";
+import { getBlogPost, BlogPost } from "@/lib/api/blog";
 
-async function getPost(slug: string) {
-    console.log("Fetching post for slug:", slug);
-    const response = await fetchAPI("/blogs", {
-        filters: {
-            slug: {
-                $eq: slug,
-            },
-        },
-        populate: "*",
-        publicationState: "preview",
-    });
+export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
 
-    console.log("Blog Post Response:", {
-        slug,
-        found: response?.data?.length > 0,
-        data: response?.data?.[0] ? "Data exists" : "No data"
-    });
+  useEffect(() => {
+    getBlogPost(slug)
+      .then((p) => { setPost(p); setStatus("ready"); })
+      .catch(() => setStatus("notfound"));
+  }, [slug]);
 
-    if (!response?.data || response.data.length === 0) {
-        return null;
-    }
+  if (status === "loading") {
+    return <div className="min-h-screen pt-24 text-center text-gray-500">Loading…</div>;
+  }
 
-    return response.data[0];
-}
-
-export default async function BlogPostPage({ params }: { params: { slug: string } }) {
-    const post: BlogPost | null = await getPost(params.slug);
-
-    if (!post) {
-        notFound();
-    }
-
-    const coverData = post.cover as any;
-    const imageUrl = getStrapiMedia(
-        coverData?.url ||
-        coverData?.data?.attributes?.url ||
-        coverData?.data?.url
-    );
-
-    // Helper to render content if it's rich text (blocks) or just string
-    const renderContent = (content: any) => {
-        if (typeof content === 'string') {
-            return content;
-        }
-        // Simple block renderer for Strapi v5 Blocks
-        if (Array.isArray(content)) {
-            return content.map((block: any, index: number) => {
-                if (block.type === 'paragraph') {
-                    return (
-                        <p key={index} className="mb-4">
-                            {block.children.map((child: any) => child.text).join('')}
-                        </p>
-                    );
-                }
-                if (block.type === 'heading') {
-                    const Tag = `h${block.level}` as keyof JSX.IntrinsicElements;
-                    return (
-                        <Tag key={index} className="font-bold my-4">
-                            {block.children.map((child: any) => child.text).join('')}
-                        </Tag>
-                    );
-                }
-                if (block.type === 'list') {
-                    const Tag = block.format === 'ordered' ? 'ol' : 'ul';
-                    return (
-                        <Tag key={index} className="list-disc pl-5 my-4">
-                            {block.children.map((item: any, i: number) => (
-                                <li key={i}>{item.children.map((child: any) => child.text).join('')}</li>
-                            ))}
-                        </Tag>
-                    );
-                }
-                return null;
-            });
-        }
-        return JSON.stringify(content);
-    };
-
+  if (status === "notfound" || !post) {
     return (
-        <article className="min-h-screen pt-24 pb-12 bg-white">
-            <div className="container mx-auto px-4 max-w-4xl">
-                <Link href="/blog" className="inline-block mb-8">
-                    <Button variant="ghost" className="pl-0 hover:pl-2 transition-all text-gray-600 hover:text-[#4CAF50]">
-                        ← Back to Blog
-                    </Button>
-                </Link>
-
-                <header className="mb-8 text-center space-y-4">
-                    <div className="text-sm font-medium text-[#4CAF50]">
-                        {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                        })}
-                    </div>
-                    <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-gray-900 leading-tight">
-                        {post.title}
-                    </h1>
-                </header>
-
-                {imageUrl && (
-                    <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg mb-10">
-                        <Image
-                            src={imageUrl}
-                            alt={post.title}
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                    </div>
-                )}
-
-                <div className="prose prose-lg prose-green mx-auto text-gray-700 whitespace-pre-wrap">
-                    {renderContent(post.content)}
-                </div>
-            </div>
-        </article>
+      <div className="min-h-screen pt-24 pb-12 text-center">
+        <p className="text-gray-600 mb-6">This post doesn&apos;t exist or hasn&apos;t been published.</p>
+        <Link href="/blog" className="text-[#4CAF50] font-medium hover:underline">← Back to Blog</Link>
+      </div>
     );
+  }
+
+  return (
+    <article className="min-h-screen pt-24 pb-12 bg-white">
+      <div className="container mx-auto px-4 max-w-4xl">
+        <Link href="/blog" className="inline-block mb-8 text-gray-600 hover:text-[#4CAF50] transition-colors">
+          ← Back to Blog
+        </Link>
+
+        <header className="mb-8 text-center space-y-4">
+          <div className="text-sm font-medium text-[#4CAF50]">
+            {new Date(post.createdAt).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            {post.authorName ? ` · ${post.authorName}` : ""}
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-gray-900 leading-tight">{post.title}</h1>
+        </header>
+
+        {post.coverImageUrl && (
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg mb-10 bg-gray-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={post.coverImageUrl} alt={post.title} className="object-cover w-full h-full" />
+          </div>
+        )}
+
+        <div className="prose prose-lg mx-auto text-gray-700 whitespace-pre-wrap leading-relaxed">
+          {post.content}
+        </div>
+      </div>
+    </article>
+  );
 }
