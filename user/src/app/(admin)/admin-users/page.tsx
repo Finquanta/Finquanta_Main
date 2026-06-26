@@ -111,6 +111,7 @@ export default function AdminUsersPage() {
         <div style={{ padding: "0 16px 20px" }}><img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 32, width: "auto" }} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: dark ? "#14532d33" : "#f0fdf4", color: "#16a34a", fontWeight: 600, fontSize: 13, borderRight: "2px solid #22c55e" }}>Users</div>
         <div onClick={() => router.push("/admin-blog")} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Blog</div>
+        <div onClick={() => router.push("/admin-usage")} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>API Usage</div>
         <div style={{ flex: 1 }} />
         <div onClick={() => setDark((v) => !v)} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
         <div onClick={logout} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>

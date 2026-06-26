@@ -56,6 +56,7 @@ cd user && corepack pnpm@9 install --lockfile-only
   - `RESEND_API_KEY` — Resend API key (required to actually send mail; without it, the request still succeeds silently).
   - `RESET_EMAIL_FROM` — verified sender, e.g. `Finquanta <no-reply@yourdomain.com>` (defaults to Resend's shared `onboarding@resend.dev`, which only delivers to the Resend account owner until you verify a domain).
   - `APP_URL` — frontend base URL used to build the reset link (defaults to the first `CORS_ORIGIN`). The emailed link is `${APP_URL}/reset-password?token=…`.
+- `ANTHROPIC_ADMIN_KEY` (optional) — an Anthropic **Admin API key** (`sk-ant-admin…`, created in the Anthropic Console; different from the inference key). Powers the admin panel's **API Usage** page (`GET /v1/admin/usage` → month-to-date spend via Anthropic's cost report). Without it the page explains how to set it.
 - `ANTHROPIC_MODEL` (optional) — overrides Finna's model.
 
 ---

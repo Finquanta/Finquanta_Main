@@ -168,4 +168,58 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }) as any);
+
+  // Anthropic month-to-date spend, so the team knows when to renew credits.
+  // Requires ANTHROPIC_ADMIN_KEY (an org Admin API key, sk-ant-admin...) — a
+  // different key from the inference ANTHROPIC_API_KEY. Without it, reports
+  // { configured: false } so the UI can explain what to set.
+  fastify.get('/v1/admin/usage', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const key = process.env.ANTHROPIC_ADMIN_KEY;
+      if (!key) return reply.send({ success: true, data: { configured: false } });
+
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const base = { starting_at: monthStart.toISOString(), ending_at: now.toISOString(), bucket_width: '1d' };
+      let page: string | undefined;
+      let totalCents = 0;
+      let currency = 'USD';
+      let guard = 0;
+
+      do {
+        const params = new URLSearchParams({ ...base, ...(page ? { page } : {}) });
+        const res = await fetch(`https://api.anthropic.com/v1/organizations/cost_report?${params.toString()}`, {
+          headers: { 'anthropic-version': '2023-06-01', 'x-api-key': key },
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          request.log.error({ status: res.status, body }, 'Anthropic cost report failed');
+          return reply.send({ success: true, data: { configured: true, error: `Anthropic API ${res.status}` } });
+        }
+        const json: any = await res.json();
+        for (const bucket of json?.data ?? []) {
+          for (const r of bucket?.results ?? []) {
+            const amt = parseFloat(r?.amount);
+            if (!Number.isNaN(amt)) totalCents += amt;
+            if (r?.currency) currency = r.currency;
+          }
+        }
+        page = json?.has_more ? json?.next_page : undefined;
+      } while (page && guard++ < 50);
+
+      return reply.send({
+        success: true,
+        data: {
+          configured: true,
+          monthToDateUsd: totalCents / 100,
+          currency,
+          since: monthStart.toISOString(),
+          until: now.toISOString(),
+        },
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
 }

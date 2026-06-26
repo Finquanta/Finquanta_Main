@@ -40,3 +40,17 @@ export async function deleteAdminUser(id: string): Promise<void> {
 export async function setAdminUserPassword(id: string, password: string): Promise<void> {
   await apiFetch(`/v1/admin/users/${id}/password`, { method: 'PATCH', body: JSON.stringify({ password }) });
 }
+
+export interface AdminUsage {
+  configured: boolean;
+  monthToDateUsd?: number;
+  currency?: string;
+  since?: string;
+  until?: string;
+  error?: string;
+}
+
+/** Anthropic month-to-date spend (needs ANTHROPIC_ADMIN_KEY on the backend). */
+export async function getAdminUsage(): Promise<AdminUsage> {
+  return apiFetch<AdminUsage>('/v1/admin/usage');
+}
