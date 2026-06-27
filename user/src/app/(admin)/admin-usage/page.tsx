@@ -68,10 +68,10 @@ export default function AdminUsagePage() {
                 <p style={{ fontWeight: 600, margin: 0 }}>Usage tracking isn&apos;t set up yet.</p>
                 <p style={{ fontSize: 13, color: c.muted, margin: 0, lineHeight: 1.5 }}>
                   To show your Anthropic spend here, add an <strong>Admin API key</strong> on Render as the env var <code style={code}>ANTHROPIC_ADMIN_KEY</code>.
-                  This is a different key from the one Finna uses for chat — it starts with <code style={code}>sk-ant-admin…</code>.
-                  In the Anthropic Console, click your name (bottom-left) → <em>Organization settings</em> → <em>Admin keys</em> → <em>Create admin key</em>. Admin keys are only available if you&apos;re the organization&apos;s owner/admin.
+                  This is a different key from the one Finna uses for chat — it starts with <code style={code}>sk-ant-admin01-…</code>.
+                  In the Claude Console go to <em>Settings → Admin keys</em>, click <em>Create key</em>, then paste the value into Render. Only an organization admin/owner can create it.
                 </p>
-                <a href="https://console.anthropic.com/settings/organization" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none" }}>Open Organization settings →</a>
+                <a href="https://platform.claude.com/settings/admin-keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none" }}>Open Admin keys →</a>
               </div>
             ) : usage.error ? (
               <div style={{ display: "grid", gap: 8 }}>
