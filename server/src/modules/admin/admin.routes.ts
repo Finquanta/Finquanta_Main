@@ -79,7 +79,7 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
   fastify.patch('/v1/admin/users/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string };
+      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string };
       const callerRole = request.user!.role;
       const isSelf = id === request.user!.id;
 
@@ -100,7 +100,10 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
           return reply.status(403).send({ success: false, error: 'You do not have permission to assign this role.' });
         }
       }
-      if ((body.firstName !== undefined || body.lastName !== undefined) && !isSelf && !canEditName(callerRole, target.role)) {
+      // Profile fields (name, DOB, business name, country) share the edit gate.
+      const editsProfile = body.firstName !== undefined || body.lastName !== undefined
+        || body.dateOfBirth !== undefined || body.businessName !== undefined || body.country !== undefined;
+      if (editsProfile && !isSelf && !canEditName(callerRole, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
       }
       if (body.status !== undefined) {
@@ -117,6 +120,9 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         lastName: body.lastName,
         role: body.role,
         status: body.status,
+        dateOfBirth: body.dateOfBirth,
+        businessName: body.businessName,
+        country: body.country,
       });
       return reply.send({ success: true, data: { id } });
     } catch (error) {

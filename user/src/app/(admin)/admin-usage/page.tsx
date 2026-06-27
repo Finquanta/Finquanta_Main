@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { checkAdmin, getAdminUsage, AdminUsage } from "@/lib/api/admin";
+import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 
 export default function AdminUsagePage() {
   const router = useRouter();
+  const [dark, setDark] = useState(false);
   const [usage, setUsage] = useState<AdminUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +20,7 @@ export default function AdminUsagePage() {
       .finally(() => setLoading(false));
   };
 
+  useEffect(() => { setDark(readAdminDark()); }, []);
   useEffect(() => {
     checkAdmin().then(load).catch(() => router.replace("/admin-login"));
   }, [router]);
@@ -28,57 +31,61 @@ export default function AdminUsagePage() {
       : "—";
   const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
 
+  const c = {
+    bg: dark ? "#0f172a" : "#f4f5f7",
+    card: dark ? "#1e293b" : "#fff",
+    border: dark ? "#334155" : "#e5e7eb",
+    text: dark ? "#f1f5f9" : "#0f172a",
+    muted: dark ? "#94a3b8" : "#6b7280",
+    chip: dark ? "#0f172a" : "#f3f4f6",
+  };
+  const code = { background: c.chip, borderRadius: 4, padding: "1px 6px", fontSize: 12 } as const;
+
   return (
-    <div className="min-h-screen bg-[#f4f5f7] text-gray-900">
-      <div className="mx-auto max-w-3xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">API Usage</h1>
-            <p className="text-sm text-gray-500">Anthropic spend, so you know when to top up credits.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push("/admin-users")} className="text-sm text-gray-600 hover:underline">← Users</button>
-            <button onClick={load} disabled={loading} className="rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300 disabled:opacity-60">
+    <div style={{ display: "flex", height: "100vh", fontFamily: "sans-serif", background: c.bg, color: c.text }}>
+      <AdminSidebar active="usage" dark={dark} setDark={setDark} />
+      <div style={{ flex: 1, overflow: "auto" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>API Usage</h1>
+              <p style={{ fontSize: 13, color: c.muted, margin: "2px 0 0" }}>Anthropic spend, so you know when to top up credits.</p>
+            </div>
+            <button onClick={load} disabled={loading} style={{ borderRadius: 8, background: c.chip, color: c.text, border: `1px solid ${c.border}`, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
               {loading ? "Refreshing…" : "Refresh"}
             </button>
           </div>
-        </div>
 
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+          {error && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          {loading && !usage ? (
-            <p className="text-sm text-gray-500">Loading…</p>
-          ) : !usage ? (
-            <p className="text-sm text-gray-500">No data.</p>
-          ) : !usage.configured ? (
-            <div className="space-y-3">
-              <p className="font-semibold text-gray-900">Usage tracking isn&apos;t set up yet.</p>
-              <p className="text-sm text-gray-600">
-                To show your Anthropic spend here, add an <strong>Admin API key</strong> on Render as the env var{" "}
-                <code className="rounded bg-gray-100 px-1.5 py-0.5">ANTHROPIC_ADMIN_KEY</code>. This is a different key
-                from the one Finna uses for chat — it starts with <code className="rounded bg-gray-100 px-1.5 py-0.5">sk-ant-admin…</code>{" "}
-                and is created in the Anthropic Console under <em>Admin keys</em>.
-              </p>
-              <a href="https://platform.claude.com/settings/admin-keys" target="_blank" rel="noopener noreferrer" className="inline-block text-sm font-medium text-green-600 hover:underline">
-                Create an Admin API key →
-              </a>
-            </div>
-          ) : usage.error ? (
-            <div className="space-y-2">
-              <p className="font-semibold text-red-600">Couldn&apos;t reach Anthropic.</p>
-              <p className="text-sm text-gray-600">{usage.error}. Double-check that <code className="rounded bg-gray-100 px-1.5 py-0.5">ANTHROPIC_ADMIN_KEY</code> is a valid Admin API key.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500">Spent this month ({fmtDate(usage.since)} – {fmtDate(usage.until)})</p>
-              <p className="text-4xl font-bold text-gray-900">{money(usage.monthToDateUsd, usage.currency)}</p>
-              <p className="text-xs text-gray-400">Updates within ~5 minutes of API activity. Priority Tier spend isn&apos;t included.</p>
-              <a href="https://platform.claude.com/settings/cost" target="_blank" rel="noopener noreferrer" className="inline-block pt-2 text-sm font-medium text-green-600 hover:underline">
-                Open full cost dashboard →
-              </a>
-            </div>
-          )}
+          <div style={{ borderRadius: 12, border: `1px solid ${c.border}`, background: c.card, padding: 24 }}>
+            {loading && !usage ? (
+              <p style={{ fontSize: 13, color: c.muted }}>Loading…</p>
+            ) : !usage ? (
+              <p style={{ fontSize: 13, color: c.muted }}>No data.</p>
+            ) : !usage.configured ? (
+              <div style={{ display: "grid", gap: 12 }}>
+                <p style={{ fontWeight: 600, margin: 0 }}>Usage tracking isn&apos;t set up yet.</p>
+                <p style={{ fontSize: 13, color: c.muted, margin: 0, lineHeight: 1.5 }}>
+                  To show your Anthropic spend here, add an <strong>Admin API key</strong> on Render as the env var <code style={code}>ANTHROPIC_ADMIN_KEY</code>.
+                  This is a different key from the one Finna uses for chat — it starts with <code style={code}>sk-ant-admin…</code> and is created in the Anthropic Console under <em>Admin keys</em>.
+                </p>
+                <a href="https://platform.claude.com/settings/admin-keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none" }}>Create an Admin API key →</a>
+              </div>
+            ) : usage.error ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                <p style={{ fontWeight: 600, color: "#dc2626", margin: 0 }}>Couldn&apos;t reach Anthropic.</p>
+                <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>{usage.error}. Double-check that <code style={code}>ANTHROPIC_ADMIN_KEY</code> is a valid Admin API key.</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>Spent this month ({fmtDate(usage.since)} – {fmtDate(usage.until)})</p>
+                <p style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>{money(usage.monthToDateUsd, usage.currency)}</p>
+                <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>Updates within ~5 minutes of API activity. Priority Tier spend isn&apos;t included.</p>
+                <a href="https://platform.claude.com/settings/cost" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none", paddingTop: 8 }}>Open full cost dashboard →</a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

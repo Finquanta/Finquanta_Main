@@ -68,17 +68,19 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
   fastify.post('/v1/businesses/:id/invites', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const body = request.body as { role?: string; password?: string };
+      const body = request.body as { role?: string; password?: string; expiry?: string };
       const role = await repo.getRole(id, request.user!.id);
       if (!canManage(role)) return reply.status(403).send({ success: false, error: 'Only an owner or admin can invite members' });
 
       const inviteRole: BusinessRole = isValidRole(body.role) && body.role !== 'Owner' ? body.role : 'Viewer';
       const token = uuidv4().replace(/-/g, '');
       const passwordHash = body.password && body.password.trim() ? await passwords.hash(body.password.trim()) : null;
-      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
+      // 'once' => single-use link (no time limit); otherwise it expires in 7 days.
+      const singleUse = body.expiry === 'once';
+      const expiresAt = singleUse ? null : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      await repo.createInvite(id, inviteRole, token, passwordHash, request.user!.id, expiresAt);
-      return reply.status(201).send({ success: true, data: { token, role: inviteRole, requiresPassword: !!passwordHash, expiresAt } });
+      await repo.createInvite(id, inviteRole, token, passwordHash, request.user!.id, expiresAt, singleUse);
+      return reply.status(201).send({ success: true, data: { token, role: inviteRole, requiresPassword: !!passwordHash, expiresAt, singleUse } });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Internal server error' });
@@ -97,7 +99,7 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
           businessName: invite.businessName,
           role: invite.role,
           requiresPassword: invite.requiresPassword,
-          expired: invite.expiresAt ? new Date(invite.expiresAt).getTime() < Date.now() : false,
+          expired: (invite.expiresAt ? new Date(invite.expiresAt).getTime() < Date.now() : false) || (invite.singleUse && !!invite.acceptedAt),
         },
       });
     } catch (error) {
@@ -115,6 +117,9 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
       if (!invite) return reply.status(404).send({ success: false, error: 'Invite not found' });
       if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
         return reply.status(400).send({ success: false, error: 'This invite has expired' });
+      }
+      if (invite.singleUse && invite.acceptedAt) {
+        return reply.status(400).send({ success: false, error: 'This invite link has already been used' });
       }
       if (invite.requiresPassword) {
         const ok = invite.passwordHash && password ? await passwords.verify(password, invite.passwordHash) : false;

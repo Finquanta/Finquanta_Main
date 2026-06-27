@@ -43,11 +43,12 @@ export async function getMembers(businessId: string): Promise<BusinessMember[]> 
 export async function createInvite(
   businessId: string,
   role: BusinessRole,
-  password?: string
-): Promise<{ token: string; role: BusinessRole; requiresPassword: boolean; expiresAt: string }> {
+  password?: string,
+  expiry: 'once' | '7d' = '7d'
+): Promise<{ token: string; role: BusinessRole; requiresPassword: boolean; expiresAt: string | null; singleUse: boolean }> {
   return apiFetch(`/v1/businesses/${businessId}/invites`, {
     method: 'POST',
-    body: JSON.stringify({ role, password: password || undefined }),
+    body: JSON.stringify({ role, password: password || undefined, expiry }),
   });
 }
 

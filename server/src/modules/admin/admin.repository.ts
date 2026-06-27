@@ -93,8 +93,15 @@ export class AdminRepository {
     return r ? { id: r.id, email: r.email, role: r.role, status: r.status ?? 'active' } : null;
   }
 
-  /** Apply admin edits (name / role / status). Returns nothing; caller re-lists. */
-  async updateUser(id: string, data: { firstName?: string; lastName?: string; role?: string; status?: string }): Promise<void> {
+  /**
+   * Apply admin edits. `users` columns (name / role / status / date_of_birth)
+   * and `business_profiles` columns (business name / country) are written in the
+   * same call. Returns nothing; caller re-lists.
+   */
+  async updateUser(
+    id: string,
+    data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string }
+  ): Promise<void> {
     const set: string[] = [];
     const values: any[] = [];
     let i = 1;
@@ -102,10 +109,25 @@ export class AdminRepository {
     if (data.lastName !== undefined) { set.push(`last_name = $${i++}`); values.push(data.lastName); }
     if (data.role !== undefined) { set.push(`role = $${i++}`); values.push(data.role); }
     if (data.status !== undefined) { set.push(`status = $${i++}`); values.push(data.status); }
-    if (set.length === 0) return;
-    set.push(`updated_at = NOW()`);
-    values.push(id);
-    await this.database.query(`UPDATE users SET ${set.join(', ')} WHERE id = $${i}`, values);
+    if (data.dateOfBirth !== undefined) { set.push(`date_of_birth = $${i++}`); values.push(data.dateOfBirth || null); }
+    if (set.length > 0) {
+      set.push(`updated_at = NOW()`);
+      values.push(id);
+      await this.database.query(`UPDATE users SET ${set.join(', ')} WHERE id = $${i}`, values);
+    }
+
+    // Business name / country live on business_profiles (one row per user).
+    if (data.businessName !== undefined || data.country !== undefined) {
+      await this.database.query(
+        `INSERT INTO business_profiles (user_id, business_name, country)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id) DO UPDATE SET
+           business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
+           country = COALESCE(EXCLUDED.country, business_profiles.country),
+           updated_at = NOW()`,
+        [id, data.businessName ?? null, data.country ?? null]
+      );
+    }
   }
 
   async deleteUser(id: string): Promise<void> {

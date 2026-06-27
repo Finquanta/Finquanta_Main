@@ -233,6 +233,7 @@ function TeamModal({ business, isDark, onClose }: { business: Business; isDark: 
 function InviteModal({ business, isDark, onClose }: { business: Business; isDark: boolean; onClose: () => void }) {
   const [role, setRole] = useState<BusinessRole>("Viewer");
   const [password, setPassword] = useState("");
+  const [expiry, setExpiry] = useState<"once" | "7d">("7d");
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -244,7 +245,7 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
     setError(null);
     setBusy(true);
     try {
-      const res = await createInvite(business.id, role, password.trim() || undefined);
+      const res = await createInvite(business.id, role, password.trim() || undefined, expiry);
       setLink(`${window.location.origin}/join/${res.token}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create invite.");
@@ -278,6 +279,16 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
               {INVITABLE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
 
+            <label className="block text-sm font-medium mb-1">Link expiry</label>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {([["once", "One-time use"], ["7d", "Expires in 7 days"]] as const).map(([val, lbl]) => (
+                <button key={val} type="button" onClick={() => setExpiry(val)}
+                  className={`text-sm rounded-lg px-3 py-2 border text-center ${expiry === val ? "border-blue-500 text-blue-600 font-semibold" : input}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+
             <label className="block text-sm font-medium mb-1">Password (optional)</label>
             <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Set a password the invitee must enter"
               className={`w-full text-sm rounded-lg px-3 py-2 border outline-none mb-2 ${input}`} />
@@ -290,7 +301,7 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-2">Share this link with your team member (role: <strong>{role}</strong>). It expires in 14 days.</p>
+            <p className="text-sm text-gray-500 mb-2">Share this link with your team member (role: <strong>{role}</strong>). {expiry === "once" ? "It can be used once." : "It expires in 7 days."}</p>
             <div className="flex gap-2">
               <input readOnly value={link} className={`flex-1 text-xs rounded-lg px-3 py-2 border outline-none ${input}`} />
               <button onClick={copy} className="bg-blue-500 hover:bg-blue-600 text-white px-3 rounded-lg flex items-center gap-1 text-sm">

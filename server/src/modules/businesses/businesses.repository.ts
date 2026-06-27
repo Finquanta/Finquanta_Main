@@ -26,6 +26,7 @@ export interface BusinessInvite {
   passwordHash: string | null;
   acceptedAt: string | null;
   expiresAt: string | null;
+  singleUse: boolean;
 }
 
 export class BusinessesRepository {
@@ -62,9 +63,12 @@ export class BusinessesRepository {
         created_by UUID REFERENCES users(id) ON DELETE SET NULL,
         expires_at TIMESTAMP WITH TIME ZONE,
         accepted_at TIMESTAMP WITH TIME ZONE,
+        single_use BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    // For pre-existing invite tables (CREATE TABLE IF NOT EXISTS won't add it).
+    await this.database.query(`ALTER TABLE business_invites ADD COLUMN IF NOT EXISTS single_use BOOLEAN NOT NULL DEFAULT false`);
 
     // Backfill: every user gets a default business (named from onboarding) + Owner membership.
     await this.database.query(`
@@ -173,17 +177,17 @@ export class BusinessesRepository {
     }));
   }
 
-  async createInvite(businessId: string, role: BusinessRole, token: string, passwordHash: string | null, createdBy: string, expiresAt: string | null): Promise<void> {
+  async createInvite(businessId: string, role: BusinessRole, token: string, passwordHash: string | null, createdBy: string, expiresAt: string | null, singleUse: boolean): Promise<void> {
     await this.database.query(
-      `INSERT INTO business_invites (business_id, role, token, password_hash, created_by, expires_at, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [businessId, role, token, passwordHash, createdBy, expiresAt]
+      `INSERT INTO business_invites (business_id, role, token, password_hash, created_by, expires_at, single_use, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [businessId, role, token, passwordHash, createdBy, expiresAt, singleUse]
     );
   }
 
   async getInvite(token: string): Promise<BusinessInvite | null> {
     const result = await this.database.query(
-      `SELECT i.id, i.business_id, i.role, i.password_hash, i.accepted_at, i.expires_at, b.name AS business_name
+      `SELECT i.id, i.business_id, i.role, i.password_hash, i.accepted_at, i.expires_at, i.single_use, b.name AS business_name
        FROM business_invites i JOIN businesses b ON b.id = i.business_id
        WHERE i.token = $1`,
       [token]
@@ -199,6 +203,7 @@ export class BusinessesRepository {
       passwordHash: r.password_hash ?? null,
       acceptedAt: r.accepted_at ? new Date(r.accepted_at).toISOString() : null,
       expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : null,
+      singleUse: !!r.single_use,
     };
   }
 

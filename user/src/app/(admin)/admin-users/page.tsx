@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminUser, listAdminUsers, checkAdmin, updateAdminUser, deleteAdminUser, setAdminUserPassword } from "@/lib/api/admin";
+import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -14,9 +15,8 @@ export default function AdminUsersPage() {
   const [dark, setDark] = useState(false);
   const [busyId, setBusyId] = useState<string>("");
   const [openMenuId, setOpenMenuId] = useState<string>("");
-  const [editingId, setEditingId] = useState<string>("");
-  const [editFirst, setEditFirst] = useState("");
-  const [editLast, setEditLast] = useState("");
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [form, setForm] = useState({ first: "", last: "", dob: "", business: "", country: "" });
 
   const bounceToLogin = (msg: string) => {
     if (/admin access|authentication|session|401|403/i.test(msg)) { router.replace("/admin-login"); return true; }
@@ -27,6 +27,8 @@ export default function AdminUsersPage() {
     listAdminUsers()
       .then((data) => setUsers(data))
       .catch((e) => { const m = e instanceof Error ? e.message : ""; if (!bounceToLogin(m)) setError(m || "Could not load users."); });
+
+  useEffect(() => { setDark(readAdminDark()); }, []);
 
   useEffect(() => {
     checkAdmin()
@@ -63,8 +65,19 @@ export default function AdminUsersPage() {
     finally { setBusyId(""); }
   };
 
-  const startEdit = (u: AdminUser) => { const [first, ...rest] = u.name.split(" "); setEditingId(u.id); setEditFirst(first || ""); setEditLast(rest.join(" ")); setOpenMenuId(""); };
-  const saveEdit = (id: string) => act(() => updateAdminUser(id, { firstName: editFirst.trim(), lastName: editLast.trim() }).then(() => setEditingId("")), id);
+  const startEdit = (u: AdminUser) => {
+    const [first, ...rest] = u.name.split(" ");
+    setForm({ first: first || "", last: rest.join(" "), dob: u.dateOfBirth || "", business: u.company || "", country: u.country || "" });
+    setEditUser(u);
+    setOpenMenuId("");
+  };
+  const saveEdit = () => {
+    if (!editUser) return;
+    act(() => updateAdminUser(editUser.id, {
+      firstName: form.first.trim(), lastName: form.last.trim(),
+      dateOfBirth: form.dob || null, businessName: form.business.trim(), country: form.country.trim(),
+    }).then(() => setEditUser(null)), editUser.id);
+  };
   const setRole = (id: string, role: string) => act(() => updateAdminUser(id, { role }), id);
   const toggleStatus = (u: AdminUser) => act(() => updateAdminUser(u.id, { status: u.status === "suspended" ? "active" : "suspended" }), u.id);
   const remove = (u: AdminUser) => { if (window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) act(() => deleteAdminUser(u.id), u.id); };
@@ -75,7 +88,6 @@ export default function AdminUsersPage() {
     act(() => setAdminUserPassword(u.id, pw), u.id);
   };
 
-  const logout = () => { localStorage.removeItem("accessToken"); localStorage.removeItem("refreshToken"); localStorage.removeItem("user"); router.push("/admin-login"); };
 
   const d = {
     bg: dark ? "#0f172a" : "#f4f5f7", surface: dark ? "#1e293b" : "#fff", border: dark ? "#334155" : "#e5e7eb",
@@ -106,17 +118,7 @@ export default function AdminUsersPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: d.bg, fontFamily: "sans-serif", fontSize: 14, color: d.text }}>
-      {/* Sidebar */}
-      <div style={{ width: 180, background: d.surface, borderRight: `0.5px solid ${d.border}`, display: "flex", flexDirection: "column", padding: "20px 0" }}>
-        <div style={{ padding: "0 16px 20px" }}><img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 32, width: "auto" }} /></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: dark ? "#14532d33" : "#f0fdf4", color: "#16a34a", fontWeight: 600, fontSize: 13, borderRight: "2px solid #22c55e" }}>Users</div>
-        <div onClick={() => router.push("/admin-blog")} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Blog</div>
-        <div onClick={() => router.push("/admin-usage")} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>API Usage</div>
-        <div style={{ flex: 1 }} />
-        <div onClick={() => setDark((v) => !v)} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
-        <div onClick={logout} style={{ padding: "9px 16px", color: d.muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>
-        <div style={{ padding: "8px 16px 0", color: d.muted, fontSize: 11 }}>Version 1.1.0</div>
-      </div>
+      <AdminSidebar active="users" dark={dark} setDark={setDark} />
 
       {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -154,12 +156,7 @@ export default function AdminUsersPage() {
                   return (
                     <tr key={u.id} style={{ borderBottom: `0.5px solid ${d.border}` }}>
                       <td style={{ padding: "10px 12px", fontWeight: 600, opacity: dim }}>
-                        {editingId === u.id ? (
-                          <span style={{ display: "flex", gap: 6 }}>
-                            <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} placeholder="First" style={{ width: 80, padding: "4px 6px", border: `0.5px solid ${d.border}`, borderRadius: 6, background: d.input, color: d.text }} />
-                            <input value={editLast} onChange={(e) => setEditLast(e.target.value)} placeholder="Last" style={{ width: 80, padding: "4px 6px", border: `0.5px solid ${d.border}`, borderRadius: 6, background: d.input, color: d.text }} />
-                          </span>
-                        ) : (<>{u.name}{isSelf && <span style={{ color: d.muted, fontWeight: 400 }}> (you)</span>}</>)}
+                        {u.name}{isSelf && <span style={{ color: d.muted, fontWeight: 400 }}> (you)</span>}
                       </td>
                       <td style={{ padding: "10px 12px", color: d.muted, opacity: dim }}>{u.email}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>{u.company || "—"}</td>
@@ -171,12 +168,7 @@ export default function AdminUsersPage() {
                       <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{fmtDate(u.joinedAt)}</td>
                       <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{u.dateOfBirth ? fmtDate(u.dateOfBirth) : "—"}</td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", position: "relative", textAlign: "right" }}>
-                        {editingId === u.id ? (
-                          <span style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                            <button disabled={busy} onClick={() => saveEdit(u.id)} style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
-                            <button disabled={busy} onClick={() => setEditingId("")} style={{ background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                          </span>
-                        ) : !manage ? <span style={{ color: d.muted }}>—</span> : (
+                        {!manage ? <span style={{ color: d.muted }}>—</span> : (
                           <>
                             <button disabled={busy} onClick={() => setOpenMenuId(openMenuId === u.id ? "" : u.id)}
                               style={{ background: "transparent", border: `0.5px solid ${d.border}`, borderRadius: 6, padding: "3px 9px", fontSize: 16, lineHeight: 1, cursor: "pointer", color: d.text }}>
@@ -186,7 +178,7 @@ export default function AdminUsersPage() {
                               <>
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                                 <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
-                                  {(isSelf || canEditName(u.role)) && <MenuItem label="Edit name" onClick={() => startEdit(u)} />}
+                                  {(isSelf || canEditName(u.role)) && <MenuItem label="Edit" onClick={() => startEdit(u)} />}
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Set password" onClick={() => setPassword(u)} />}
                                   {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Remove ${roleLabel(u.role)}`} onClick={() => setRole(u.id, "user")} />}
                                   {!isSelf && u.role !== "admin" && canAssign(u.role, "admin") && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
@@ -208,6 +200,38 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      {editUser && (
+        <div onClick={() => setEditUser(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: "90vw", background: d.surface, color: d.text, borderRadius: 14, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,.3)" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Edit user</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: d.muted }}>{editUser.email}</p>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <label style={{ fontSize: 12, color: d.muted }}>First name
+                  <input value={form.first} onChange={(e) => setForm({ ...form, first: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
+                </label>
+                <label style={{ fontSize: 12, color: d.muted }}>Last name
+                  <input value={form.last} onChange={(e) => setForm({ ...form, last: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
+                </label>
+              </div>
+              <label style={{ fontSize: 12, color: d.muted }}>Date of birth
+                <input type="date" max={new Date().toISOString().slice(0, 10)} value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
+              </label>
+              <label style={{ fontSize: 12, color: d.muted }}>Business name
+                <input value={form.business} onChange={(e) => setForm({ ...form, business: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
+              </label>
+              <label style={{ fontSize: 12, color: d.muted }}>Country
+                <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button disabled={busyId === editUser.id} onClick={saveEdit} style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: busyId === editUser.id ? 0.6 : 1 }}>{busyId === editUser.id ? "Saving…" : "Save"}</button>
+                <button onClick={() => setEditUser(null)} style={{ background: d.input, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
