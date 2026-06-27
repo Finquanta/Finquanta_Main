@@ -68,9 +68,10 @@ export default function AdminUsagePage() {
                 <p style={{ fontWeight: 600, margin: 0 }}>Usage tracking isn&apos;t set up yet.</p>
                 <p style={{ fontSize: 13, color: c.muted, margin: 0, lineHeight: 1.5 }}>
                   To show your Anthropic spend here, add an <strong>Admin API key</strong> on Render as the env var <code style={code}>ANTHROPIC_ADMIN_KEY</code>.
-                  This is a different key from the one Finna uses for chat — it starts with <code style={code}>sk-ant-admin…</code> and is created in the Anthropic Console under <em>Admin keys</em>.
+                  This is a different key from the one Finna uses for chat — it starts with <code style={code}>sk-ant-admin…</code>.
+                  In the Anthropic Console, click your name (bottom-left) → <em>Organization settings</em> → <em>Admin keys</em> → <em>Create admin key</em>. Admin keys are only available if you&apos;re the organization&apos;s owner/admin.
                 </p>
-                <a href="https://platform.claude.com/settings/admin-keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none" }}>Create an Admin API key →</a>
+                <a href="https://console.anthropic.com/settings/organization" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none" }}>Open Organization settings →</a>
               </div>
             ) : usage.error ? (
               <div style={{ display: "grid", gap: 8 }}>
@@ -82,7 +83,7 @@ export default function AdminUsagePage() {
                 <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>Spent this month ({fmtDate(usage.since)} – {fmtDate(usage.until)})</p>
                 <p style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>{money(usage.monthToDateUsd, usage.currency)}</p>
                 <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>Updates within ~5 minutes of API activity. Priority Tier spend isn&apos;t included.</p>
-                <a href="https://platform.claude.com/settings/cost" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none", paddingTop: 8 }}>Open full cost dashboard →</a>
+                <a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#16a34a", textDecoration: "none", paddingTop: 8 }}>Open full cost dashboard →</a>
               </div>
             )}
           </div>

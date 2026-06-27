@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAppState } from '@/hooks/context/useAppState';
 import SettingsMenu from '@/components/user_dashboard/settings/SettingsMenu';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
 import AccessPermissions from '@/components/user_dashboard/settings/AccessPermissions';
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const logout = useAppState((s) => s.logout);
   const [activeSection, setActiveSection] = useState('notification-preference');
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -28,14 +30,11 @@ export default function SettingsPage() {
   const handleLogout = useCallback(() => {
     setIsLoggingOut(true);
     setShowLogoutDialog(false);
-    // Simulate logout process
     setTimeout(() => {
-      // Clear any local storage or session data
-      localStorage.removeItem('user_session');
-      // Redirect to login page or trigger app logout
+      logout();
       router.push('/login');
     }, 1500);
-  }, [router]);
+  }, [logout, router]);
 
   const handleLogoutClick = useCallback(() => {
     setShowLogoutDialog(true);

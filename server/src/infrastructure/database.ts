@@ -12,6 +12,9 @@ export class Database {
       idleTimeoutMillis: 30000,
       // Neon serverless can cold-start slower than 2s; give connections room.
       connectionTimeoutMillis: 10000,
+      ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false,
     };
 
     this.pool = new Pool(config || defaultConfig);
