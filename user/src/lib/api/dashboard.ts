@@ -84,6 +84,7 @@ export async function deleteGoal(id: string): Promise<void> {
 }
 
 export type RevenueRange = 'day' | 'month' | 'year';
+export type RevenueMetric = 'revenue' | 'cashflow' | 'expense';
 
 export interface RevenuePoint {
   label: string;
@@ -91,6 +92,6 @@ export interface RevenuePoint {
   value: number;
 }
 
-export async function getRevenue(range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
-  return apiFetch<{ range: RevenueRange; points: RevenuePoint[] }>(`/v1/dashboard/revenue?range=${range}`);
+export async function getRevenue(range: RevenueRange, metric: RevenueMetric = 'revenue'): Promise<{ range: RevenueRange; metric: RevenueMetric; points: RevenuePoint[] }> {
+  return apiFetch<{ range: RevenueRange; metric: RevenueMetric; points: RevenuePoint[] }>(`/v1/dashboard/revenue?range=${range}&metric=${metric}`);
 }

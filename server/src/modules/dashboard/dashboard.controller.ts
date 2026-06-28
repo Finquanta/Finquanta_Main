@@ -19,8 +19,8 @@ export class DashboardController {
 
   async getRevenue(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      const { range } = request.query as { range?: string };
-      const data = await this.service.getRevenue(request.businessId!, range as any);
+      const { range, metric } = request.query as { range?: string; metric?: string };
+      const data = await this.service.getRevenue(request.businessId!, range as any, metric as any);
       return reply.send({ success: true, data });
     } catch (error) {
       request.log.error(error);

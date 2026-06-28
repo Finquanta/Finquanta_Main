@@ -5,6 +5,7 @@ import {
   DashboardOverviewResponse,
   ExpenseSegment,
   LatestTransaction,
+  RevenueMetric,
   RevenuePoint,
   RevenueRange,
   UpdateGoalData,
@@ -15,7 +16,7 @@ export interface DashboardRepositoryPort {
   createGoal(businessId: string, userId: string, data: CreateGoalData): Promise<DashboardGoal>;
   updateGoal(businessId: string, id: string, data: UpdateGoalData): Promise<DashboardGoal | null>;
   deleteGoal(businessId: string, id: string): Promise<boolean>;
-  getRevenueSeries(businessId: string, range: RevenueRange): Promise<RevenuePoint[]>;
+  getRevenueSeries(businessId: string, range: RevenueRange, metric?: RevenueMetric): Promise<RevenuePoint[]>;
   getSummary(businessId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
@@ -154,9 +155,10 @@ export class DashboardService {
     }
   }
 
-  async getRevenue(businessId: string, range: RevenueRange): Promise<{ range: RevenueRange; points: RevenuePoint[] }> {
+  async getRevenue(businessId: string, range: RevenueRange, metric: RevenueMetric = 'revenue'): Promise<{ range: RevenueRange; metric: RevenueMetric; points: RevenuePoint[] }> {
     const normalized: RevenueRange = range === 'day' || range === 'month' || range === 'year' ? range : 'month';
-    const points = await this.repository.getRevenueSeries(businessId, normalized);
-    return { range: normalized, points };
+    const normalizedMetric: RevenueMetric = metric === 'cashflow' || metric === 'expense' ? metric : 'revenue';
+    const points = await this.repository.getRevenueSeries(businessId, normalized, normalizedMetric);
+    return { range: normalized, metric: normalizedMetric, points };
   }
 }

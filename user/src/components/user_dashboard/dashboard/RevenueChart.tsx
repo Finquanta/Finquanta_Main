@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { getRevenue, RevenueRange, RevenuePoint } from '@/lib/api/dashboard';
+import { getRevenue, RevenueRange, RevenueMetric, RevenuePoint } from '@/lib/api/dashboard';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 
 const RANGES: { key: RevenueRange; labelKey: string }[] = [
@@ -12,7 +12,11 @@ const RANGES: { key: RevenueRange; labelKey: string }[] = [
   { key: 'year', labelKey: 'rangeYear' },
 ];
 
-const COLOR = '#3b82f6';
+const METRICS: { key: RevenueMetric; label: string; color: string }[] = [
+  { key: 'revenue', label: 'Revenue', color: '#3b82f6' },
+  { key: 'cashflow', label: 'Cashflow', color: '#22c55e' },
+  { key: 'expense', label: 'Expense', color: '#ef4444' },
+];
 
 function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
@@ -30,18 +34,21 @@ function CustomTooltip({ active, payload }: any) {
 export default function RevenueChart({ isDark }: { isDark: boolean }) {
   const { t } = useLanguage();
   const [range, setRange] = useState<RevenueRange>('month');
+  const [metric, setMetric] = useState<RevenueMetric>('revenue');
   const [points, setPoints] = useState<RevenuePoint[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const color = METRICS.find((m) => m.key === metric)?.color ?? '#3b82f6';
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getRevenue(range)
+    getRevenue(range, metric)
       .then((res) => { if (!cancelled) setPoints(res.points); })
       .catch(() => { if (!cancelled) setPoints([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [range]);
+  }, [range, metric]);
 
   const axisColor = isDark ? '#9ca3af' : '#778da9';
   const gridColor = isDark ? '#374151' : '#e5e7eb';
@@ -49,6 +56,22 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
 
   return (
     <div>
+      {/* Metric toggle: revenue / cashflow / expense */}
+      <div className="flex items-center gap-1 mb-2">
+        {METRICS.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setMetric(m.key)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+              metric === m.key ? 'text-white' : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            style={metric === m.key ? { backgroundColor: m.color } : undefined}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {/* Timeframe toggle */}
       <div className="flex items-center gap-1 mb-3">
         {RANGES.map((r) => (
@@ -76,8 +99,8 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval} tick={{ fontSize: 10, fill: axisColor }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: axisColor }} tickFormatter={(v) => `$${v >= 1000 ? `${v / 1000}k` : v}`} width={40} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: COLOR, strokeWidth: 1 }} />
-                <Line type="monotone" dataKey="value" stroke={COLOR} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: color, strokeWidth: 1 }} />
+                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               </LineChart>
             ) : (
               <BarChart data={points} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
@@ -85,7 +108,7 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
                 <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval} tick={{ fontSize: 10, fill: axisColor }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: axisColor }} tickFormatter={(v) => `$${v >= 1000 ? `${v / 1000}k` : v}`} width={40} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
-                <Bar dataKey="value" fill={COLOR} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
               </BarChart>
             )}
           </ResponsiveContainer>

@@ -1,6 +1,6 @@
 import { Database } from '../../infrastructure/database';
 import { getPreviousMonthRange } from '../shared/date-range';
-import { CreateGoalData, ExpenseSegment, LatestTransaction, RevenuePoint, RevenueRange, UpdateGoalData, WeeklyData } from './dashboard.types';
+import { CreateGoalData, ExpenseSegment, LatestTransaction, RevenueMetric, RevenuePoint, RevenueRange, UpdateGoalData, WeeklyData } from './dashboard.types';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -67,12 +67,22 @@ export class DashboardRepository {
     }));
   }
 
-  async getRevenueSeries(businessId: string, range: RevenueRange): Promise<RevenuePoint[]> {
+  async getRevenueSeries(businessId: string, range: RevenueRange, metric: RevenueMetric = 'revenue'): Promise<RevenuePoint[]> {
+    // The value expression + type filter depend on the chosen metric:
+    //   revenue  -> sum of income
+    //   expense  -> sum of expenses
+    //   cashflow -> income minus expenses (net)
+    const sumExpr =
+      metric === 'cashflow'
+        ? `COALESCE(SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END), 0)`
+        : `COALESCE(SUM(amount), 0)`;
+    const typeClause = metric === 'expense' ? `AND type = 'expense'` : metric === 'revenue' ? `AND type = 'income'` : ``;
+
     if (range === 'day') {
       const result = await this.database.query(
-        `SELECT date::date as bucket, COALESCE(SUM(amount), 0) as v
+        `SELECT date::date as bucket, ${sumExpr} as v
          FROM financial_transactions
-         WHERE business_id = $1 AND type = 'income' AND status = 'completed'
+         WHERE business_id = $1 AND status = 'completed' ${typeClause}
            AND date >= (CURRENT_DATE - INTERVAL '29 days') AND date <= CURRENT_DATE
          GROUP BY date::date`,
         [businessId]
@@ -97,9 +107,9 @@ export class DashboardRepository {
 
     if (range === 'month') {
       const result = await this.database.query(
-        `SELECT EXTRACT(MONTH FROM date)::int as bucket, COALESCE(SUM(amount), 0) as v
+        `SELECT EXTRACT(MONTH FROM date)::int as bucket, ${sumExpr} as v
          FROM financial_transactions
-         WHERE business_id = $1 AND type = 'income' AND status = 'completed'
+         WHERE business_id = $1 AND status = 'completed' ${typeClause}
            AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
          GROUP BY bucket`,
         [businessId]
@@ -115,9 +125,9 @@ export class DashboardRepository {
 
     // range === 'year' — last 5 years
     const result = await this.database.query(
-      `SELECT EXTRACT(YEAR FROM date)::int as bucket, COALESCE(SUM(amount), 0) as v
+      `SELECT EXTRACT(YEAR FROM date)::int as bucket, ${sumExpr} as v
        FROM financial_transactions
-       WHERE user_id = $1 AND type = 'income' AND status = 'completed'
+       WHERE business_id = $1 AND status = 'completed' ${typeClause}
          AND date >= (CURRENT_DATE - INTERVAL '4 years')
        GROUP BY bucket`,
       [businessId]

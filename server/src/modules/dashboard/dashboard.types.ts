@@ -20,6 +20,7 @@ export interface ExpenseSegment {
 }
 
 export type RevenueRange = 'day' | 'month' | 'year';
+export type RevenueMetric = 'revenue' | 'cashflow' | 'expense';
 
 export interface RevenuePoint {
   label: string;   // short axis label, e.g. "Jun 19", "Jan", "2026"
