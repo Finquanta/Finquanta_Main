@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu } from 'lucide-react';
+import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
@@ -52,6 +53,7 @@ export default function DashboardPage() {
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile/tablet off-canvas drawer
   const [dashboardData, setDashboardData] = useState<DashboardOverviewResponse | null>(null);
   const [clickCount, setClickCount] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -348,15 +350,23 @@ export default function DashboardPage() {
   };
 
   const handleLogout = () => {
-    router.push('/login');
+    logoutAndRedirect('/login');
   };
 
   return (
     <div className={`flex h-screen ${colors.bg}`} onClick={() => setClickCount(c => c + 1)}>
-      {/* SIDEBAR */}
-      <div className={`w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4`}>
-        <div className="mb-8">
+      {/* Mobile/tablet overlay behind the drawer */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
+
+      {/* SIDEBAR — static on desktop, off-canvas drawer on tablet/mobile */}
+      <div className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="mb-8 flex items-center justify-between">
           <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+          <button onClick={() => setSidebarOpen(false)} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -403,9 +413,16 @@ export default function DashboardPage() {
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <div className={`${colors.topbar} border-b px-6 py-3 flex items-center justify-between`}>
+        <div className={`${colors.topbar} border-b px-4 sm:px-6 py-3 flex items-center justify-between gap-2`}>
           {/* Left */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className={`lg:hidden p-2 -ml-2 rounded-lg border transition-colors ${colors.buttonBg}`}
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
               {editingName ? (
@@ -561,7 +578,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Dashboard Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Summary period selector */}
           <div className="flex items-center flex-wrap gap-2 mb-3">
             {([
@@ -591,7 +608,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
               { label: t('dashboard', 'balance'), value: '$0.00' },
               { label: t('dashboard', 'cashflow'), value: '$0.00' },
@@ -723,7 +740,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Bottom Row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Total Revenue */}
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
               <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'totalRevenue')}</h2>

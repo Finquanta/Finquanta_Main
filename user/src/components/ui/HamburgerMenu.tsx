@@ -95,9 +95,25 @@ const HamburgerMenu = () => {
         >
           &times;
         </button>
-        {/* Flex column: nav links grow, buttons stick to bottom */}
-        <div className="flex flex-col h-full pt-20 pb-8">
-          <ul className="flex flex-col space-y-8 px-4 flex-grow">
+        {/* Scrollable column so nothing gets cut off on short screens.
+            Auth buttons sit at the TOP for easy reach, nav links below. */}
+        <div className="flex flex-col h-full pt-16 pb-8 overflow-y-auto">
+          {/* Sign Up and Login at the top */}
+          <div className="flex flex-col px-4 space-y-3">
+            <Link href="/signup" className="w-full" onClick={handleClose}>
+              <button className="w-full bg-[#4CAF50] hover:bg-[#45a049] text-white rounded-lg px-5 py-3 font-semibold text-base transition-colors">
+                Sign Up
+              </button>
+            </Link>
+            <Link href="/login" className="w-full" onClick={handleClose}>
+              <button className="w-full bg-gray-50 hover:bg-gray-100 text-[#4CAF50] rounded-lg px-5 py-3 font-semibold text-base border border-[#4CAF50] transition-colors">
+                Login
+              </button>
+            </Link>
+          </div>
+          {/* Divider */}
+          <div className="border-t border-gray-200 mx-4 my-5" />
+          <ul className="flex flex-col space-y-6 px-4">
             {navLinks.map((link) => (
               <li key={link.href}>
                 <Link
@@ -110,19 +126,6 @@ const HamburgerMenu = () => {
               </li>
             ))}
           </ul>
-          {/* Sign Up and Login buttons pinned to bottom */}
-          <div className="flex flex-col items-center px-4 space-y-4 mt-8">
-            <Link href="/signup" className="w-full" onClick={handleClose}>
-              <button className="w-full bg-[#4CAF50] hover:bg-[#45a049] text-white rounded-lg px-5 py-3 font-semibold text-base transition-colors">
-                Sign Up
-              </button>
-            </Link>
-            <Link href="/login" className="w-full" onClick={handleClose}>
-              <button className="w-full bg-gray-50 hover:bg-gray-100 text-[#4CAF50] rounded-lg px-5 py-3 font-semibold text-base border border-[#4CAF50] transition-colors">
-                Login
-              </button>
-            </Link>
-          </div>
         </div>
       </nav>
     </>
