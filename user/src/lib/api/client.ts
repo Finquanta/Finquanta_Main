@@ -139,6 +139,10 @@ function clearAuthAndRedirect(): void {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
+  localStorage.removeItem('activeBusinessId');
+  // Also clear the Zustand persist store, which mirrors the auth tokens —
+  // otherwise stale auth state bounces the user back into the dashboard.
+  localStorage.removeItem('Finquanta-ai-app-state');
   window.location.href = '/login';
 }
 

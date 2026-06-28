@@ -8,6 +8,7 @@ import NotificationSettingsComponent from '@/components/user_dashboard/settings/
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from '@/lib/api/business';
+import { logoutAndRedirect } from '@/lib/auth';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -407,7 +408,7 @@ export default function ProfileSettingsPage() {
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('settings', 'logOut')}</h2>
             <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Are you sure you want to log out?</p>
-            <button onClick={() => router.push('/login')} className={`text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}>
+            <button onClick={() => logoutAndRedirect('/login')} className={`text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}>
               {t('settings', 'logOut')}
             </button>
           </div>

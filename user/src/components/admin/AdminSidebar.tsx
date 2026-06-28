@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { logoutAndRedirect } from "@/lib/auth";
 
 type Tab = "users" | "blog" | "usage" | "playbook";
 
@@ -22,12 +23,7 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
   const surface = dark ? "#1e293b" : "#fff";
   const border = dark ? "#334155" : "#e5e7eb";
 
-  const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    router.push("/admin-login");
-  };
+  const logout = () => logoutAndRedirect("/admin-login");
 
   const toggleDark = () => { writeAdminDark(!dark); setDark(!dark); };
 
