@@ -1,0 +1,641 @@
+{
+  "generatedAt": "2026-06-28T23:46:20.352Z",
+  "commits": [
+    {
+      "hash": "0fa9028",
+      "author": "gio",
+      "date": "2026-06-28T19:44:20-04:00",
+      "subject": "feat(auth): email verification flow (signup email, verify page, resend); admin verified badge + verified/unverified count cards"
+    },
+    {
+      "hash": "09cd581",
+      "author": "gio",
+      "date": "2026-06-28T19:32:55-04:00",
+      "subject": "feat(admin): non-deletable audit logs for admin actions (who/when/what/target)"
+    },
+    {
+      "hash": "3d543c3",
+      "author": "gio",
+      "date": "2026-06-28T18:05:47-04:00",
+      "subject": "feat: onboarding country dropdown; revenue card toggle (revenue/cashflow/expense)"
+    },
+    {
+      "hash": "90d1a8d",
+      "author": "gio",
+      "date": "2026-06-28T17:38:57-04:00",
+      "subject": "feat: auth 'Return to Home' clears session; dashboard Give Feedback + admin Feedback tabs; blog navbar; goal 'Description' label"
+    },
+    {
+      "hash": "e9d4c88",
+      "author": "gio",
+      "date": "2026-06-28T14:14:52-04:00",
+      "subject": "feat(newsletter): persist subscribers to DB; hero 'Sign Up' carries email into prefilled signup"
+    },
+    {
+      "hash": "c601c3a",
+      "author": "gio",
+      "date": "2026-06-28T14:08:16-04:00",
+      "subject": "feat(responsive): collapsible off-canvas dashboard sidebar on tablet/mobile; mobile menu Login/Signup at top; responsive grids; fix dashboard logout"
+    },
+    {
+      "hash": "1b53284",
+      "author": "gio",
+      "date": "2026-06-28T14:01:45-04:00",
+      "subject": "fix(auth): logout now clears tokens + persisted store (was only navigating); restore Finna bot on dashboard"
+    },
+    {
+      "hash": "3768850",
+      "author": "gio",
+      "date": "2026-06-28T13:37:53-04:00",
+      "subject": "feat: cold-start 'Pulling data…' indicator; remove Schedule Demo nav button; drop temp role-bootstrap email log"
+    },
+    {
+      "hash": "1e3ef13",
+      "author": "gio",
+      "date": "2026-06-28T12:39:29-04:00",
+      "subject": "feat(admin): add Claude Code and Namecheap to Playbook"
+    },
+    {
+      "hash": "334374c",
+      "author": "gio",
+      "date": "2026-06-28T12:24:51-04:00",
+      "subject": "feat(admin): Playbook tab — plain-English tech stack rundown; bump admin version to 1.2.0"
+    },
+    {
+      "hash": "35d4555",
+      "author": "gio",
+      "date": "2026-06-27T18:37:50-04:00",
+      "subject": "feat(admin): API Usage opens Anthropic spend dashboard (no admin key required)"
+    },
+    {
+      "hash": "28f3a05",
+      "author": "gio",
+      "date": "2026-06-27T18:34:55-04:00",
+      "subject": "fix(admin): point API Usage setup link to platform.claude.com Admin keys"
+    },
+    {
+      "hash": "99b36c4",
+      "author": "gio",
+      "date": "2026-06-27T18:18:22-04:00",
+      "subject": "fix(admin): correct Anthropic Console links on API Usage page (admin-keys 404)"
+    },
+    {
+      "hash": "567333c",
+      "author": "gio",
+      "date": "2026-06-27T17:03:15-04:00",
+      "subject": "feat(admin): persistent sidebar across admin pages; edit user profile fields; blog cards; invite expiry choice"
+    },
+    {
+      "hash": "4004bc7",
+      "author": "gio",
+      "date": "2026-06-25T22:59:03-04:00",
+      "subject": "feat(admin): API Usage page — month-to-date Anthropic spend via Admin cost API"
+    },
+    {
+      "hash": "aa3f4b8",
+      "author": "gio",
+      "date": "2026-06-25T22:51:56-04:00",
+      "subject": "feat(blog): DB-backed blog — admin editor, public /blog pages, homepage section"
+    },
+    {
+      "hash": "28d5db1",
+      "author": "gio",
+      "date": "2026-06-25T22:42:47-04:00",
+      "subject": "feat(workspace): 'View team' modal (members + remove); bump version to 1.1.0"
+    },
+    {
+      "hash": "a6bd913",
+      "author": "gio",
+      "date": "2026-06-25T22:37:47-04:00",
+      "subject": "feat(auth): signup compliance — 16+ age gate, DOB, required legal acceptance; show DOB in admin"
+    },
+    {
+      "hash": "a647b0a",
+      "author": "gio",
+      "date": "2026-06-22T11:21:02-04:00",
+      "subject": "feat(admin): owner/admin can set a user's password from the admin panel"
+    },
+    {
+      "hash": "85f32bf",
+      "author": "gio",
+      "date": "2026-06-22T09:37:31-04:00",
+      "subject": "feat(auth): real password reset via Resend; lock Finna to Haiku; Remove-role menu labels"
+    },
+    {
+      "hash": "a3de097",
+      "author": "gio",
+      "date": "2026-06-21T20:20:55-04:00",
+      "subject": "fix(admin): allow owner role to log into the admin portal"
+    },
+    {
+      "hash": "a65efe7",
+      "author": "gio",
+      "date": "2026-06-21T20:15:40-04:00",
+      "subject": "fix(admin): widen users_role_check constraint to allow super_admin and owner"
+    },
+    {
+      "hash": "7ba3938",
+      "author": "gio",
+      "date": "2026-06-21T20:09:48-04:00",
+      "subject": "chore(admin): bootstrap diagnostic via console.log + report owner email DB matches"
+    },
+    {
+      "hash": "2478264",
+      "author": "gio",
+      "date": "2026-06-21T20:02:42-04:00",
+      "subject": "feat(auth): remove Google/Apple social login from login & signup for now"
+    },
+    {
+      "hash": "19a7d38",
+      "author": "gio",
+      "date": "2026-06-21T19:56:07-04:00",
+      "subject": "fix(admin): harden role bootstrap (strip quotes, log counts); redirect logged-in users from home to dashboard"
+    },
+    {
+      "hash": "c367ffa",
+      "author": "gio",
+      "date": "2026-06-21T19:25:20-04:00",
+      "subject": "feat(admin): align role bootstrap env vars with 4-tier naming; 'Version 1.0.0.0' label"
+    },
+    {
+      "hash": "0e93561",
+      "author": "gio",
+      "date": "2026-06-21T19:16:27-04:00",
+      "subject": "fix(admin): keep row-action dropdown opaque on restricted accounts"
+    },
+    {
+      "hash": "c109cbe",
+      "author": "gio",
+      "date": "2026-06-21T19:13:52-04:00",
+      "subject": "feat(admin): granular role powers + role out of sidebar + version footer"
+    },
+    {
+      "hash": "d1baff3",
+      "author": "gio",
+      "date": "2026-06-21T19:05:16-04:00",
+      "subject": "feat(admin): rename role labels (Owner/Admin/Moderator/User) + allow editing own name"
+    },
+    {
+      "hash": "ff4ff1c",
+      "author": "gio",
+      "date": "2026-06-21T14:57:28-04:00",
+      "subject": "docs: update admin roles to 4-tier (owner>super_admin>admin>user) + env vars"
+    },
+    {
+      "hash": "cee1d22",
+      "author": "gio",
+      "date": "2026-06-21T14:56:31-04:00",
+      "subject": "feat(admin): 4-tier roles (owner>super_admin>admin>user) + dashboard Admin Panel link"
+    },
+    {
+      "hash": "77f9ab9",
+      "author": "gio",
+      "date": "2026-06-21T14:48:21-04:00",
+      "subject": "feat(admin): ADMIN_EMAILS grants owner; collapse row actions into a three-dots menu"
+    },
+    {
+      "hash": "47af4bd",
+      "author": "gio",
+      "date": "2026-06-21T14:35:50-04:00",
+      "subject": "docs: update notes for admin edit/restrict/delete, owner role + SUPER_ADMIN_EMAILS, removed global UI"
+    },
+    {
+      "hash": "8f96819",
+      "author": "gio",
+      "date": "2026-06-21T14:33:42-04:00",
+      "subject": "feat(admin): edit/restrict/delete users + super-admin owner role; remove social sidebar, chatbot, to-top button"
+    },
+    {
+      "hash": "96a64d4",
+      "author": "gio",
+      "date": "2026-06-21T14:07:05-04:00",
+      "subject": "docs: add DEVELOPER_NOTES.md (architecture, admin panel, i18n, onboarding, deploy/env, fixes, TODOs)"
+    },
+    {
+      "hash": "4a1f849",
+      "author": "gio",
+      "date": "2026-06-21T14:04:57-04:00",
+      "subject": "feat(admin): real admin panel — admin-only auth, live users list, ADMIN_EMAILS bootstrap"
+    },
+    {
+      "hash": "afcc38a",
+      "author": "gio",
+      "date": "2026-06-21T09:35:49-04:00",
+      "subject": "feat(i18n): translate onboarding + Business Profile into all 10 languages; working settings search"
+    },
+    {
+      "hash": "93c7e6a",
+      "author": "gio",
+      "date": "2026-06-21T09:17:10-04:00",
+      "subject": "feat: re-ask incomplete onboarding on login; Finna defaults to Haiku"
+    },
+    {
+      "hash": "d152ec2",
+      "author": "gio",
+      "date": "2026-06-21T09:06:58-04:00",
+      "subject": "feat(onboarding): one-question-at-a-time flow, centered (Airtable/Typeform style)"
+    },
+    {
+      "hash": "5e572b0",
+      "author": "gio",
+      "date": "2026-06-21T08:48:51-04:00",
+      "subject": "feat(profile): Business Profile section in settings + country/incorporation in onboarding"
+    },
+    {
+      "hash": "3d64811",
+      "author": "gio",
+      "date": "2026-06-20T19:01:15-04:00",
+      "subject": "fix(cors): allow X-Business-Id header so business-scoped requests aren't blocked"
+    },
+    {
+      "hash": "bba02a6",
+      "author": "gio",
+      "date": "2026-06-20T18:43:44-04:00",
+      "subject": "fix(api): retry network failures to ride out Render free-tier cold starts"
+    },
+    {
+      "hash": "7af0a10",
+      "author": "gio",
+      "date": "2026-06-20T17:05:25-04:00",
+      "subject": "feat(businesses): rename businesses (Owner/Admin); move feedback link under version"
+    },
+    {
+      "hash": "e30144f",
+      "author": "gio",
+      "date": "2026-06-20T15:40:33-04:00",
+      "subject": "feat(dashboard): workspace switcher back in topbar; Finquanta ID above version"
+    },
+    {
+      "hash": "3d988c4",
+      "author": "gio",
+      "date": "2026-06-20T15:26:25-04:00",
+      "subject": "fix(deploy): add @anthropic-ai/sdk to pnpm-lock.yaml so Vercel install succeeds"
+    },
+    {
+      "hash": "0a934d3",
+      "author": "gio",
+      "date": "2026-06-20T15:07:41-04:00",
+      "subject": "fix(finna): construct Anthropic client lazily so build doesn't crash without API key"
+    },
+    {
+      "hash": "1e36a3a",
+      "author": "gio",
+      "date": "2026-06-20T10:40:45-04:00",
+      "subject": "feat(dashboard): move workspace switcher to left sidebar and add feedback link"
+    },
+    {
+      "hash": "a1d53c0",
+      "author": "gio",
+      "date": "2026-06-20T09:42:57-04:00",
+      "subject": "feat(auth): show/hide password toggle on login and signup"
+    },
+    {
+      "hash": "a596df1",
+      "author": "gio",
+      "date": "2026-06-20T06:54:15-04:00",
+      "subject": "feat(dashboard): send active business header + refresh on workspace switch (Phase 4.2)"
+    },
+    {
+      "hash": "14979c0",
+      "author": "gio",
+      "date": "2026-06-20T06:54:06-04:00",
+      "subject": "feat(server): per-business data isolation (Phase 4.2)"
+    },
+    {
+      "hash": "eeb5914",
+      "author": "gio",
+      "date": "2026-06-19T23:56:57-04:00",
+      "subject": "feat(dashboard): workspace switcher + team invites + accept page (Phase 4.1)"
+    },
+    {
+      "hash": "4ce0b16",
+      "author": "gio",
+      "date": "2026-06-19T23:56:50-04:00",
+      "subject": "feat(server): multi-business foundation — businesses, members, roles, invites (Phase 4.1)"
+    },
+    {
+      "hash": "889db1c",
+      "author": "gio",
+      "date": "2026-06-19T23:17:51-04:00",
+      "subject": "feat(onboarding): post-signup business onboarding page (Phase 3)"
+    },
+    {
+      "hash": "70499f7",
+      "author": "gio",
+      "date": "2026-06-19T23:17:45-04:00",
+      "subject": "feat(server): business onboarding storage (Phase 3)"
+    },
+    {
+      "hash": "7833eb2",
+      "author": "gio",
+      "date": "2026-06-19T22:58:59-04:00",
+      "subject": "feat(finna): basic AI on Claude (Anthropic SDK), not personalized"
+    },
+    {
+      "hash": "3ec455e",
+      "author": "gio",
+      "date": "2026-06-19T22:34:58-04:00",
+      "subject": "feat(finna): data-aware AI assistant with natural-language bookkeeping"
+    },
+    {
+      "hash": "040d4f9",
+      "author": "gio",
+      "date": "2026-06-19T21:54:50-04:00",
+      "subject": "feat(dashboard): period switcher for summary cards (all time / 30d / 3m / month)"
+    },
+    {
+      "hash": "a7de9ee",
+      "author": "gio",
+      "date": "2026-06-19T17:42:14-04:00",
+      "subject": "fix(bookkeeping): default new entry date to today"
+    },
+    {
+      "hash": "3d8b5ff",
+      "author": "gio",
+      "date": "2026-06-19T17:38:54-04:00",
+      "subject": "fix(financial): stop response schema stripping transaction data (lost id)"
+    },
+    {
+      "hash": "9ad6d71",
+      "author": "gio",
+      "date": "2026-06-19T17:28:47-04:00",
+      "subject": "fix(bookkeeping): distinct name/description, guard receipt upload id"
+    },
+    {
+      "hash": "afc3f97",
+      "author": "gio",
+      "date": "2026-06-19T17:28:40-04:00",
+      "subject": "fix(dashboard): return invoice name and description as separate fields"
+    },
+    {
+      "hash": "a5a82df",
+      "author": "gio",
+      "date": "2026-06-19T17:05:56-04:00",
+      "subject": "fix(receipts): clearer upload errors, 10MB limit, resilient table + DB timeout"
+    },
+    {
+      "hash": "979ecfc",
+      "author": "gio",
+      "date": "2026-06-19T16:56:32-04:00",
+      "subject": "perf(bookkeeping): upload receipt in parallel with the edit save"
+    },
+    {
+      "hash": "b520553",
+      "author": "gio",
+      "date": "2026-06-19T16:39:34-04:00",
+      "subject": "feat(dashboard): recurrence selector + PDF receipt upload in bookkeeping"
+    },
+    {
+      "hash": "1f80c09",
+      "author": "gio",
+      "date": "2026-06-19T16:39:28-04:00",
+      "subject": "feat(server): receipt uploads + recurrence tag on transactions"
+    },
+    {
+      "hash": "f21aad4",
+      "author": "gio",
+      "date": "2026-06-19T12:58:08-04:00",
+      "subject": "i18n(dashboard): translate reminders, goals, revenue chart, and modals"
+    },
+    {
+      "hash": "b1f4ca0",
+      "author": "gio",
+      "date": "2026-06-19T12:28:23-04:00",
+      "subject": "fix(api): don't send JSON content-type on bodyless requests"
+    },
+    {
+      "hash": "d183bcd",
+      "author": "gio",
+      "date": "2026-06-19T12:21:54-04:00",
+      "subject": "feat(dashboard): switchable revenue chart, undo + recently deleted, visible actions"
+    },
+    {
+      "hash": "359168b",
+      "author": "gio",
+      "date": "2026-06-19T12:21:47-04:00",
+      "subject": "feat(server): revenue time-series endpoint; drop duplicate-block rule"
+    },
+    {
+      "hash": "46b8ddf",
+      "author": "gio",
+      "date": "2026-06-19T11:43:20-04:00",
+      "subject": "feat(dashboard): reminders tab + rotating card, generic goals, clearer errors"
+    },
+    {
+      "hash": "897d187",
+      "author": "gio",
+      "date": "2026-06-19T11:41:57-04:00",
+      "subject": "feat(server): reminders CRUD (auto-migrated table) + edit/date fixes"
+    },
+    {
+      "hash": "281e138",
+      "author": "gio",
+      "date": "2026-06-19T10:39:16-04:00",
+      "subject": "feat(dashboard): save/edit/delete bookkeeping & goals, editable name + account ID"
+    },
+    {
+      "hash": "403eb67",
+      "author": "gio",
+      "date": "2026-06-19T10:38:14-04:00",
+      "subject": "feat(server): goals CRUD, name update, and Balance/Cashflow/Expense cards"
+    },
+    {
+      "hash": "28ced6a",
+      "author": "gio",
+      "date": "2026-06-19T08:49:44-04:00",
+      "subject": "fix: unwrap {success,data} API envelope in apiFetch so dashboard renders"
+    },
+    {
+      "hash": "622e4e5",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T18:20:28+01:00",
+      "subject": "fix: add optional chaining on dashboard data fields to prevent crash when API returns partial/null data"
+    },
+    {
+      "hash": "c325a3e",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T18:15:51+01:00",
+      "subject": "fix: persist tokens to localStorage on login so apiFetch sends Authorization header"
+    },
+    {
+      "hash": "4f9d9a6",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T18:04:39+01:00",
+      "subject": "fix: add @fastify/cors plugin — was missing entirely, causing all cross-origin requests to fail"
+    },
+    {
+      "hash": "a4c5fdf",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:57:12+01:00",
+      "subject": "fix: signup form was showing login — rewrite as proper registration form with name fields, confirm password, and /api/register endpoint"
+    },
+    {
+      "hash": "8c1ad1a",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:50:48+01:00",
+      "subject": "fix: move tsc-alias to dependencies (Render skips devDeps)"
+    },
+    {
+      "hash": "ae77dbb",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:47:55+01:00",
+      "subject": "fix: pin typescript@6.0.3 + ignoreDeprecations for baseUrl compatibility"
+    },
+    {
+      "hash": "a8f465f",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:40:54+01:00",
+      "subject": "fix: move @types/* to dependencies (Render skips devDeps) + remove invalid ignoreDeprecations"
+    },
+    {
+      "hash": "dfd31df",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:36:33+01:00",
+      "subject": "fix: add missing @types/* deps + annotate catch/callback types for strict TS"
+    },
+    {
+      "hash": "d93f24d",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:33:09+01:00",
+      "subject": "fix: add ignoreDeprecations 6.0 for TS5.9 baseUrl deprecation"
+    },
+    {
+      "hash": "2ca2d71",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:26:18+01:00",
+      "subject": "fix: TS error in TotalFinancesChart + remove invalid eslint key from next.config"
+    },
+    {
+      "hash": "20c24ca",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T17:23:21+01:00",
+      "subject": "fix: regenerate pnpm-lock.yaml for Vercel deploy"
+    },
+    {
+      "hash": "c1d39d4",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T16:18:57+01:00",
+      "subject": "fix: add tsc-alias dev dep for @/ path alias resolution in production build"
+    },
+    {
+      "hash": "0252c62",
+      "author": "IamSolomonChika",
+      "date": "2026-06-05T15:02:03+01:00",
+      "subject": "fix: resolve API disconnects between user frontend and server"
+    },
+    {
+      "hash": "7f97eaf",
+      "author": "Solomon Chika",
+      "date": "2026-05-20T13:20:40+01:00",
+      "subject": "Add server dashboard modules checkpoint"
+    },
+    {
+      "hash": "36bfb42",
+      "author": "gio",
+      "date": "2026-05-19T15:14:45-04:00",
+      "subject": "fix: og meta tags for link previews"
+    },
+    {
+      "hash": "b636799",
+      "author": "gio",
+      "date": "2026-05-17T16:35:05-04:00",
+      "subject": "updated theme, update sidebar, enhance chatbot and update language translations"
+    },
+    {
+      "hash": "880ac48",
+      "author": "gio",
+      "date": "2026-05-15T21:08:49-04:00",
+      "subject": "Add dark mode persistence, language settings, admin panel, chatbot widget"
+    },
+    {
+      "hash": "36009e6",
+      "author": "gio",
+      "date": "2026-05-07T17:17:19-04:00",
+      "subject": "Add admin panel, forgot password, notification settings updates"
+    },
+    {
+      "hash": "6da4bd4",
+      "author": "jeeordahnoh",
+      "date": "2026-01-19T10:12:03-04:00",
+      "subject": "Create page.tsx"
+    },
+    {
+      "hash": "be9d0d2",
+      "author": "Harshan_Nayak",
+      "date": "2025-12-14T00:46:00+05:30",
+      "subject": "added cms folder and added blog"
+    },
+    {
+      "hash": "7f29a6d",
+      "author": "Harshan_Nayak",
+      "date": "2025-11-23T18:20:01+05:30",
+      "subject": "Mobile responsive"
+    },
+    {
+      "hash": "55c4042",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T23:13:18+01:00",
+      "subject": "feat: add fiscal AI server design documentation and API docs"
+    },
+    {
+      "hash": "931ab94",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T23:00:52+01:00",
+      "subject": "feat: implement comprehensive financial transaction system with WebSocket notifications"
+    },
+    {
+      "hash": "eab458b",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T21:30:25+01:00",
+      "subject": "feat: implement complete authentication system with registration, login, and token refresh"
+    },
+    {
+      "hash": "deb20bb",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T21:15:23+01:00",
+      "subject": "feat: implement user model and repository with full CRUD operations"
+    },
+    {
+      "hash": "af84a73",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T21:05:50+01:00",
+      "subject": "feat: implement secure password hashing with bcrypt"
+    },
+    {
+      "hash": "553830d",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:55:28+01:00",
+      "subject": "feat: implement JWT token management with access and refresh tokens"
+    },
+    {
+      "hash": "86dc4de",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:50:10+01:00",
+      "subject": "feat: implement Redis client with connection management and tests"
+    },
+    {
+      "hash": "ab7c05e",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:41:59+01:00",
+      "subject": "feat: implement PostgreSQL database connection with tests"
+    },
+    {
+      "hash": "5628eb0",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:37:42+01:00",
+      "subject": "feat: configure jest testing framework with TypeScript support"
+    },
+    {
+      "hash": "0d72c7c",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:28:34+01:00",
+      "subject": "feat: add core server dependencies for PostgreSQL, Redis, JWT, WebSockets, and testing"
+    },
+    {
+      "hash": "5e72426",
+      "author": "Solomon C. Chika",
+      "date": "2025-10-27T20:01:30+01:00",
+      "subject": "Initial commit: Add Fiscal AI project with Fastify backend"
+    }
+  ]
+}
