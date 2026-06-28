@@ -37,11 +37,12 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: "Hosting — where it all runs",
-    blurb: "The services that put the app online.",
+    title: "Hosting & domain — where it all runs",
+    blurb: "The services that put the app online and give it its address.",
     items: [
       { name: "Vercel", purpose: "Hosts the website (frontend) and serves it to the public." },
       { name: "Render", purpose: "Hosts and runs the backend server." },
+      { name: "Namecheap", purpose: "Where the finquanta.ai domain name is registered." },
     ],
   },
   {
@@ -50,6 +51,13 @@ const GROUPS: Group[] = [
     items: [
       { name: "Anthropic Claude (Haiku model)", purpose: "The AI that powers Finna, the in-app financial assistant." },
       { name: "Resend", purpose: "Sends automated emails, such as password-reset links." },
+    ],
+  },
+  {
+    title: "How it was built",
+    blurb: "The tools used to write and maintain the app.",
+    items: [
+      { name: "Claude Code", purpose: "The AI coding assistant used to write, fix and maintain Finquanta's code." },
     ],
   },
 ];
