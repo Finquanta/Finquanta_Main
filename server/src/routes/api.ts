@@ -205,27 +205,11 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
       ...split(process.env.SUPER_ADMIN_EMAILS),
     ]);
     const owners = await adminRepo.ensureRole('owner', split(process.env.OWNER_EMAILS));
-    // Use console.log so this prints regardless of the configured LOG_LEVEL.
-    // TEMP DIAGNOSTIC: also report which configured owner email matches which DB
-    // row, to pinpoint an OWNER_EMAILS mismatch. (Logs the operator's own email
-    // to their own Render logs.) Remove once the owner role is confirmed.
-    const clean = (e: string) => e.trim().replace(/^["']+|["']+$/g, '').trim().toLowerCase();
-    const ownerEmails = split(process.env.OWNER_EMAILS).map(clean).filter(Boolean);
-    let ownerMatches: Array<{ email: string; role: string }> = [];
-    if (ownerEmails.length) {
-      const found = await database.query(
-        'SELECT lower(email) AS email, role FROM users WHERE lower(email) = ANY($1::text[])',
-        [ownerEmails]
-      );
-      ownerMatches = found.rows as Array<{ email: string; role: string }>;
+    if (owners || admins || moderators) {
+      // Counts only (no emails) so a misconfigured *_EMAILS var is still visible.
+      fastify.log.info({ owners, admins, moderators }, 'Role bootstrap: promoted users to their configured roles');
     }
-    console.log('[role-bootstrap]', JSON.stringify({
-      upgraded: { owners, admins, moderators },
-      ownerEmailsConfigured: ownerEmails,
-      ownerEmailsMatchedInDb: ownerMatches,
-    }));
   } catch (error) {
-    console.error('[role-bootstrap] FAILED', error);
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }
   await fastify.register(adminRoutes, { database });

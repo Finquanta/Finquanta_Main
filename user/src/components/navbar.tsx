@@ -60,11 +60,6 @@ export function NavBarComponent() {
               <option value="de">🇩🇪 DE</option>
             </select>
 
-            <Link href="https://calendly.com/YOUR_CALENDLY_LINK_HERE" target="_blank">
-              <Button variant="default" className="bg-[#2196F3] hover:bg-[#1e88e5] text-white rounded-lg px-5 py-2">
-                {t("nav", "scheduleDemo")}
-              </Button>
-            </Link>
             <Link href="/signup">
               <Button variant="default" className="bg-[#4CAF50] hover:bg-[#45a049] text-white rounded-lg px-5 py-2">
                 {t("nav", "signUp")}

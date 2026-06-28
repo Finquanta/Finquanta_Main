@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { AppProvider } from "@/hooks/context/SimpleAppProvider";
 import { LanguageProvider } from "@/hooks/context/LanguageContext";
 import { ThemeProvider } from "@/hooks/context/ThemeContext";
+import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
           <ThemeProvider>
             <LanguageProvider>
               {children}
+              <GlobalLoadingIndicator />
             </LanguageProvider>
           </ThemeProvider>
         </AppProvider>

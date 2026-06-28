@@ -5,6 +5,45 @@ export function serverApiUrl(path: string): string {
 }
 
 /**
+ * Global "pulling data…" indicator. Render's free tier sleeps, so the first
+ * request after idle can take 20-50s (see fetchWithRetry). We surface that as a
+ * small badge — but only once a request has been slow for SLOW_AFTER_MS, so
+ * normal fast requests never flash it. Components subscribe via subscribeLoading.
+ */
+type LoadingListener = (active: boolean) => void;
+const loadingListeners = new Set<LoadingListener>();
+let inFlight = 0;
+let slowActive = false;
+let slowTimer: ReturnType<typeof setTimeout> | null = null;
+const SLOW_AFTER_MS = 1500;
+
+function emitLoading() {
+  for (const cb of loadingListeners) cb(slowActive);
+}
+
+/** Subscribe to the slow-request flag. Returns an unsubscribe function. */
+export function subscribeLoading(cb: LoadingListener): () => void {
+  loadingListeners.add(cb);
+  cb(slowActive);
+  return () => { loadingListeners.delete(cb); };
+}
+
+function beginRequest() {
+  inFlight += 1;
+  if (inFlight === 1 && slowTimer === null) {
+    slowTimer = setTimeout(() => { slowActive = true; emitLoading(); }, SLOW_AFTER_MS);
+  }
+}
+
+function endRequest() {
+  inFlight = Math.max(0, inFlight - 1);
+  if (inFlight === 0) {
+    if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
+    if (slowActive) { slowActive = false; emitLoading(); }
+  }
+}
+
+/**
  * The backend runs on Render's free tier, which sleeps after ~15 min idle and
  * takes 20-50s to wake. While it's waking, fetch() rejects with a network-level
  * TypeError ("Failed to fetch"). Retry those a few times with backoff so a cold
@@ -12,16 +51,21 @@ export function serverApiUrl(path: string): string {
  * retried — real HTTP responses (4xx/5xx) are returned to the caller as-is.
  */
 export async function fetchWithRetry(url: string, init?: RequestInit, attempts = 4): Promise<Response> {
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fetch(url, init);
-    } catch (err) {
-      lastErr = err; // network error (server waking / offline) — wait then retry
-      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+  beginRequest();
+  try {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fetch(url, init);
+      } catch (err) {
+        lastErr = err; // network error (server waking / offline) — wait then retry
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+      }
     }
+    throw lastErr;
+  } finally {
+    endRequest();
   }
-  throw lastErr;
 }
 
 /**
