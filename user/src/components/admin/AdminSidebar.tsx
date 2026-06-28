@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 
-type Tab = "users" | "blog" | "usage";
+type Tab = "users" | "blog" | "usage" | "playbook";
 
 const NAV: { key: Tab; label: string; href: string }[] = [
   { key: "users", label: "Users", href: "/admin-users" },
   { key: "blog", label: "Blog", href: "/admin-blog" },
   { key: "usage", label: "API Usage", href: "/admin-usage" },
+  { key: "playbook", label: "Playbook", href: "/admin-playbook" },
 ];
 
 /** Read the persisted admin dark-mode preference (call inside useEffect). */
@@ -58,7 +59,7 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
       <div style={{ flex: 1 }} />
       <div onClick={toggleDark} style={{ padding: "9px 16px", color: muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
       <div onClick={logout} style={{ padding: "9px 16px", color: muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>
-      <div style={{ padding: "8px 16px 0", color: muted, fontSize: 11 }}>Version 1.1.0</div>
+      <div style={{ padding: "8px 16px 0", color: muted, fontSize: 11 }}>Version 1.2.0</div>
     </div>
   );
 }
