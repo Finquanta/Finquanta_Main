@@ -8,6 +8,7 @@ export interface AdminUser {
   status: string;
   joinedAt: string | null;
   dateOfBirth: string | null;
+  emailVerified: boolean;
   company: string;
   country: string;
   industry: string;

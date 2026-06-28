@@ -133,11 +133,24 @@ export default function AdminUsersPage() {
 
         <div style={{ flex: 1, overflow: "auto", padding: "16px 28px" }}>
           {error && <p style={{ color: "#dc2626", fontSize: 13 }}>{error}</p>}
+
+          {/* Email verification summary cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 440, marginBottom: 16 }}>
+            <div style={{ border: `0.5px solid ${d.border}`, borderRadius: 12, padding: "14px 16px", background: d.head }}>
+              <p style={{ margin: 0, fontSize: 12, color: d.muted, fontWeight: 600 }}>Verified</p>
+              <p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700, color: "#16a34a" }}>{users.filter((u) => u.emailVerified).length}</p>
+            </div>
+            <div style={{ border: `0.5px solid ${d.border}`, borderRadius: 12, padding: "14px 16px", background: d.head }}>
+              <p style={{ margin: 0, fontSize: 12, color: d.muted, fontWeight: 600 }}>Unverified</p>
+              <p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700, color: "#d97706" }}>{users.filter((u) => !u.emailVerified).length}</p>
+            </div>
+          </div>
+
           {loading ? <p style={{ color: d.muted, fontSize: 13 }}>Loading users…</p> : filtered.length === 0 ? <p style={{ color: d.muted, fontSize: 13 }}>No users found.</p> : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ textAlign: "left", color: d.muted, background: d.head }}>
-                  {["Name", "Email", "Company", "Country", "Role", "Status", "Joined", "DOB", ""].map((h, i) => (
+                  {["Name", "Email", "Company", "Country", "Role", "Status", "Verified", "Joined", "DOB", ""].map((h, i) => (
                     <th key={i} style={{ padding: "10px 12px", fontWeight: 600, borderBottom: `0.5px solid ${d.border}`, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -164,6 +177,9 @@ export default function AdminUsersPage() {
                       <td style={{ padding: "10px 12px", opacity: dim }}>{roleBadge(u.role)}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>
                         <span style={{ color: u.status === "suspended" ? "#dc2626" : "#16a34a", fontWeight: 600, fontSize: 12 }}>{u.status === "suspended" ? "restricted" : "active"}</span>
+                      </td>
+                      <td style={{ padding: "10px 12px", opacity: dim }}>
+                        <span style={{ color: u.emailVerified ? "#16a34a" : "#d97706", fontWeight: 600, fontSize: 12 }}>{u.emailVerified ? "verified" : "unverified"}</span>
                       </td>
                       <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{fmtDate(u.joinedAt)}</td>
                       <td style={{ padding: "10px 12px", color: d.muted, whiteSpace: "nowrap", opacity: dim }}>{u.dateOfBirth ? fmtDate(u.dateOfBirth) : "—"}</td>

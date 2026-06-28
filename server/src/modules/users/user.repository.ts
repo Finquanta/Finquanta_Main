@@ -15,6 +15,47 @@ export class UserRepository {
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_terms_at TIMESTAMPTZ`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_privacy_at TIMESTAMPTZ`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_risk_at TIMESTAMPTZ`);
+    // Email verification (confirm-your-email at signup).
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token_hash TEXT`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ`);
+  }
+
+  /** Store a hashed, expiring email-verification token for a user. */
+  async setVerificationToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET email_verification_token_hash = $2, email_verification_expires_at = $3, updated_at = NOW() WHERE id = $1`,
+      [userId, tokenHash, expiresAt]
+    );
+  }
+
+  /** Find a user by a still-valid verification token hash (null if expired/used). */
+  async findByValidVerificationTokenHash(tokenHash: string): Promise<{ id: string; email: string } | null> {
+    const result = await this.database.query(
+      `SELECT id, email FROM users
+       WHERE email_verification_token_hash = $1 AND email_verification_expires_at IS NOT NULL AND email_verification_expires_at > NOW()`,
+      [tokenHash]
+    );
+    const r = result.rows[0];
+    return r ? { id: r.id, email: r.email } : null;
+  }
+
+  /** Mark a user's email as verified and clear the token (single-use). */
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET email_verified = true, email_verification_token_hash = NULL, email_verification_expires_at = NULL, updated_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+  }
+
+  /** Lightweight lookup used by the resend-verification flow. */
+  async findForVerification(email: string): Promise<{ id: string; email: string; verified: boolean } | null> {
+    const result = await this.database.query(
+      `SELECT id, email, email_verified FROM users WHERE email = $1`,
+      [email]
+    );
+    const r = result.rows[0];
+    return r ? { id: r.id, email: r.email, verified: !!r.email_verified } : null;
   }
 
   /** Store a hashed, expiring password-reset token for a user. */

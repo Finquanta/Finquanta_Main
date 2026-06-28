@@ -8,6 +8,7 @@ export interface AdminUserRow {
   status: string;
   joinedAt: string | null;
   dateOfBirth: string | null;
+  emailVerified: boolean;
   company: string;
   country: string;
   industry: string;
@@ -131,7 +132,7 @@ export class AdminRepository {
   /** All users with their business profile info, newest first. Admin-only. */
   async listUsers(): Promise<AdminUserRow[]> {
     const result = await this.database.query(`
-      SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.status, u.created_at, u.date_of_birth,
+      SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.status, u.created_at, u.date_of_birth, u.email_verified,
              bp.business_name, bp.country, bp.industry, bp.incorporation_location
       FROM users u
       LEFT JOIN business_profiles bp ON bp.user_id = u.id
@@ -145,6 +146,7 @@ export class AdminRepository {
       status: r.status ?? 'active',
       joinedAt: r.created_at ? new Date(r.created_at).toISOString() : null,
       dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth).toISOString().slice(0, 10) : null,
+      emailVerified: !!r.email_verified,
       company: r.business_name ?? '',
       country: r.country ?? '',
       industry: r.industry ?? '',

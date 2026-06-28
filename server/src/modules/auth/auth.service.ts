@@ -102,6 +102,14 @@ export class AuthService {
       acceptedRisk: userData.acceptedRisk
     });
 
+    // Send the "confirm your email" link (non-fatal — signup still succeeds if
+    // email delivery fails; the user can resend later).
+    try {
+      await this.sendVerificationEmail(user.id, user.email);
+    } catch (error) {
+      console.error('VERIFICATION EMAIL ERROR:', error instanceof Error ? error.message : String(error));
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -115,6 +123,45 @@ export class AuthService {
       },
       ...tokens
     };
+  }
+
+  /** Generate + store a verification token and email the confirm link. */
+  private async sendVerificationEmail(userId: string, email: string): Promise<void> {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await this.userRepository.setVerificationToken(userId, tokenHash, expiresAt);
+
+    const base = (process.env.APP_URL || (process.env.CORS_ORIGIN || '').split(',')[0] || '')
+      .trim()
+      .replace(/\/$/, '');
+    const link = `${base}/verify-email?token=${rawToken}`;
+    const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#0f172a">Confirm your Finquanta email</h2>
+        <p style="color:#475569">Welcome! Please confirm your email address to finish setting up your account. This link is valid for 24 hours.</p>
+        <p style="margin:24px 0">
+          <a href="${link}" style="background:#22c55e;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Confirm email</a>
+        </p>
+        <p style="color:#94a3b8;font-size:12px;word-break:break-all">Or paste this link into your browser:<br>${link}</p>
+      </div>`;
+    await sendEmail({ to: email, subject: 'Confirm your Finquanta email', html });
+  }
+
+  /** Confirm an email using a token from the emailed link. */
+  async verifyEmail(token: string): Promise<void> {
+    if (!token) throw new Error('Invalid or expired verification link');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await this.userRepository.findByValidVerificationTokenHash(tokenHash);
+    if (!user) throw new Error('Invalid or expired verification link');
+    await this.userRepository.markEmailVerified(user.id);
+  }
+
+  /** Re-send a verification email if the account exists and isn't verified yet. */
+  async resendVerification(email: string): Promise<void> {
+    const u = await this.userRepository.findForVerification(email);
+    if (!u || u.verified) return;
+    await this.sendVerificationEmail(u.id, u.email);
   }
 
   async login(loginData: LoginData): Promise<AuthResponse> {

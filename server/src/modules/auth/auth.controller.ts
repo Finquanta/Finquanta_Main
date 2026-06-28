@@ -90,6 +90,29 @@ export class AuthController {
     }
   }
 
+  async verifyEmail(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { token } = (request.body as { token?: string }) || {};
+      if (!token) return reply.status(400).send({ error: 'Missing verification token' });
+      await this.authService.verifyEmail(token);
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not verify email';
+      return reply.status(400).send({ error: msg });
+    }
+  }
+
+  async resendVerification(request: FastifyRequest, reply: FastifyReply) {
+    const { email } = (request.body as { email?: string }) || {};
+    try {
+      if (email) await this.authService.resendVerification(email);
+    } catch (error) {
+      console.error('RESEND VERIFICATION ERROR:', error instanceof Error ? error.message : String(error));
+    }
+    // Same response regardless, so we never reveal which emails are registered.
+    return reply.status(200).send({ success: true });
+  }
+
   async refreshToken(request: FastifyRequest, reply: FastifyReply) {
     try {
       const refreshData = request.body as RefreshTokenData;
