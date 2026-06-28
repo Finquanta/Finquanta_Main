@@ -1,12 +1,22 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
 const HeroSection = () => {
   const { t } = useLanguage();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+
+  // Carry whatever they typed straight into signup (pre-filled email).
+  const goToSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = email.trim();
+    router.push(value ? `/signup?email=${encodeURIComponent(value)}` : "/signup");
+  };
 
   return (
     <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12 sm:pb-16">
@@ -33,10 +43,12 @@ const HeroSection = () => {
             />
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 w-full mt-8 sm:mt-10 max-w-[1200px] mx-auto">
+        <form onSubmit={goToSignup} className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 w-full mt-8 sm:mt-10 max-w-[1200px] mx-auto">
           <div className="flex-1 flex justify-center items-center relative">
             <Input
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder={t("hero", "emailPlaceholder")}
               className="w-full h-12 bg-gray-200 border border-gray-300 rounded-lg pl-10 pr-4 text-gray-700 text-sm sm:text-base"
             />
@@ -50,14 +62,15 @@ const HeroSection = () => {
           </div>
           <div className="flex justify-center items-center">
             <Button
+              type="submit"
               variant="outline"
               className="h-12 w-full sm:w-auto sm:min-w-[200px] text-white border-2 rounded-lg px-6 font-bold text-sm sm:text-base"
               style={{backgroundColor: '#4CAF50', borderColor: '#4CAF50'}}
             >
-              {t("hero", "subscribe")}
+              {t("nav", "signUp")}
             </Button>
           </div>
-        </div>
+        </form>
       </div>
       {/* Email signup */}
       <div className="flex flex-col w-full items-stretch space-y-3 pt-4 mt-4 sm:mt-6 max-w-[1200px] mx-auto">

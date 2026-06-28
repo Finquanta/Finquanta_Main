@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,15 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const age = dateOfBirth ? ageFrom(dateOfBirth) : NaN;
   const ageValid = !isNaN(age) && age >= MIN_AGE;
   const allAccepted = acceptedTerms && acceptedPrivacy && acceptedRisk;
+
+  // Pre-fill the email when arriving from the homepage "Sign Up" box (?email=).
+  useEffect(() => {
+    const prefill = new URLSearchParams(window.location.search).get('email');
+    if (prefill) {
+      setEmail(prefill);
+      setEmailValid(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(prefill));
+    }
+  }, []);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

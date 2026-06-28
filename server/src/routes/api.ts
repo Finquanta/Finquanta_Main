@@ -21,6 +21,8 @@ import { AdminRepository } from '../modules/admin/admin.repository';
 import { UserRepository } from '../modules/users/user.repository';
 import { blogRoutes } from '../modules/blog/blog.routes';
 import { BlogRepository } from '../modules/blog/blog.repository';
+import { newsletterRoutes } from '../modules/newsletter/newsletter.routes';
+import { NewsletterRepository } from '../modules/newsletter/newsletter.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -158,6 +160,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure blog schema');
   }
   await fastify.register(blogRoutes, { database });
+
+  // Ensure the newsletter subscribers table exists (idempotent), then register.
+  try {
+    await new NewsletterRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure newsletter schema');
+  }
+  await fastify.register(newsletterRoutes, { database });
 
   // Ensure the receipts table exists (idempotent).
   try {
