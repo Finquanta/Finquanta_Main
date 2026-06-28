@@ -321,7 +321,7 @@ const dashboardExtra: Record<string, Record<string, string>> = {
     saveChanges: "Save Changes", enterData: "Enter Data", saving: "Saving…",
     errInvoiceName: "Please enter an invoice name.", errAmount: "Please enter an amount greater than 0.", errDate: "Please choose a date.",
     editGoalTitle: "Edit Goal", enterGoalTitle: "Enter Goal", goalLabel: "Goal", goalPlaceholder: "e.g. Close a real estate deal, Get 10 product sales",
-    targetLabel: "Target", targetPlaceholder: "e.g. 1 for a yes/no goal, 10 for 10 sales, 5000 to save 5000", progressLabel: "Progress so far",
+    targetLabel: "Description", targetPlaceholder: "e.g. 1 for a yes/no goal, 10 for 10 sales, 5000 to save 5000", progressLabel: "Progress so far",
     errGoalName: "Please enter a goal name.", errTarget: "Please enter a target amount greater than 0.", errProgress: "Progress cannot be negative.",
     genericError: "Something went wrong. Please try again.",
     recurrenceLabel: "Recurrence", recurrenceOnce: "One-time", recurrenceMonthly: "Monthly", recurrenceYearly: "Yearly",

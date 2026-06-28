@@ -52,6 +52,15 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
         );
       })}
 
+      <a
+        href="https://airtable.com/appvpi5gHRidiIhw8/tbldacFlsstOnow6j/viwChC133lPy3TU55?blocks=hide"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: "block", padding: "9px 16px", fontSize: 13, color: muted, textDecoration: "none", cursor: "pointer" }}
+      >
+        Feedback
+      </a>
+
       <div style={{ flex: 1 }} />
       <div onClick={toggleDark} style={{ padding: "9px 16px", color: muted, fontSize: 13, cursor: "pointer" }}>{dark ? "☀ Light mode" : "🌙 Dark mode"}</div>
       <div onClick={logout} style={{ padding: "9px 16px", color: muted, fontSize: 13, cursor: "pointer" }}>Log Out</div>

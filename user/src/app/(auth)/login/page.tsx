@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { logoutAndRedirect } from "@/lib/auth";
 import { UserAuthForm } from "./components/auth-form";
  
 export default function LoginPage() {
@@ -30,13 +31,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Home link */}
           <div className="flex justify-between items-center mb-12">
-            <Link href="/home" className="text-sm font-medium text-blue-600 hover:underline flex items-center">
+            <button type="button" onClick={() => logoutAndRedirect("/home")} className="text-sm font-medium text-blue-600 hover:underline flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
               </svg>
               {t("legal", "returnHome")}
-            </Link>
+            </button>
           </div>
  
           {/* Form title */}
