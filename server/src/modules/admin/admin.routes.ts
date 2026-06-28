@@ -75,6 +75,16 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
     return reply.send({ success: true, data: { id: request.user!.id, email: request.user!.email, role: request.user!.role } });
   }) as any);
 
+  // Audit log — append-only record of admin actions (admin only).
+  fastify.get('/v1/admin/audit', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await repo.listAuditLogs() });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
   // Edit a user: name, role (super_admin only), status (restrict/suspend)
   fastify.patch('/v1/admin/users/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
@@ -124,6 +134,24 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         businessName: body.businessName,
         country: body.country,
       });
+
+      // Audit trail (non-deletable record of what changed).
+      const changes: string[] = [];
+      if (body.role !== undefined) changes.push(`role → ${body.role}`);
+      if (body.status !== undefined) changes.push(body.status === 'suspended' ? 'suspended account' : 'reactivated account');
+      const profileFields: string[] = [];
+      if (body.firstName !== undefined || body.lastName !== undefined) profileFields.push('name');
+      if (body.dateOfBirth !== undefined) profileFields.push('DOB');
+      if (body.businessName !== undefined) profileFields.push('business name');
+      if (body.country !== undefined) profileFields.push('country');
+      if (profileFields.length) changes.push(`edited ${profileFields.join(', ')}`);
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: changes.length ? `Updated user (${changes.join('; ')})` : 'Updated user',
+        targetId: id,
+        targetEmail: target.email,
+      });
       return reply.send({ success: true, data: { id } });
     } catch (error) {
       request.log.error(error);
@@ -144,6 +172,13 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         return reply.status(403).send({ success: false, error: 'You do not have permission to delete this account.' });
       }
       await repo.deleteUser(id);
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: 'Deleted user',
+        targetId: id,
+        targetEmail: target.email,
+      });
       return reply.send({ success: true, data: { id } });
     } catch (error) {
       request.log.error(error);
@@ -168,6 +203,13 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       }
       const hash = await passwords.hash(password!);
       await users.setPassword(id, hash);
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: 'Set password',
+        targetId: id,
+        targetEmail: target.email,
+      });
       return reply.send({ success: true, data: { id } });
     } catch (error) {
       request.log.error(error);

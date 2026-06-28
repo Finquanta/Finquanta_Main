@@ -54,3 +54,19 @@ export interface AdminUsage {
 export async function getAdminUsage(): Promise<AdminUsage> {
   return apiFetch<AdminUsage>('/v1/admin/usage');
 }
+
+export interface AuditLog {
+  id: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  action: string;
+  targetId: string | null;
+  targetEmail: string | null;
+  details: unknown;
+  createdAt: string | null;
+}
+
+/** Append-only audit trail of admin actions (admin only). */
+export async function getAuditLogs(): Promise<AuditLog[]> {
+  return apiFetch<AuditLog[]>('/v1/admin/audit');
+}

@@ -21,6 +21,17 @@ export interface AdminTargetUser {
   status: string;
 }
 
+export interface AuditLogRow {
+  id: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  action: string;
+  targetId: string | null;
+  targetEmail: string | null;
+  details: any;
+  createdAt: string | null;
+}
+
 export class AdminRepository {
   constructor(private database: Database) {}
 
@@ -40,6 +51,60 @@ export class AdminRepository {
     await this.database.query(
       `ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin', 'super_admin', 'owner'))`
     );
+
+    // Append-only audit trail of admin actions. There is intentionally no delete
+    // path for these rows — the table records who did what, to whom, and when.
+    await this.database.query(`
+      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_id UUID,
+        actor_email VARCHAR(320),
+        action VARCHAR(255) NOT NULL,
+        target_id UUID,
+        target_email VARCHAR(320),
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    await this.database.query(`CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs(created_at DESC)`);
+  }
+
+  /** Record an admin action. Best-effort: never throws into the request path. */
+  async addAuditLog(entry: {
+    actorId?: string | null; actorEmail?: string | null; action: string;
+    targetId?: string | null; targetEmail?: string | null; details?: any;
+  }): Promise<void> {
+    await this.database.query(
+      `INSERT INTO admin_audit_logs (actor_id, actor_email, action, target_id, target_email, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        entry.actorId ?? null,
+        entry.actorEmail ?? null,
+        entry.action,
+        entry.targetId ?? null,
+        entry.targetEmail ?? null,
+        entry.details != null ? JSON.stringify(entry.details) : null,
+      ]
+    );
+  }
+
+  /** Most recent audit entries, newest first. */
+  async listAuditLogs(limit = 250): Promise<AuditLogRow[]> {
+    const result = await this.database.query(
+      `SELECT id, actor_id, actor_email, action, target_id, target_email, details, created_at
+       FROM admin_audit_logs ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return result.rows.map((r: any) => ({
+      id: r.id,
+      actorId: r.actor_id,
+      actorEmail: r.actor_email,
+      action: r.action,
+      targetId: r.target_id,
+      targetEmail: r.target_email,
+      details: r.details,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+    }));
   }
 
   /**
