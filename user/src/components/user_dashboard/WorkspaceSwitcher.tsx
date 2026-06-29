@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil, Users, Trash2 } from "lucide-react";
 import {
   Business, BusinessMember, BusinessRole, BUSINESS_ROLES,
@@ -20,6 +21,13 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const [editingId, setEditingId] = useState<string>("");
   const [editName, setEditName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  // Position for the portalled dropdown (anchored under the button).
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const load = () => listBusinesses().then((bs) => {
     setBusinesses(bs);
@@ -33,10 +41,29 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Toggle the dropdown, anchoring it under the trigger button (clamped so a
+  // 256px-wide menu stays on screen on mobile).
+  const toggleOpen = () => {
+    setOpen((v) => {
+      const next = !v;
+      if (next && btnRef.current) {
+        const r = btnRef.current.getBoundingClientRect();
+        const width = 256;
+        const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+        setPos({ top: r.bottom + 6, left, width });
+      }
+      return next;
+    });
+  };
 
   const active = businesses.find((b) => b.id === activeId);
 
@@ -85,14 +112,14 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${colors.btn}`}>
+      <button ref={btnRef} onClick={toggleOpen} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${colors.btn}`}>
         <Building2 className="h-4 w-4" />
         <span className="max-w-[140px] truncate">{active?.name || "Workspace"}</span>
         <ChevronDown className="h-3 w-3" />
       </button>
 
-      {open && (
-        <div className={`absolute left-0 mt-2 w-64 rounded-xl border shadow-xl z-50 overflow-hidden ${colors.menu}`}>
+      {open && mounted && pos && createPortal(
+        <div ref={menuRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }} className={`rounded-xl border shadow-xl overflow-hidden ${colors.menu}`}>
           <div className={`px-3 py-2 text-[10px] uppercase tracking-wide ${colors.sub}`}>Your businesses</div>
           <div className="max-h-56 overflow-y-auto">
             {businesses.map((b) => {
@@ -148,7 +175,8 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
               <UserPlus className="h-3.5 w-3.5" /> Invite team member
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {inviteOpen && active && (
