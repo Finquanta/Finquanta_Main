@@ -8,13 +8,13 @@ import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboar
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
-import { DashboardOverviewResponse, getDashboardOverview, deleteGoal } from '@/lib/api/dashboard';
+import { DashboardOverviewResponse, getDashboardOverview, deleteGoal, RevenueMetric } from '@/lib/api/dashboard';
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
 import { getBusinessProfile } from '@/lib/api/business';
 import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
-import RevenueChart from '@/components/user_dashboard/dashboard/RevenueChart';
+import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
@@ -54,6 +54,8 @@ export default function DashboardPage() {
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile/tablet off-canvas drawer
+  const [revMetric, setRevMetric] = useState<RevenueMetric>('revenue'); // revenue card: revenue/cashflow/expense
+  const [revTotal, setRevTotal] = useState<number | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardOverviewResponse | null>(null);
   const [clickCount, setClickCount] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -405,7 +407,7 @@ export default function DashboardPage() {
             {t('settings', 'logOut')}
           </button>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          <p className={colors.subtext}>{t('dashboard', 'version')} 1.1.0</p>
+          <p className={colors.subtext}>{t('dashboard', 'version')} 1.2.0</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -749,11 +751,31 @@ export default function DashboardPage() {
 
           {/* Bottom Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Total Revenue */}
+            {/* Total Revenue / Cashflow / Expense */}
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
-              <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'totalRevenue')}</h2>
-              <p className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>{dashboardData?.totalFinancesData?.highlightValue ?? '$0.00'}</p>
-              <RevenueChart isDark={isDark} />
+              <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {revMetric === 'revenue' ? t('dashboard', 'totalRevenue') : revMetric === 'cashflow' ? 'Total Cashflow' : 'Total Expense'}
+                </h2>
+                <div className="flex items-center gap-1">
+                  {METRICS.map((m) => (
+                    <button
+                      key={m.key}
+                      onClick={() => setRevMetric(m.key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        revMetric === m.key ? 'text-white' : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      style={revMetric === m.key ? { backgroundColor: m.color } : undefined}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className={`text-xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {revTotal != null ? `$${revTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (dashboardData?.totalFinancesData?.highlightValue ?? '$0.00')}
+              </p>
+              <RevenueChart isDark={isDark} metric={revMetric} onTotal={setRevTotal} />
             </div>
 
             <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>

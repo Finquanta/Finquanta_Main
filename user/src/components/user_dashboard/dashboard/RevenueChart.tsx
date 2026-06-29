@@ -12,7 +12,7 @@ const RANGES: { key: RevenueRange; labelKey: string }[] = [
   { key: 'year', labelKey: 'rangeYear' },
 ];
 
-const METRICS: { key: RevenueMetric; label: string; color: string }[] = [
+export const METRICS: { key: RevenueMetric; label: string; color: string }[] = [
   { key: 'revenue', label: 'Revenue', color: '#3b82f6' },
   { key: 'cashflow', label: 'Cashflow', color: '#22c55e' },
   { key: 'expense', label: 'Expense', color: '#ef4444' },
@@ -31,10 +31,9 @@ function CustomTooltip({ active, payload }: any) {
   return null;
 }
 
-export default function RevenueChart({ isDark }: { isDark: boolean }) {
+export default function RevenueChart({ isDark, metric, onTotal }: { isDark: boolean; metric: RevenueMetric; onTotal?: (total: number) => void }) {
   const { t } = useLanguage();
   const [range, setRange] = useState<RevenueRange>('month');
-  const [metric, setMetric] = useState<RevenueMetric>('revenue');
   const [points, setPoints] = useState<RevenuePoint[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -44,10 +43,17 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
     let cancelled = false;
     setLoading(true);
     getRevenue(range, metric)
-      .then((res) => { if (!cancelled) setPoints(res.points); })
-      .catch(() => { if (!cancelled) setPoints([]); })
+      .then((res) => {
+        if (cancelled) return;
+        setPoints(res.points);
+        // Report the summed total for this metric/range so the card's big
+        // number reflects the selected metric (revenue / cashflow / expense).
+        onTotal?.(res.points.reduce((sum, p) => sum + (Number(p.value) || 0), 0));
+      })
+      .catch(() => { if (!cancelled) { setPoints([]); onTotal?.(0); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, metric]);
 
   const axisColor = isDark ? '#9ca3af' : '#778da9';
@@ -56,22 +62,6 @@ export default function RevenueChart({ isDark }: { isDark: boolean }) {
 
   return (
     <div>
-      {/* Metric toggle: revenue / cashflow / expense */}
-      <div className="flex items-center gap-1 mb-2">
-        {METRICS.map((m) => (
-          <button
-            key={m.key}
-            onClick={() => setMetric(m.key)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-              metric === m.key ? 'text-white' : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            style={metric === m.key ? { backgroundColor: m.color } : undefined}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-
       {/* Timeframe toggle */}
       <div className="flex items-center gap-1 mb-3">
         {RANGES.map((r) => (
