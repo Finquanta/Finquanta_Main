@@ -6,6 +6,7 @@ export interface CurrentUser {
   firstName: string;
   lastName: string;
   role: string;
+  emailVerified: boolean;
 }
 
 export async function getMe(): Promise<CurrentUser> {

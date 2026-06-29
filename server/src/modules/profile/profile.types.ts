@@ -46,6 +46,7 @@ export interface CurrentUserResponse {
   firstName: string;
   lastName: string;
   role: string;
+  emailVerified: boolean;
   profile: UserProfile;
   settings: UserSettingsPayload;
 }

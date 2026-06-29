@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal, RevenueMetric } from '@/lib/api/dashboard';
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
 import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
+import { resendVerification } from '@/lib/api/verify';
 import { getBusinessProfile } from '@/lib/api/business';
 import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
@@ -65,6 +66,7 @@ export default function DashboardPage() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const [me, setMe] = useState<CurrentUser | null>(null);
+  const [verifyResent, setVerifyResent] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [goalPromptOpen, setGoalPromptOpen] = useState(false);
@@ -321,7 +323,15 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Remind unverified users to confirm their email (non-blocking — they can
+  // still use the dashboard). Counts toward the unread badge.
+  const showVerify = !!me && !me.emailVerified;
+  const unreadCount = notifications.filter(n => !n.read).length + (showVerify ? 1 : 0);
+
+  const handleResendVerification = async () => {
+    if (!me) return;
+    try { await resendVerification(me.email); } finally { setVerifyResent(true); }
+  };
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
 
   // Direct theme check without mounted state
@@ -494,7 +504,21 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="max-h-72 overflow-y-auto">
-                    {notifications.length === 0 ? (
+                    {showVerify && (
+                      <div className={`flex items-start gap-3 px-4 py-3 border-b ${colors.notifItem} ${isDark ? 'bg-gray-700/50' : 'bg-amber-50'}`}>
+                        <div className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-amber-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Verify your email</p>
+                          <p className={`text-xs mt-0.5 ${colors.text}`}>Confirm your email address to secure your account. Check your inbox for the link.</p>
+                          {verifyResent ? (
+                            <p className="text-[11px] mt-1 text-green-500">Sent — check your inbox (and spam).</p>
+                          ) : (
+                            <button onClick={handleResendVerification} className="text-[11px] mt-1 text-blue-500 hover:underline">Resend verification email</button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {notifications.length === 0 && !showVerify ? (
                       <p className={`text-xs text-center py-6 ${colors.text}`}>
                         {t('notifications', 'noNotifications')}
                       </p>
