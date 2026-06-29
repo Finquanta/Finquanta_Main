@@ -28,7 +28,7 @@ export async function checkAdmin(): Promise<{ id: string; email: string; role: s
 /** Edit a user: name, role (owner only), and/or status ('active' | 'suspended'). */
 export async function updateAdminUser(
   id: string,
-  data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string }
+  data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean }
 ): Promise<void> {
   await apiFetch(`/v1/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 }

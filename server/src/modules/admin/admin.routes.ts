@@ -89,7 +89,7 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
   fastify.patch('/v1/admin/users/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string };
+      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean };
       const callerRole = request.user!.role;
       const isSelf = id === request.user!.id;
 
@@ -110,9 +110,10 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
           return reply.status(403).send({ success: false, error: 'You do not have permission to assign this role.' });
         }
       }
-      // Profile fields (name, DOB, business name, country) share the edit gate.
+      // Profile fields (name, DOB, business name, country, verification) share the edit gate.
       const editsProfile = body.firstName !== undefined || body.lastName !== undefined
-        || body.dateOfBirth !== undefined || body.businessName !== undefined || body.country !== undefined;
+        || body.dateOfBirth !== undefined || body.businessName !== undefined || body.country !== undefined
+        || body.emailVerified !== undefined;
       if (editsProfile && !isSelf && !canEditName(callerRole, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
       }
@@ -133,12 +134,14 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         dateOfBirth: body.dateOfBirth,
         businessName: body.businessName,
         country: body.country,
+        emailVerified: body.emailVerified,
       });
 
       // Audit trail (non-deletable record of what changed).
       const changes: string[] = [];
       if (body.role !== undefined) changes.push(`role → ${body.role}`);
       if (body.status !== undefined) changes.push(body.status === 'suspended' ? 'suspended account' : 'reactivated account');
+      if (body.emailVerified !== undefined) changes.push(body.emailVerified ? 'marked verified' : 'marked unverified');
       const profileFields: string[] = [];
       if (body.firstName !== undefined || body.lastName !== undefined) profileFields.push('name');
       if (body.dateOfBirth !== undefined) profileFields.push('DOB');

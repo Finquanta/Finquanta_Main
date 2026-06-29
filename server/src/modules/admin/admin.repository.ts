@@ -167,7 +167,7 @@ export class AdminRepository {
    */
   async updateUser(
     id: string,
-    data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string }
+    data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean }
   ): Promise<void> {
     const set: string[] = [];
     const values: any[] = [];
@@ -177,6 +177,7 @@ export class AdminRepository {
     if (data.role !== undefined) { set.push(`role = $${i++}`); values.push(data.role); }
     if (data.status !== undefined) { set.push(`status = $${i++}`); values.push(data.status); }
     if (data.dateOfBirth !== undefined) { set.push(`date_of_birth = $${i++}`); values.push(data.dateOfBirth || null); }
+    if (data.emailVerified !== undefined) { set.push(`email_verified = $${i++}`); values.push(data.emailVerified); }
     if (set.length > 0) {
       set.push(`updated_at = NOW()`);
       values.push(id);

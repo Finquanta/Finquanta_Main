@@ -80,6 +80,7 @@ export default function AdminUsersPage() {
   };
   const setRole = (id: string, role: string) => act(() => updateAdminUser(id, { role }), id);
   const toggleStatus = (u: AdminUser) => act(() => updateAdminUser(u.id, { status: u.status === "suspended" ? "active" : "suspended" }), u.id);
+  const toggleVerified = (u: AdminUser) => act(() => updateAdminUser(u.id, { emailVerified: !u.emailVerified }), u.id);
   const remove = (u: AdminUser) => { if (window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) act(() => deleteAdminUser(u.id), u.id); };
   const setPassword = (u: AdminUser) => {
     setOpenMenuId("");
@@ -196,6 +197,7 @@ export default function AdminUsersPage() {
                                 <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Edit" onClick={() => startEdit(u)} />}
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Set password" onClick={() => setPassword(u)} />}
+                                  {(isSelf || canEditName(u.role)) && <MenuItem label={u.emailVerified ? "Mark unverified" : "Mark verified"} onClick={() => toggleVerified(u)} />}
                                   {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Remove ${roleLabel(u.role)}`} onClick={() => setRole(u.id, "user")} />}
                                   {!isSelf && u.role !== "admin" && canAssign(u.role, "admin") && <MenuItem label={`Make ${roleLabel("admin")}`} onClick={() => setRole(u.id, "admin")} />}
                                   {!isSelf && u.role !== "super_admin" && canAssign(u.role, "super_admin") && <MenuItem label={`Make ${roleLabel("super_admin")}`} onClick={() => setRole(u.id, "super_admin")} />}

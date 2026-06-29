@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-06-28T23:46:20.352Z",
+  "generatedAt": "2026-06-28T23:56:20.575Z",
   "commits": [
+    {
+      "hash": "ab3cc88",
+      "author": "gio",
+      "date": "2026-06-28T19:49:54-04:00",
+      "subject": "feat(admin): Patch Notes tab — git history (who/what/when) generated at build"
+    },
     {
       "hash": "0fa9028",
       "author": "gio",
