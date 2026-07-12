@@ -7,7 +7,8 @@ import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
-import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from '@/lib/api/business';
+import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
+import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
@@ -52,6 +53,7 @@ export default function ProfileSettingsPage() {
   const [biz, setBiz] = useState<BusinessProfile>({});
   const [bizSaving, setBizSaving] = useState(false);
   const [bizSaved, setBizSaved] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => { getBusinessProfile().then(setBiz).catch(() => {}); }, []);
 
@@ -73,27 +75,8 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className={`flex h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      {/* Left Sidebar */}
-      <div className={`w-48 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <div className="mb-8">
-          <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
-        </div>
-        <nav className="flex flex-col gap-2">
-          <Link href="/dashboard" className={`text-sm font-semibold px-3 py-2 rounded-lg ${theme === 'dark' ? 'text-orange-400 bg-orange-900 bg-opacity-30' : 'text-orange-500 bg-orange-50'}`}>
-            {t('dashboard', 'title')}
-          </Link>
-        </nav>
-        <div className={`mt-auto flex flex-col gap-2 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-          <Link href="/profile-settings" className={`font-medium hover:underline ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>{t('dashboard', 'profileSettings')}</Link>
-          <Link href="/terms" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'termsOfService')}</Link>
-          <Link href="/privacy" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'privacyPolicy')}</Link>
-          <Link href="/ai-risk-disclosure" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'aiRiskDisclosure')}</Link>
-          <button onClick={() => router.push('/login')} className={`text-left hover:underline ${theme === 'dark' ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-600'}`}>{t('settings', 'logOut')}</button>
-          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard', 'version')} 1.1.0</p>
-        </div>
-      </div>
- 
+    <DashboardShell>
+    <div className={`flex h-full ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
       {/* Middle - Settings Menu */}
       <div className={`w-64 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'profileSettings')}</h2>
@@ -296,6 +279,86 @@ export default function ProfileSettingsPage() {
                   <textarea className={`${inputCls} min-h-[80px]`} value={biz.financialGoals ?? ''} onChange={(e) => setBizField('financialGoals', e.target.value)} placeholder="e.g. Reach $20k/month, build 6-month runway" />
                 </div>
               </div>
+
+              {/* Business Details — exactly what prints at the top of every invoice */}
+              <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Business Details</h3>
+                <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  These appear at the top of every invoice your customers receive.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Business Email</label>
+                    <input type="email" className={inputCls} value={biz.businessEmail ?? ''} onChange={(e) => setBizField('businessEmail', e.target.value)} placeholder="billing@yourbusiness.com" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Business Phone</label>
+                    <input className={inputCls} value={biz.businessPhone ?? ''} onChange={(e) => setBizField('businessPhone', e.target.value)} placeholder="+1 555 000 0000" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Website</label>
+                    <input className={inputCls} value={biz.website ?? ''} onChange={(e) => setBizField('website', e.target.value)} placeholder="www.yourbusiness.com" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Business Address</label>
+                    <input className={`${inputCls} mb-2`} value={biz.addressLine1 ?? ''} onChange={(e) => setBizField('addressLine1', e.target.value)} placeholder="Address line 1" />
+                    <input className={inputCls} value={biz.addressLine2 ?? ''} onChange={(e) => setBizField('addressLine2', e.target.value)} placeholder="Address line 2" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>City</label>
+                    <input className={inputCls} value={biz.city ?? ''} onChange={(e) => setBizField('city', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>State / Region</label>
+                    <input className={inputCls} value={biz.region ?? ''} onChange={(e) => setBizField('region', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Zip Code</label>
+                    <input className={inputCls} value={biz.postalCode ?? ''} onChange={(e) => setBizField('postalCode', e.target.value)} />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Business Logo</label>
+                    <div className="flex items-center gap-3">
+                      {biz.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={biz.logoUrl} alt="Logo" className="rounded-lg object-contain bg-white border" style={{ width: 56, height: 56 }} />
+                      ) : (
+                        <div className={`rounded-lg flex items-center justify-center text-xs ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-400'}`} style={{ width: 56, height: 56 }}>
+                          None
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          disabled={logoUploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setLogoUploading(true);
+                            try {
+                              const saved = await uploadBusinessLogo(file);
+                              setBiz((p) => ({ ...p, logoUrl: saved.logoUrl }));
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : 'Could not upload logo.');
+                            } finally {
+                              setLogoUploading(false);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white file:cursor-pointer disabled:opacity-60"
+                        />
+                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {logoUploading ? 'Uploading…' : 'PNG or JPEG, up to 1MB.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-3 mt-6">
                 <button onClick={saveBiz} disabled={bizSaving} className={`px-6 py-2 rounded-lg text-white font-medium disabled:opacity-60 ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}>
                   {bizSaving ? t('onboarding', 'saving') : t('settings', 'saveChanges')}
@@ -416,5 +479,6 @@ export default function ProfileSettingsPage() {
  
       </div>
     </div>
+    </DashboardShell>
   );
 }
