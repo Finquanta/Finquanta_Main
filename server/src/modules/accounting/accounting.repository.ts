@@ -121,6 +121,151 @@ export class AccountingRepository {
     });
   }
 
+  /**
+   * Mirror bookkeeping entries into the ledger, so the ledger is the single
+   * source of truth for every number the dashboard shows.
+   *
+   * A bookkeeping transaction is cash that actually moved:
+   *   income  -> Business Cash ↑ , Revenue ↑
+   *   expense -> Expenses ↑      , Business Cash ↓
+   *
+   * Idempotent and safe to run on every request: an entry is only written for a
+   * transaction that doesn't already have one (matched on source_type +
+   * source_id), so it both BACKFILLS existing history and keeps new entries in
+   * step. Deterministic code — no AI.
+   */
+  async syncBookkeeping(businessId: string): Promise<number> {
+    await this.ensureAccounts(businessId);
+
+    const result = await this.database.query(
+      `WITH new_entries AS (
+         INSERT INTO journal_entries (business_id, date, description, source_type, source_id, created_by)
+         SELECT t.business_id,
+                t.date,
+                COALESCE(NULLIF(t.category, ''), 'Bookkeeping entry'),
+                'bookkeeping',
+                t.id,
+                t.user_id
+         FROM financial_transactions t
+         WHERE t.business_id = $1::uuid
+           AND t.status = 'completed'
+           AND t.amount > 0
+           AND NOT EXISTS (
+             SELECT 1 FROM journal_entries e
+             WHERE e.source_type = 'bookkeeping' AND e.source_id = t.id
+           )
+         RETURNING id AS entry_id, source_id
+       )
+       INSERT INTO journal_lines (entry_id, account_id, debit, credit)
+       SELECT ne.entry_id, a.id, l.debit, l.credit
+       FROM new_entries ne
+       JOIN financial_transactions t ON t.id = ne.source_id
+       CROSS JOIN LATERAL (VALUES
+         -- income: debit Cash / expense: debit Expenses
+         (CASE WHEN t.type = 'income' THEN 'CASH' ELSE 'EXPENSE' END, t.amount, 0::numeric),
+         -- income: credit Revenue / expense: credit Cash
+         (CASE WHEN t.type = 'income' THEN 'REVENUE' ELSE 'CASH' END, 0::numeric, t.amount)
+       ) AS l(code, debit, credit)
+       JOIN accounts a ON a.business_id = t.business_id AND a.code = l.code`,
+      [businessId]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Remove the ledger entries for bookkeeping transactions that no longer exist
+   * (or are no longer completed), so an edited/deleted entry doesn't leave a
+   * stale figure behind on the dashboard.
+   */
+  async pruneBookkeeping(businessId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries e
+       WHERE e.business_id = $1::uuid
+         AND e.source_type = 'bookkeeping'
+         AND NOT EXISTS (
+           SELECT 1 FROM financial_transactions t
+           WHERE t.id = e.source_id AND t.status = 'completed'
+         )`,
+      [businessId]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Re-post any bookkeeping entry whose amount/type/date changed after it was
+   * mirrored. Cheapest correct approach: drop the stale entry, then re-sync.
+   */
+  async resyncBookkeeping(businessId: string): Promise<void> {
+    await this.database.query(
+      `DELETE FROM journal_entries e
+       USING financial_transactions t
+       WHERE e.business_id = $1::uuid
+         AND e.source_type = 'bookkeeping'
+         AND t.id = e.source_id
+         AND (
+           e.date <> t.date
+           OR NOT EXISTS (
+             SELECT 1 FROM journal_lines l
+             JOIN accounts a ON a.id = l.account_id
+             WHERE l.entry_id = e.id
+               AND a.code = CASE WHEN t.type = 'income' THEN 'CASH' ELSE 'EXPENSE' END
+               AND l.debit = t.amount
+           )
+         )`,
+      [businessId]
+    );
+    await this.pruneBookkeeping(businessId);
+    await this.syncBookkeeping(businessId);
+  }
+
+  /**
+   * The numbers the dashboard shows, derived from the ledger.
+   *
+   * basis 'cash'    — only entries where money actually moved (they touch CASH).
+   *                   An unpaid invoice is invisible here, which is the point.
+   * basis 'accrual' — everything, including money owed to you.
+   */
+  async getLedgerSummary(
+    businessId: string,
+    startDate: string,
+    endDate: string,
+    basis: 'cash' | 'accrual' = 'accrual'
+  ): Promise<{ totalIncome: string; totalExpenses: string; netIncome: string; transactionCount: number }> {
+    await this.ensureAccounts(businessId);
+
+    const cashOnly = basis === 'cash'
+      ? `AND EXISTS (
+           SELECT 1 FROM journal_lines cl
+           JOIN accounts ca ON ca.id = cl.account_id
+           WHERE cl.entry_id = e.id AND ca.code = 'CASH'
+         )`
+      : '';
+
+    const result = await this.database.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN a.type = 'revenue' THEN l.credit - l.debit ELSE 0 END), 0) AS income,
+         COALESCE(SUM(CASE WHEN a.type = 'expense' THEN l.debit - l.credit ELSE 0 END), 0) AS expenses,
+         COUNT(DISTINCT e.id) AS entries
+       FROM journal_entries e
+       JOIN journal_lines l ON l.entry_id = e.id
+       JOIN accounts a ON a.id = l.account_id
+       WHERE e.business_id = $1::uuid
+         AND e.date >= $2::date AND e.date <= $3::date
+         ${cashOnly}`,
+      [businessId, startDate, endDate]
+    );
+
+    const r = result.rows[0] ?? {};
+    const income = money(Number.parseFloat(r.income ?? '0'));
+    const expenses = money(Number.parseFloat(r.expenses ?? '0'));
+    return {
+      totalIncome: income.toFixed(2),
+      totalExpenses: expenses.toFixed(2),
+      netIncome: money(income - expenses).toFixed(2),
+      transactionCount: Number.parseInt(r.entries ?? '0', 10),
+    };
+  }
+
   /** Account balances, signed by each account's normal balance. */
   async getBalances(businessId: string): Promise<AccountBalance[]> {
     await this.ensureAccounts(businessId);
