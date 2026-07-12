@@ -4,7 +4,7 @@ export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expens
 
 export type AccountCode =
   | 'CASH' | 'AR' | 'AP' | 'LOAN_PAYABLE' | 'LOAN_RECEIVABLE'
-  | 'REVENUE' | 'EXPENSE' | 'INTEREST_EXPENSE' | 'EQUITY';
+  | 'REVENUE' | 'EXPENSE' | 'INTEREST_EXPENSE' | 'INTEREST_INCOME' | 'EQUITY';
 
 export type WorkflowType =
   | 'cash_revenue' | 'credit_revenue' | 'receive_ar_payment'
@@ -15,29 +15,69 @@ export type AccountingBasis = 'cash' | 'accrual';
 
 export interface WorkflowMeta {
   label: string;
-  /** bookkeeping = simple cash basis; accounting = accrual (AR/AP/loans). */
+  /** Plain-English explanation of what the entry actually does. */
+  description: string;
+  /** bookkeeping = simple cash basis; accounting = accrual (AR/AP/debt). */
   module: 'bookkeeping' | 'accounting';
   basis: AccountingBasis;
+  /** Grouping in the UI. Loans live under "Debt". */
+  group: 'cash' | 'accrual' | 'debt';
   affectsCash: boolean;
 }
 
 /**
- * CASH BASIS (bookkeeping) records only money that actually moved — cash in and
- * cash out. ACCRUAL (accounting) adds obligations: receivables, payables, loans.
+ * CASH BASIS records only money that actually moved. ACCRUAL adds obligations:
+ * receivables, payables. DEBT covers loans (handled by the Loans module so each
+ * payment can split principal vs interest).
  */
 export const WORKFLOW_META: Record<WorkflowType, WorkflowMeta> = {
-  cash_revenue:       { label: 'Money received (cash flow)', module: 'bookkeeping', basis: 'cash',    affectsCash: true },
-  cash_expense:       { label: 'Money paid out (expense)',   module: 'bookkeeping', basis: 'cash',    affectsCash: true },
-  credit_revenue:     { label: 'Revenue billed (paid later)', module: 'accounting', basis: 'accrual', affectsCash: false },
-  credit_expense:     { label: 'Expense billed (pay later)',  module: 'accounting', basis: 'accrual', affectsCash: false },
-  receive_ar_payment: { label: 'Customer paid me',            module: 'accounting', basis: 'accrual', affectsCash: true },
-  pay_ap:             { label: 'I paid a bill',               module: 'accounting', basis: 'accrual', affectsCash: true },
-  loan_received:      { label: 'Loan received',               module: 'accounting', basis: 'accrual', affectsCash: true },
-  loan_payment:       { label: 'Loan payment made',           module: 'accounting', basis: 'accrual', affectsCash: true },
+  cash_revenue: {
+    label: 'Money received (cash flow)',
+    description: 'Cash comes in and revenue increases.',
+    module: 'bookkeeping', basis: 'cash', group: 'cash', affectsCash: true,
+  },
+  cash_expense: {
+    label: 'Money paid out (expense)',
+    description: 'Cash goes out and expenses increase.',
+    module: 'bookkeeping', basis: 'cash', group: 'cash', affectsCash: true,
+  },
+  credit_revenue: {
+    label: 'Accounts Receivable',
+    description: 'Customer pays on credit and revenue increases. Once the customer pays, business cash increases and Accounts Receivable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: false,
+  },
+  credit_expense: {
+    label: 'Accounts Payable',
+    description: 'Business buys on credit and expenses increase. Once the business pays the bill, cash decreases and Accounts Payable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: false,
+  },
+  receive_ar_payment: {
+    label: 'Customer paid me',
+    description: 'Business Cash increases, Accounts Receivable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
+  },
+  pay_ap: {
+    label: 'I paid a bill',
+    description: 'Business Cash decreases, Accounts Payable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
+  },
+  loan_received: {
+    label: 'Loan received',
+    description: 'Loan Payable increases, Business Cash increases.',
+    module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
+  },
+  loan_payment: {
+    label: 'Loan payment made',
+    description: 'Loan Payable decreases by the principal, Interest Expense increases by the interest, and Business Cash decreases by the full payment.',
+    module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
+  },
 };
 
 export const workflowsFor = (module: 'bookkeeping' | 'accounting'): WorkflowType[] =>
   (Object.keys(WORKFLOW_META) as WorkflowType[]).filter((t) => WORKFLOW_META[t].module === module);
+
+export const workflowsInGroup = (group: 'cash' | 'accrual' | 'debt'): WorkflowType[] =>
+  (Object.keys(WORKFLOW_META) as WorkflowType[]).filter((t) => WORKFLOW_META[t].group === group);
 
 export interface AccountBalance {
   id: string;
