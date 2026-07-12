@@ -23,6 +23,8 @@ import { blogRoutes } from '../modules/blog/blog.routes';
 import { BlogRepository } from '../modules/blog/blog.repository';
 import { newsletterRoutes } from '../modules/newsletter/newsletter.routes';
 import { NewsletterRepository } from '../modules/newsletter/newsletter.repository';
+import { accountingRoutes } from '../modules/accounting/accounting.routes';
+import { AccountingRepository } from '../modules/accounting/accounting.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -194,6 +196,16 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
   }
   await fastify.register(businessRoutes, { database });
+
+  // Ledger tables (accounts / journal_entries / journal_lines). Must come after
+  // businesses, since accounts are scoped to a business. Per-business chart of
+  // accounts is seeded lazily the first time a ledger is touched.
+  try {
+    await new AccountingRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure accounting schema');
+  }
+  await fastify.register(accountingRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the
