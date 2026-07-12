@@ -105,6 +105,37 @@ export interface JournalEntry {
   lines: JournalLine[];
 }
 
+/** A row in the unified Bookkeeping list — plain English, no debits/credits. */
+export interface LedgerTransaction {
+  id: string;
+  date: string | null;
+  description: string;
+  sourceType: string;
+  sourceId: string | null;
+  /** Positive = money in / owed to you. Negative = money out / you owe. */
+  signedAmount: number;
+  direction: 'in' | 'out' | 'owed_to_you' | 'you_owe';
+  cashMoved: boolean;
+  /** Present only for entries you typed yourself — those stay editable. */
+  transactionId: string | null;
+  category: string | null;
+  hasReceipt: boolean;
+  recurrence: string | null;
+  lines: JournalLine[];
+}
+
+/**
+ * Every transaction, from the ledger.
+ *  'cash'    — money that actually moved (your entries + invoice/loan payments)
+ *  'accrual' — the above, plus what's owed
+ */
+export async function listLedgerTransactions(
+  basis: AccountingBasis = 'cash',
+  limit = 100
+): Promise<LedgerTransaction[]> {
+  return apiFetch<LedgerTransaction[]>(`/v1/accounting/transactions?basis=${basis}&limit=${limit}`);
+}
+
 export async function getAccounts(): Promise<AccountBalance[]> {
   return apiFetch<AccountBalance[]>('/v1/accounting/accounts');
 }

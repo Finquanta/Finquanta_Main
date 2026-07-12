@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
+import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
+import { LedgerTransaction } from '@/lib/api/accounting';
+import { cancelInvoice, deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
@@ -51,6 +54,7 @@ export default function DashboardPage() {
 
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
   const [bookkeepingEditing, setBookkeepingEditing] = useState<BookkeepingEditing | null>(null);
+  const [bookkeepingRefresh, setBookkeepingRefresh] = useState(0);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
@@ -206,6 +210,64 @@ export default function DashboardPage() {
   const dismissGoalPrompt = () => {
     localStorage.setItem(GOAL_PROMPT_DISMISSED_KEY, String(Date.now()));
     setGoalPromptOpen(false);
+  };
+
+  /**
+   * The Bookkeeping list is ledger-backed, so a row can come from an invoice or
+   * a loan. Only rows you typed yourself carry a `transactionId` — those are the
+   * ones we can edit or delete here. Anything else must be changed at its source
+   * (the invoice, the loan), or the books would disagree with the document.
+   */
+  const editLedgerRow = (tx: LedgerTransaction) => {
+    if (!tx.transactionId) return;
+    setBookkeepingEditing({
+      id: tx.transactionId,
+      invoiceName: tx.category ?? tx.description,
+      invoiceDescription: '',
+      invoiceAmount: String(Math.abs(tx.signedAmount)),
+      invoiceType: tx.direction === 'in' ? 'Cashflow' : 'Expense',
+      dateOfInvoice: tx.date ?? '',
+      recurrence: (tx.recurrence as Recurrence) ?? 'once',
+      hasReceipt: tx.hasReceipt,
+    });
+    setBookkeepingModalOpen(true);
+  };
+
+  const deleteLedgerRow = async (tx: LedgerTransaction) => {
+    if (!tx.transactionId) return;
+    if (!window.confirm(`Delete “${tx.category ?? tx.description}”?`)) return;
+    try {
+      await deleteTransaction(tx.transactionId);
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete that entry.');
+    }
+  };
+
+  /**
+   * Deleting an invoice row from Bookkeeping. An invoice that's in the books
+   * can't just be removed — that would strand a receivable with no document
+   * behind it. So we CANCEL it first (which posts a reversing entry, keeping the
+   * ledger balanced) and then move it to the recycle bin, where it's recoverable.
+   */
+  const deleteInvoiceRow = async (tx: LedgerTransaction) => {
+    if (!tx.sourceId) return;
+    const ok = window.confirm(
+      'This will cancel the invoice — reversing it out of your books — and move it to the recycle bin.\n\n' +
+      'You can restore it from Invoices → Recycle Bin. Continue?'
+    );
+    if (!ok) return;
+    try {
+      // Cancel first so the ledger is reversed properly; a draft has nothing to
+      // reverse, so a failure here is harmless and we still bin it.
+      try { await cancelInvoice(tx.sourceId); } catch { /* already cancelled or still a draft */ }
+      await deleteInvoice(tx.sourceId);
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete that invoice.');
+    }
   };
 
   const openNewBookkeeping = () => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); };
@@ -705,61 +767,19 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <table className="w-full text-xs">
-              <thead>
-                <tr className={`${colors.tableHead} border-b`}>
-                  <th className="text-left pb-2">{t('dashboard', 'date')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'type')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'detail')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'price')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'amount')}</th>
-                  <th className="text-right pb-2"></th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${colors.tableRow}`}>
-                {dashboardData?.latestTransactions?.length ? (
-                  dashboardData.latestTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="group">
-                      <td className="py-3">{transaction.date}</td>
-                      <td className="py-3">
-                        <span>{transaction.type}</span>
-                        {transaction.recurrence && transaction.recurrence !== 'once' && (
-                          <span className={`ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-blue-50 text-blue-600'}`}>
-                            <RefreshCw className="h-2.5 w-2.5" />
-                            {t('dashboard', transaction.recurrence === 'monthly' ? 'recurrenceMonthly' : 'recurrenceYearly')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <span>{transaction.name}</span>
-                        {transaction.detail && <span className={`block text-[10px] ${colors.subtext}`}>{transaction.detail}</span>}
-                      </td>
-                      <td className="py-3">${transaction.price.toFixed(2)}</td>
-                      <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
-                      <td className="py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          {transaction.hasReceipt && (
-                            <button onClick={() => viewReceipt(transaction.id)} className="text-gray-500 hover:text-gray-700" title={t('dashboard', 'viewReceipt')}>
-                              <Paperclip className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button onClick={() => openEditBookkeeping(transaction)} className="text-blue-500 hover:text-blue-700" title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => handleDeleteTransaction(transaction)} className="text-red-500 hover:text-red-700" title="Delete">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className={`py-6 text-center ${colors.text}`}>{t('dashboard', 'noTransactions')}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {/* One list, everything in it: your entries plus invoices and loans.
+                Cash Basis / Accrual switches what counts; "Accountant view"
+                reveals the double-entry behind each row. */}
+            <BookkeepingCard
+              isDark={isDark}
+              refreshKey={bookkeepingRefresh}
+              colors={colors}
+              t={t}
+              onEdit={editLedgerRow}
+              onDelete={deleteLedgerRow}
+              onDeleteInvoice={deleteInvoiceRow}
+              onViewReceipt={viewReceipt}
+            />
 
             {/* Recently deleted */}
             {recentlyDeleted.length > 0 && (
