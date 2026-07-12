@@ -6,7 +6,7 @@ import { Plus, Building2, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import {
   Invoice, STATUS_COLORS, listInvoices, listDeletedInvoices,
-  deleteInvoice, restoreInvoice, deleteInvoiceForever, cancelInvoice, money,
+  deleteInvoice, restoreInvoice, deleteInvoiceForever, money,
 } from "@/lib/api/invoices";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from "@/lib/api/business";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
@@ -45,22 +45,18 @@ export default function InvoicesPage() {
   };
 
   /**
-   * An invoice that's already in the books can't just be removed — that would
-   * strand a receivable (or revenue and cash) in the ledger with no document
-   * behind it. So we cancel it first, which posts a reversing entry, and only
-   * then move it to the recycle bin, where it stays recoverable.
+   * Delete removes the invoice from the books completely — its ledger entries
+   * are erased, not reversed, so nothing of it is left behind. The document
+   * still goes to the recycle bin, and restoring it puts the entries back.
    */
   const remove = (inv: Invoice) => {
     const inBooks = !!inv.arEntryId || inv.status === "paid";
     const msg = inBooks
-      ? `${inv.number} is in your books.\n\nThis will cancel it — reversing it out of your books — and move it to the recycle bin. You can restore it later.\n\nContinue?`
+      ? `${inv.number} is in your books.\n\nDeleting it removes it from your books completely, as if it had never been raised. It goes to the recycle bin, and you can restore it later.\n\nContinue?`
       : `Move ${inv.number} to the recycle bin? You can restore it later.`;
     if (!window.confirm(msg)) return;
 
-    act(inv.id, async () => {
-      if (inBooks) await cancelInvoice(inv.id);
-      await deleteInvoice(inv.id);
-    });
+    act(inv.id, () => deleteInvoice(inv.id));
   };
   const restore = (inv: Invoice) => act(inv.id, () => restoreInvoice(inv.id));
   const destroy = (inv: Invoice) => {

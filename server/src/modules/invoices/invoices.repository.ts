@@ -238,6 +238,22 @@ export class InvoicesRepository {
     );
   }
 
+  /**
+   * Forget the journal entries this invoice used to own.
+   *
+   * setStatus COALESCEs the entry ids, so it can never clear them — that's
+   * deliberate there, but deleting an invoice erases its entries outright and
+   * the links have to go with them, or the invoice would point at rows that no
+   * longer exist.
+   */
+  async clearLedgerLinks(businessId: string, id: string): Promise<void> {
+    await this.database.query(
+      `UPDATE invoices SET ar_entry_id = NULL, payment_entry_id = NULL, updated_at = NOW()
+       WHERE business_id = $1::uuid AND id = $2::uuid`,
+      [businessId, id]
+    );
+  }
+
   async getById(businessId: string, id: string): Promise<Invoice | null> {
     const result = await this.database.query(
       `SELECT i.*, c.name AS customer_name, c.email AS customer_email

@@ -66,7 +66,7 @@ export default function BookkeepingCard({
   t: (ns: string, key: string) => string;
   onEdit: (tx: LedgerTransaction) => void;
   onDelete: (tx: LedgerTransaction) => void;
-  /** Cancels the invoice (reversing it from the books) and bins it. */
+  /** Erases the invoice from the books entirely and bins the document. */
   onDeleteInvoice: (tx: LedgerTransaction) => void;
   onViewReceipt: (transactionId: string) => void;
 }) {

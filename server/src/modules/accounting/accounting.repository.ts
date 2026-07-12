@@ -6,8 +6,52 @@ import {
 
 const money = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
+/** The journal entries an invoice can put on the books. */
+const INVOICE_SOURCE_TYPES = ['invoice', 'invoice_payment', 'invoice_cancelled'];
+
 export class AccountingRepository {
   constructor(private database: Database) {}
+
+  /**
+   * Erase every journal entry an invoice put on the books.
+   *
+   * Deleting an invoice does NOT post a reversing entry — the entries are
+   * removed outright, so a deleted invoice leaves no trace anywhere in the
+   * books. Lines cascade with the entry.
+   *
+   * Idempotent: safe to call on an invoice that never hit the ledger.
+   */
+  async purgeInvoiceEntries(businessId: string, invoiceId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries
+       WHERE business_id = $1::uuid
+         AND source_id = $2::uuid
+         AND source_type = ANY($3::text[])`,
+      [businessId, invoiceId, INVOICE_SOURCE_TYPES]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Enforce the invariant "an invoice in the recycle bin owns no journal
+   * entries" across the whole business.
+   *
+   * Cheap and idempotent, so it runs on the ledger resync. It also cleans up
+   * invoices that were binned by an older build, which left their entries (and
+   * a reversing entry) behind.
+   */
+  async purgeBinnedInvoiceEntries(businessId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries e
+       USING invoices i
+       WHERE e.business_id = $1::uuid
+         AND i.id = e.source_id
+         AND i.deleted_at IS NOT NULL
+         AND e.source_type = ANY($2::text[])`,
+      [businessId, INVOICE_SOURCE_TYPES]
+    );
+    return result.rowCount ?? 0;
+  }
 
   /** Idempotently create the ledger tables. */
   async ensureSchema(): Promise<void> {
@@ -216,6 +260,8 @@ export class AccountingRepository {
     );
     await this.pruneBookkeeping(businessId);
     await this.syncBookkeeping(businessId);
+    // A deleted invoice must own nothing on the books.
+    await this.purgeBinnedInvoiceEntries(businessId);
   }
 
   /**

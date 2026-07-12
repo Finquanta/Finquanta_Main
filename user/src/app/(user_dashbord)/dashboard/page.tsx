@@ -7,7 +7,7 @@ import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
 import { LedgerTransaction } from '@/lib/api/accounting';
-import { cancelInvoice, deleteInvoice } from '@/lib/api/invoices';
+import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
@@ -246,22 +246,19 @@ export default function DashboardPage() {
   };
 
   /**
-   * Deleting an invoice row from Bookkeeping. An invoice that's in the books
-   * can't just be removed — that would strand a receivable with no document
-   * behind it. So we CANCEL it first (which posts a reversing entry, keeping the
-   * ledger balanced) and then move it to the recycle bin, where it's recoverable.
+   * Deleting an invoice row from Bookkeeping. The backend erases the invoice's
+   * journal entries outright — no reversing entry — so it disappears from the
+   * books completely. The document goes to the recycle bin, and restoring it
+   * puts the same entries back.
    */
   const deleteInvoiceRow = async (tx: LedgerTransaction) => {
     if (!tx.sourceId) return;
     const ok = window.confirm(
-      'This will cancel the invoice — reversing it out of your books — and move it to the recycle bin.\n\n' +
-      'You can restore it from Invoices → Recycle Bin. Continue?'
+      'This removes the invoice from your books completely, as if it had never been raised.\n\n' +
+      'It goes to Invoices → Recycle Bin, where you can restore it. Continue?'
     );
     if (!ok) return;
     try {
-      // Cancel first so the ledger is reversed properly; a draft has nothing to
-      // reverse, so a failure here is harmless and we still bin it.
-      try { await cancelInvoice(tx.sourceId); } catch { /* already cancelled or still a draft */ }
       await deleteInvoice(tx.sourceId);
       setBookkeepingRefresh((n) => n + 1);
       refresh();

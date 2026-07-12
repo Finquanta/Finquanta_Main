@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply } from 'fastify';
 import { Database } from '../../infrastructure/database';
 import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
-import { InvoicesRepository, InvoiceInput } from './invoices.repository';
+import { InvoicesRepository, InvoiceInput, Invoice } from './invoices.repository';
 import { AccountingRepository } from '../accounting/accounting.repository';
 import { buildWorkflow } from '../accounting/accounting.engine';
 import { ActivityRepository } from '../activity/activity.repository';
@@ -15,7 +15,10 @@ import { ActivityRepository } from '../activity/activity.repository';
  *   Mark as Paid     → receive_ar_payment: Business Cash ↑, Accounts Receivable ↓.
  *                      (If it was never marked sent, the receivable is booked
  *                      first so the books stay correct.)
- *   Cancel (unpaid)  → a reversing entry backs the receivable out.
+ *   Cancel / Void    → a reversing entry backs out whatever was posted, leaving
+ *                      the cancelled invoice on record.
+ *   Delete           → no reversing entry: the invoice's journal entries are
+ *                      erased outright, so it vanishes from the books entirely.
  *
  * All of this is deterministic code — no AI calls.
  */
@@ -87,19 +90,63 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
   }) as any);
 
   /**
-   * Delete = move to the recycle bin (recoverable). An invoice that's already
-   * in the books must be cancelled first, so the ledger is reversed properly
-   * rather than a receivable being left stranded.
+   * Put an invoice on the books to match its status. Used when marking it
+   * sent/paid, and again when it comes back out of the recycle bin.
+   *
+   *   draft / cancelled     → nothing is posted
+   *   sent / viewed/overdue → the receivable (AR ↑, Revenue ↑)
+   *   paid                  → the receivable, then its settlement (Cash ↑, AR ↓)
+   */
+  const postForStatus = async (
+    businessId: string, userId: string, invoice: Invoice
+  ): Promise<{ arEntryId?: string; paymentEntryId?: string }> => {
+    const booked = ['sent', 'viewed', 'overdue', 'paid'].includes(invoice.status);
+    if (!booked || invoice.total <= 0) return {};
+    const who = invoice.customerName ? ` — ${invoice.customerName}` : '';
+
+    const ar = buildWorkflow('credit_revenue', {
+      amount: invoice.total,
+      description: `Invoice ${invoice.number}${who}`,
+    });
+    const arEntryId = await ledger.createEntry({
+      businessId, description: ar.description, sourceType: 'invoice',
+      sourceId: invoice.id, createdBy: userId, lines: ar.lines,
+    });
+    if (invoice.status !== 'paid') return { arEntryId };
+
+    const payment = buildWorkflow('receive_ar_payment', {
+      amount: invoice.total,
+      description: `Payment for invoice ${invoice.number}${who}`,
+    });
+    const paymentEntryId = await ledger.createEntry({
+      businessId, description: payment.description, sourceType: 'invoice_payment',
+      sourceId: invoice.id, createdBy: userId, lines: payment.lines,
+    });
+    return { arEntryId, paymentEntryId };
+  };
+
+  /**
+   * Delete = move to the recycle bin, and erase everything the invoice put on
+   * the books.
+   *
+   * No reversing entry is posted. The invoice's journal entries are removed
+   * outright, so a deleted invoice leaves no trace in Bookkeeping, the
+   * dashboard totals or the revenue chart — as if it had never been raised.
+   * Works from any status, including paid.
+   *
+   * The invoice document itself is kept (with its status), so restoring it from
+   * the bin can put the same entries straight back.
    */
   fastify.delete('/v1/invoices/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const existing = await repo.getById(request.businessId!, id);
       if (!existing) return reply.status(404).send({ success: false, error: 'Invoice not found' });
-      if (existing.arEntryId && existing.status !== 'cancelled') {
-        return reply.status(400).send({ success: false, error: 'This invoice is already in your books. Cancel it first, then delete it.' });
-      }
+
+      await ledger.purgeInvoiceEntries(request.businessId!, id);
+      await repo.clearLedgerLinks(request.businessId!, id);
       await repo.softDelete(request.businessId!, id);
+
       await activity.record(request.businessId!, {
         type: 'invoice_deleted',
         title: `Invoice ${existing.number} moved to the recycle bin`,
@@ -112,31 +159,40 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
     } catch (error) { return fail(reply, error, request); }
   }) as any);
 
-  /** Restore from the recycle bin. */
+  /** Restore from the recycle bin — and put it back on the books as it was. */
   fastify.post('/v1/invoices/:id/restore', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const ok = await repo.restore(request.businessId!, id);
       if (!ok) return reply.status(404).send({ success: false, error: 'Invoice not found' });
+
       const restored = await repo.getById(request.businessId!, id);
+      if (restored) {
+        // Deleting erased its entries, so re-post whatever its status implies.
+        const entries = await postForStatus(request.businessId!, request.user!.id, restored);
+        if (entries.arEntryId) await repo.setStatus(request.businessId!, id, restored.status, entries);
+      }
+
+      const final = await repo.getById(request.businessId!, id);
       await activity.record(request.businessId!, {
         type: 'invoice_restored',
-        title: `Invoice ${restored?.number ?? ''} restored from the recycle bin`,
-        amount: restored?.total ?? null,
+        title: `Invoice ${final?.number ?? ''} restored from the recycle bin`,
+        amount: final?.total ?? null,
         entityType: 'invoice',
         entityId: id,
         actorId: request.user!.id,
       });
-      return reply.send({ success: true, data: restored });
+      return reply.send({ success: true, data: final });
     } catch (error) { return fail(reply, error, request); }
   }) as any);
 
-  /** Permanently delete — only from the recycle bin. */
+  /** Permanently delete — only from the recycle bin. Its entries are long gone. */
   fastify.delete('/v1/invoices/:id/permanent', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const existing = await repo.getById(request.businessId!, id);
       if (!existing) return reply.status(404).send({ success: false, error: 'Invoice not found' });
+      await ledger.purgeInvoiceEntries(request.businessId!, id);
       await repo.remove(request.businessId!, id);
       return reply.send({ success: true, data: { id } });
     } catch (error) { return fail(reply, error, request); }
