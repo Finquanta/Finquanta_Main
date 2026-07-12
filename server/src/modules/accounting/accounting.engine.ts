@@ -146,26 +146,26 @@ export const WORKFLOW_META: Record<WorkflowType, WorkflowMeta> = {
     module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: false,
   },
   receive_ar_payment: {
-    label: 'Customer paid me',
-    description: 'Business Cash increases, Accounts Receivable decreases. (Revenue was already recorded when the receivable was raised — booking it again would double-count it.)',
+    label: 'Increase Revenue (Increase Business Cash)',
+    description: 'Your customer paid what they owed. Business Cash increases and Accounts Receivable decreases by the same amount.',
     module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
   },
   pay_ap: {
-    label: 'I paid a bill',
-    description: 'Business Cash decreases, Accounts Payable decreases. (The expense was already recorded when the bill was raised.)',
+    label: 'Increase Expense (Decrease Business Cash)',
+    description: 'You paid a bill you owed. Business Cash decreases and Accounts Payable decreases by the same amount.',
     module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
   },
 
   // Debt. These are recorded through the Loans module so each payment can split
   // principal vs interest off the loan's rate and remaining balance.
   loan_received: {
-    label: 'Loan received',
-    description: 'Loan Payable increases, Business Cash increases.',
+    label: 'Loan Payable Increase (Business Cash Increase)',
+    description: 'You borrowed money. The loan you owe goes up, and your business cash goes up by the same amount.',
     module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
   },
   loan_payment: {
-    label: 'Loan payment made',
-    description: 'Loan Payable decreases by the principal, Interest Expense increases by the interest, and Business Cash decreases by the full payment.',
+    label: 'Loan Payable Decrease (Business Cash Decrease)',
+    description: 'You made a payment on a loan you owe. Cash goes down by the full payment; the loan balance drops by the principal portion, and the interest portion is recorded as Interest Expense.',
     module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
   },
 };

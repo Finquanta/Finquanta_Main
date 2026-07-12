@@ -33,10 +33,26 @@ const ACCRUAL_TYPES = workflowsInGroup('accrual');
 /** The four debt actions — both directions of a loan. */
 type DebtAction = 'loan_received' | 'loan_payment' | 'loan_issued' | 'loan_repayment_received';
 const DEBT_ACTIONS: { value: DebtAction; label: string; hint: string }[] = [
-  { value: 'loan_received', label: 'Loan received', hint: 'Loan Payable increases, Business Cash increases.' },
-  { value: 'loan_payment', label: 'Loan payment made', hint: 'Loan Payable decreases by the principal, Interest Expense increases by the interest, Cash decreases by the full payment.' },
-  { value: 'loan_issued', label: 'Loan issued (I lent money out)', hint: 'Loan Receivable increases, Business Cash decreases.' },
-  { value: 'loan_repayment_received', label: 'Loan repayment received', hint: 'Cash increases by the full payment, Loan Receivable decreases by the principal, Interest Income increases by the interest.' },
+  {
+    value: 'loan_received',
+    label: 'Loan Payable Increase (Business Cash Increase)',
+    hint: 'You borrowed money. The loan you owe goes up, and your business cash goes up by the same amount.',
+  },
+  {
+    value: 'loan_payment',
+    label: 'Loan Payable Decrease (Business Cash Decrease)',
+    hint: 'You made a payment on a loan you owe. Cash goes down by the full payment; the loan balance drops by the principal portion, and the interest portion is recorded as Interest Expense.',
+  },
+  {
+    value: 'loan_issued',
+    label: 'Loan Receivable Increase (Business Cash Decrease)',
+    hint: 'You lent money out. Your cash goes down, and what the borrower owes you goes up by the same amount.',
+  },
+  {
+    value: 'loan_repayment_received',
+    label: 'Loan Receivable Decrease (Business Cash Increase)',
+    hint: 'Someone repaid a loan you gave them. Cash goes up by the full payment; what they owe you drops by the principal portion, and the interest portion is recorded as Interest Income.',
+  },
 ];
 const isPaymentAction = (a: DebtAction) => a === 'loan_payment' || a === 'loan_repayment_received';
 const loanTypeFor = (a: DebtAction): LoanType =>
@@ -204,39 +220,23 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           </>
         )}
 
-        {/* DEBT — pick the action */}
-        {basis === 'debt' && (
+        {/* DEBT — which loan is this payment against? */}
+        {basis === 'debt' && isPaymentAction(debtAction) && (
           <>
-            <label className="block text-sm font-semibold mb-2">What happened?</label>
-            <div className="flex flex-col gap-2 mb-3">
-              {DEBT_ACTIONS.map((a) => (
-                <label key={a.value} className="flex items-start gap-2 cursor-pointer">
-                  <input type="radio" name="debtAction" className="mt-1" checked={debtAction === a.value}
-                    onChange={() => setDebtAction(a.value)} />
-                  <span className="text-sm">{a.label}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-[11px] text-gray-400 mb-4">{DEBT_ACTIONS.find((a) => a.value === debtAction)?.hint}</p>
-
-            {isPaymentAction(debtAction) && (
-              <>
-                <label className="block text-sm font-semibold mb-1">Which loan?</label>
-                {loans.length === 0 ? (
-                  <p className="text-xs text-gray-400 mb-4">
-                    No {loanTypeFor(debtAction) === 'payable' ? 'borrowed' : 'lent-out'} loans yet — record one first.
-                  </p>
-                ) : (
-                  <select value={loanId} onChange={(e) => setLoanId(e.target.value)}
-                    className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none">
-                    {loans.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} — {money(l.remainingBalance)} left @ {l.annualRate}%
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </>
+            <label className="block text-sm font-semibold mb-1">Which loan?</label>
+            {loans.length === 0 ? (
+              <p className="text-xs text-gray-400 mb-4">
+                No {loanTypeFor(debtAction) === 'payable' ? 'borrowed' : 'lent-out'} loans yet — record one first.
+              </p>
+            ) : (
+              <select value={loanId} onChange={(e) => setLoanId(e.target.value)}
+                className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none">
+                {loans.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} — {money(l.remainingBalance)} left @ {l.annualRate}%
+                  </option>
+                ))}
+              </select>
             )}
           </>
         )}
@@ -271,6 +271,23 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
             <label className="block text-sm font-semibold mb-1">Annual interest rate (%)</label>
             <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" type="number" step="0.01" min="0"
               placeholder="e.g. 7.5" value={annualRate} onChange={(e) => setAnnualRate(e.target.value)} />
+          </>
+        )}
+
+        {/* Debt Type — sits below the interest rate */}
+        {basis === 'debt' && (
+          <>
+            <label className="block text-sm font-semibold mb-2">Debt Type</label>
+            <div className="flex flex-col gap-2 mb-2">
+              {DEBT_ACTIONS.map((a) => (
+                <label key={a.value} className="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="debtAction" className="mt-1" checked={debtAction === a.value}
+                    onChange={() => setDebtAction(a.value)} />
+                  <span className="text-sm">{a.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">{DEBT_ACTIONS.find((a) => a.value === debtAction)?.hint}</p>
           </>
         )}
 
