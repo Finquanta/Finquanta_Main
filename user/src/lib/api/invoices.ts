@@ -66,8 +66,19 @@ export const createInvoice = (data: InvoiceInput) =>
 export const updateInvoice = (id: string, data: InvoiceInput) =>
   apiFetch<Invoice>(`/v1/invoices/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
+/** Delete = move to the recycle bin. Recoverable. */
 export const deleteInvoice = (id: string) =>
   apiFetch<{ id: string }>(`/v1/invoices/${id}`, { method: 'DELETE' });
+
+/** The recycle bin. */
+export const listDeletedInvoices = () => apiFetch<Invoice[]>('/v1/invoices/deleted');
+
+export const restoreInvoice = (id: string) =>
+  apiFetch<Invoice>(`/v1/invoices/${id}/restore`, { method: 'POST' });
+
+/** Gone for good. */
+export const deleteInvoiceForever = (id: string) =>
+  apiFetch<{ id: string }>(`/v1/invoices/${id}/permanent`, { method: 'DELETE' });
 
 /** Mark as Sent — books the receivable (Accounts Receivable ↑, Revenue ↑). */
 export const markInvoiceSent = (id: string) =>

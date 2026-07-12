@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, serverApiUrl, fetchWithRetry } from './client';
 
 export interface BusinessProfile {
   businessName?: string;
@@ -23,6 +23,24 @@ export interface BusinessProfile {
   businessPhone?: string;
   website?: string;
   onboardingCompleted?: boolean;
+}
+
+/** Upload a business logo (PNG or JPEG, max 1MB) for the invoice header. */
+export async function uploadBusinessLogo(file: File): Promise<BusinessProfile> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  const res = await fetchWithRetry(serverApiUrl('/v1/me/business/logo'), {
+    method: 'POST',
+    // Don't set Content-Type — the browser adds the multipart boundary itself.
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.error || json?.message || 'Could not upload logo');
+  return json && typeof json === 'object' && 'data' in json ? json.data : json;
 }
 
 /** Multi-line business address for the invoice header. */

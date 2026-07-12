@@ -2,16 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
-import { Invoice, STATUS_COLORS, listInvoices, money } from "@/lib/api/invoices";
-import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
+import {
+  Invoice, STATUS_COLORS, listInvoices, listDeletedInvoices,
+  deleteInvoice, restoreInvoice, deleteInvoiceForever, money,
+} from "@/lib/api/invoices";
+import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from "@/lib/api/business";
+import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 export default function InvoicesPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [deleted, setDeleted] = useState<Invoice[]>([]);
+  const [inBin, setInBin] = useState(false); // showing the recycle bin?
+  const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,15 +26,50 @@ export default function InvoicesPage() {
   const [biz, setBiz] = useState<BusinessProfile>({});
   const [bizOpen, setBizOpen] = useState(false);
   const [savingBiz, setSavingBiz] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const load = () => {
     setLoading(true);
-    Promise.all([listInvoices(), getBusinessProfile()])
-      .then(([inv, b]) => { setInvoices(inv); setBiz(b); })
+    Promise.all([listInvoices(), listDeletedInvoices(), getBusinessProfile()])
+      .then(([inv, del, b]) => { setInvoices(inv); setDeleted(del); setBiz(b); })
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load invoices."))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  const act = async (id: string, fn: () => Promise<unknown>) => {
+    setBusyId(id); setError(null);
+    try { await fn(); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : "That didn't work."); }
+    finally { setBusyId(""); }
+  };
+
+  const remove = (inv: Invoice) => {
+    if (!window.confirm(`Move ${inv.number} to the recycle bin? You can restore it later.`)) return;
+    act(inv.id, () => deleteInvoice(inv.id));
+  };
+  const restore = (inv: Invoice) => act(inv.id, () => restoreInvoice(inv.id));
+  const destroy = (inv: Invoice) => {
+    if (!window.confirm(`Permanently delete ${inv.number}? This cannot be undone.`)) return;
+    act(inv.id, () => deleteInvoiceForever(inv.id));
+  };
+
+  const rows = inBin ? deleted : invoices;
+
+  const onLogoPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true); setError(null);
+    try {
+      const saved = await uploadBusinessLogo(file);
+      setBiz((prev) => ({ ...prev, logoUrl: saved.logoUrl }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload logo.");
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
+  };
 
   const saveBiz = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +94,7 @@ export default function InvoicesPage() {
     setBiz({ ...biz, [k]: e.target.value });
 
   return (
-    <div className={`min-h-screen p-4 sm:p-6 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <DashboardShell><div className="p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-1">
           <h1 className={`text-xl font-bold ${text}`}>Invoices</h1>
@@ -73,6 +115,14 @@ export default function InvoicesPage() {
             className={`flex items-center gap-1.5 font-semibold px-4 py-2 rounded-lg text-sm border ${isDark ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
             <Building2 className="h-4 w-4" /> Business Details
           </button>
+          <button onClick={() => setInBin(!inBin)}
+            className={`flex items-center gap-1.5 font-semibold px-4 py-2 rounded-lg text-sm border ${
+              inBin
+                ? "bg-blue-500 border-blue-500 text-white"
+                : isDark ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"
+            }`}>
+            <Trash2 className="h-4 w-4" /> Recycle Bin{deleted.length > 0 ? ` (${deleted.length})` : ""}
+          </button>
           <Link href="/customers" className={`text-sm px-3 py-2 ${sub} hover:underline`}>Customers →</Link>
         </div>
 
@@ -88,9 +138,11 @@ export default function InvoicesPage() {
 
         {loading ? (
           <p className={`text-sm ${sub}`}>Loading invoices…</p>
-        ) : invoices.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className={`rounded-xl border p-8 text-center ${card}`}>
-            <p className={`text-sm ${sub}`}>No invoices yet. Create your first one.</p>
+            <p className={`text-sm ${sub}`}>
+              {inBin ? "The recycle bin is empty." : "No invoices yet. Create your first one."}
+            </p>
           </div>
         ) : (
           <div className={`rounded-xl border overflow-hidden ${card}`}>
@@ -100,14 +152,15 @@ export default function InvoicesPage() {
                   <tr className={`text-left ${sub} ${isDark ? "bg-gray-900/40" : "bg-gray-50"}`}>
                     <th className="px-4 py-3 font-semibold">Invoice</th>
                     <th className="px-4 py-3 font-semibold">Customer</th>
-                    <th className="px-4 py-3 font-semibold">Issued</th>
+                    <th className="px-4 py-3 font-semibold">{inBin ? "Deleted" : "Issued"}</th>
                     <th className="px-4 py-3 font-semibold">Due</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold text-right">Total</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((inv) => (
+                  {rows.map((inv) => (
                     <tr key={inv.id} className={`border-t ${isDark ? "border-gray-700" : "border-gray-100"}`}>
                       <td className="px-4 py-3">
                         <Link href={`/invoices/${inv.id}`} className="font-medium text-blue-500 hover:underline">{inv.number}</Link>
@@ -122,6 +175,32 @@ export default function InvoicesPage() {
                         </span>
                       </td>
                       <td className={`px-4 py-3 text-right font-semibold ${text}`}>{money(inv.total, inv.currency)}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {inBin ? (
+                          <>
+                            <button onClick={() => restore(inv)} disabled={busyId === inv.id}
+                              className={`mr-3 ${sub} hover:text-green-500 disabled:opacity-50`} title="Restore">
+                              <RotateCcw className="h-4 w-4 inline" />
+                            </button>
+                            <button onClick={() => destroy(inv)} disabled={busyId === inv.id}
+                              className={`${sub} hover:text-red-500 disabled:opacity-50`} title="Delete forever">
+                              <Trash2 className="h-4 w-4 inline" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {inv.status !== "paid" && (
+                              <Link href={`/invoices/${inv.id}/edit`} className={`mr-3 ${sub} hover:text-blue-500`} title="Edit">
+                                <Pencil className="h-4 w-4 inline" />
+                              </Link>
+                            )}
+                            <button onClick={() => remove(inv)} disabled={busyId === inv.id}
+                              className={`${sub} hover:text-red-500 disabled:opacity-50`} title="Move to recycle bin">
+                              <Trash2 className="h-4 w-4 inline" />
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -167,14 +246,35 @@ export default function InvoicesPage() {
                 <input placeholder="State/Region" value={biz.region ?? ""} onChange={set("region")} className={field} />
                 <input placeholder="Zip code" value={biz.postalCode ?? ""} onChange={set("postalCode")} className={field} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-xs mb-1 ${sub}`}>Country</label>
-                  <input value={biz.country ?? ""} onChange={set("country")} className={field} />
-                </div>
-                <div>
-                  <label className={`block text-xs mb-1 ${sub}`}>Logo URL</label>
-                  <input value={biz.logoUrl ?? ""} onChange={set("logoUrl")} placeholder="https://…" className={field} />
+              <div>
+                <label className={`block text-xs mb-1 ${sub}`}>Country</label>
+                <input value={biz.country ?? ""} onChange={set("country")} className={field} />
+              </div>
+
+              {/* Business logo — appears top-left on every invoice */}
+              <div>
+                <label className={`block text-xs mb-1 ${sub}`}>Business Logo</label>
+                <div className="flex items-center gap-3">
+                  {biz.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={biz.logoUrl} alt="Logo" className="rounded-lg object-contain bg-white border" style={{ width: 48, height: 48 }} />
+                  ) : (
+                    <div className={`rounded-lg flex items-center justify-center text-xs ${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-100 text-gray-400"}`} style={{ width: 48, height: 48 }}>
+                      None
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      onChange={onLogoPicked}
+                      disabled={uploadingLogo}
+                      className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white file:cursor-pointer disabled:opacity-60"
+                    />
+                    <p className={`text-[11px] mt-1 ${sub}`}>
+                      {uploadingLogo ? "Uploading…" : "PNG or JPEG, up to 1MB."}
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
@@ -191,6 +291,6 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
-    </div>
+    </div></DashboardShell>
   );
 }

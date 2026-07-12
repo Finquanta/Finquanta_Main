@@ -65,14 +65,47 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
     } catch (error) { return fail(reply, error, request); }
   }) as any);
 
+  /** The recycle bin. Must be declared before /:id so it isn't read as an id. */
+  fastify.get('/v1/invoices/deleted', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await repo.listDeleted(request.businessId!) });
+    } catch (error) { return fail(reply, error, request); }
+  }) as any);
+
+  /**
+   * Delete = move to the recycle bin (recoverable). An invoice that's already
+   * in the books must be cancelled first, so the ledger is reversed properly
+   * rather than a receivable being left stranded.
+   */
   fastify.delete('/v1/invoices/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const existing = await repo.getById(request.businessId!, id);
       if (!existing) return reply.status(404).send({ success: false, error: 'Invoice not found' });
-      if (existing.arEntryId) {
-        return reply.status(400).send({ success: false, error: 'This invoice is already in your books. Cancel it instead of deleting.' });
+      if (existing.arEntryId && existing.status !== 'cancelled') {
+        return reply.status(400).send({ success: false, error: 'This invoice is already in your books. Cancel it first, then delete it.' });
       }
+      await repo.softDelete(request.businessId!, id);
+      return reply.send({ success: true, data: { id } });
+    } catch (error) { return fail(reply, error, request); }
+  }) as any);
+
+  /** Restore from the recycle bin. */
+  fastify.post('/v1/invoices/:id/restore', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const ok = await repo.restore(request.businessId!, id);
+      if (!ok) return reply.status(404).send({ success: false, error: 'Invoice not found' });
+      return reply.send({ success: true, data: await repo.getById(request.businessId!, id) });
+    } catch (error) { return fail(reply, error, request); }
+  }) as any);
+
+  /** Permanently delete — only from the recycle bin. */
+  fastify.delete('/v1/invoices/:id/permanent', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const existing = await repo.getById(request.businessId!, id);
+      if (!existing) return reply.status(404).send({ success: false, error: 'Invoice not found' });
       await repo.remove(request.businessId!, id);
       return reply.send({ success: true, data: { id } });
     } catch (error) { return fail(reply, error, request); }

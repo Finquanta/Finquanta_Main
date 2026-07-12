@@ -1,35 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
-import { InvoiceItem, createInvoice, money } from "@/lib/api/invoices";
+import { Invoice, InvoiceItem, getInvoice, updateInvoice, money } from "@/lib/api/invoices";
 import { Customer, listCustomers, createCustomer } from "@/lib/api/customers";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 const blankItem = (): InvoiceItem => ({ name: "", description: "", quantity: 1, unitPrice: 0, amount: 0 });
 
-/** Default due date: 14 days out — a sane payment term the user can change. */
-const in14Days = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 14);
-  return d.toISOString().slice(0, 10);
-};
-
-export default function NewInvoicePage() {
+export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [newCustomer, setNewCustomer] = useState("");
   const [addingCustomer, setAddingCustomer] = useState(false);
 
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState(in14Days());
+  const [issueDate, setIssueDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [message, setMessage] = useState("");
   const [details, setDetails] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -37,14 +32,29 @@ export default function NewInvoicePage() {
   const [taxRate, setTaxRate] = useState("0");
   const [items, setItems] = useState<InvoiceItem[]>([blankItem()]);
 
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listCustomers().then(setCustomers).catch(() => setCustomers([]));
-  }, []);
+    Promise.all([getInvoice(id), listCustomers()])
+      .then(([inv, cs]) => {
+        setInvoice(inv);
+        setCustomers(cs);
+        setCustomerId(inv.customerId ?? "");
+        setIssueDate(inv.issueDate ?? "");
+        setDueDate(inv.dueDate ?? "");
+        setMessage(inv.message ?? "");
+        setDetails(inv.details ?? "");
+        setPaymentTerms(inv.paymentTerms ?? "");
+        setNotes(inv.notes ?? "");
+        setTaxRate(String(inv.taxRate ?? 0));
+        setItems(inv.items.length ? inv.items : [blankItem()]);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load invoice."))
+      .finally(() => setLoading(false));
+  }, [id]);
 
-  // Totals mirror the server's arithmetic exactly.
   const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
   const subtotal = round(items.reduce((s, it) => s + round((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
   const tax = round(subtotal * ((Number(taxRate) || 0) / 100));
@@ -73,9 +83,10 @@ export default function NewInvoicePage() {
 
     setSaving(true);
     try {
-      const inv = await createInvoice({
+      await updateInvoice(id, {
         customerId: customerId || null,
-        issueDate, dueDate,
+        issueDate: issueDate || null,
+        dueDate: dueDate || null,
         message: message.trim() || null,
         details: details.trim() || null,
         paymentTerms: paymentTerms.trim() || null,
@@ -88,9 +99,9 @@ export default function NewInvoicePage() {
           amount: round((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)),
         })),
       });
-      router.push(`/invoices/${inv.id}`);
+      router.push(`/invoices/${id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create invoice.");
+      setError(e instanceof Error ? e.message : "Could not save invoice.");
       setSaving(false);
     }
   };
@@ -101,14 +112,29 @@ export default function NewInvoicePage() {
   const input = isDark ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-300 text-gray-900";
   const field = `w-full text-sm rounded-lg px-3 py-2 border outline-none ${input}`;
 
+  if (loading) return <DashboardShell><div className="p-6"><p className={sub}>Loading…</p></div></DashboardShell>;
+
+  // A paid invoice is already settled in the books — editing it would put the
+  // ledger out of step with the document.
+  if (invoice?.status === "paid") return (
+    <DashboardShell><div className="p-6">
+      <p className={`text-sm mb-2 ${text}`}>This invoice is paid and can no longer be edited.</p>
+      <Link href={`/invoices/${id}`} className="text-blue-500 text-sm hover:underline">← Back to invoice</Link>
+    </div></DashboardShell>
+  );
+
   return (
     <DashboardShell><div className="p-4 sm:p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-1">
-          <h1 className={`text-xl font-bold ${text}`}>New Invoice</h1>
-          <Link href="/invoices" className="text-sm text-blue-500 hover:underline">← Invoices</Link>
+          <h1 className={`text-xl font-bold ${text}`}>Edit {invoice?.number}</h1>
+          <Link href={`/invoices/${id}`} className="text-sm text-blue-500 hover:underline">← Back To Invoice</Link>
         </div>
-        <p className={`text-sm mb-6 ${sub}`}>Saved as a draft. Nothing hits your books until you mark it Sent.</p>
+        <p className={`text-sm mb-6 ${sub}`}>
+          {invoice?.arEntryId
+            ? "This invoice is already in your books. Changing the total will not re-post the receivable — cancel and re-issue if the amount is wrong."
+            : "Nothing has hit your books yet, so you can change anything."}
+        </p>
 
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
@@ -151,16 +177,16 @@ export default function NewInvoicePage() {
           </div>
           <div className="mb-3">
             <label className={`block text-xs mb-1 ${sub}`}>Message To Customer</label>
-            <input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Thanks for your business!" className={field} />
+            <input value={message} onChange={(e) => setMessage(e.target.value)} className={field} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={`block text-xs mb-1 ${sub}`}>Details</label>
-              <input value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Brief description of the job" className={field} />
+              <input value={details} onChange={(e) => setDetails(e.target.value)} className={field} />
             </div>
             <div>
               <label className={`block text-xs mb-1 ${sub}`}>Payment Terms</label>
-              <input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. Net 14" className={field} />
+              <input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={field} />
             </div>
           </div>
         </div>
@@ -236,18 +262,17 @@ export default function NewInvoicePage() {
 
         <div className={`rounded-xl border p-4 mb-6 ${card}`}>
           <label className={`block text-xs mb-1 ${sub}`}>Notes</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="Anything else the customer should know" className={`${field} min-h-[70px]`} />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={`${field} min-h-[70px]`} />
         </div>
 
         <div className="flex gap-2">
-          <Link href="/invoices"
+          <Link href={`/invoices/${id}`}
             className={`flex-1 text-center py-2.5 rounded-lg text-sm font-semibold border ${isDark ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
             Cancel
           </Link>
           <button onClick={save} disabled={saving}
             className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm">
-            {saving ? "Creating…" : "Create Invoice"}
+            {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </div>

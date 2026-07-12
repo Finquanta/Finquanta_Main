@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/context/ThemeContext";
 import {
   Customer, CustomerInput, listCustomers, createCustomer, updateCustomer, deleteCustomer,
 } from "@/lib/api/customers";
+import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 const EMPTY: CustomerInput = {
   name: "", email: "", phone: "",
@@ -87,7 +88,7 @@ export default function CustomersPage() {
   const field = `w-full text-sm rounded-lg px-3 py-2 border outline-none ${input}`;
 
   return (
-    <div className={`min-h-screen p-4 sm:p-6 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <DashboardShell><div className="p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-1">
           <h1 className={`text-xl font-bold ${text}`}>Customers</h1>
@@ -206,6 +207,6 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
-    </div>
+    </div></DashboardShell>
   );
 }

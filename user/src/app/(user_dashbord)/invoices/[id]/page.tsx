@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Printer, Mail, Check, Send, Ban } from "lucide-react";
+import { Printer, Mail, Check, Send, Ban, Pencil } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import {
   Invoice, STATUS_COLORS, getInvoice, markInvoiceSent, markInvoicePaid, cancelInvoice, money,
@@ -11,6 +11,7 @@ import {
 import { BusinessProfile, getBusinessProfile } from "@/lib/api/business";
 import { Customer, getCustomer } from "@/lib/api/customers";
 import InvoiceTemplate from "@/components/user_dashboard/invoices/InvoiceTemplate";
+import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -74,12 +75,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const sub = isDark ? "text-gray-400" : "text-gray-500";
   const btn = `flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border ${isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
 
-  if (loading) return <div className={`min-h-screen p-6 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}><p className={sub}>Loading…</p></div>;
+  if (loading) return <DashboardShell><div className="p-6"><p className={sub}>Loading…</p></div></DashboardShell>;
   if (!invoice) return (
-    <div className={`min-h-screen p-6 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <DashboardShell><div className="p-6">
       <p className="text-red-500 text-sm">{error || "Invoice not found."}</p>
       <Link href="/invoices" className="text-blue-500 text-sm hover:underline">← Invoices</Link>
-    </div>
+    </div></DashboardShell>
   );
 
   const canSend = invoice.status === "draft";
@@ -87,7 +88,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const canCancel = invoice.status !== "paid" && invoice.status !== "cancelled";
 
   return (
-    <div className={`min-h-screen p-4 sm:p-6 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <DashboardShell><div className="p-4 sm:p-6">
       {/* Toolbar — hidden when printing */}
       <div className="no-print max-w-4xl mx-auto mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -104,6 +105,13 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* A paid invoice is settled in the books — editing it would put the
+              ledger out of step with the document. */}
+          {invoice.status !== "paid" && (
+            <Link href={`/invoices/${invoice.id}/edit`} className={btn}>
+              <Pencil className="h-4 w-4" /> Edit
+            </Link>
+          )}
           <button onClick={() => window.print()} className={btn}>
             <Printer className="h-4 w-4" /> Print / Save As PDF
           </button>
@@ -145,6 +153,6 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       <div className="max-w-4xl mx-auto shadow-sm">
         <InvoiceTemplate invoice={invoice} business={business} customer={customer} />
       </div>
-    </div>
+    </div></DashboardShell>
   );
 }

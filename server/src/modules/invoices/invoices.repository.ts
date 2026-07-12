@@ -107,6 +107,8 @@ export class InvoicesRepository {
         position INT NOT NULL DEFAULT 0
       );
     `);
+    // Soft delete — deleted invoices go to the recycle bin, not the void.
+    await this.database.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_invoices_business ON invoices(business_id, issue_date DESC)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id, position)`);
   }
@@ -219,15 +221,19 @@ export class InvoicesRepository {
     status: InvoiceStatus,
     entries?: { arEntryId?: string | null; paymentEntryId?: string | null }
   ): Promise<void> {
+    // Every placeholder is cast explicitly: $3 is used both as a value and
+    // inside comparisons, and Postgres can't deduce a single type from that
+    // ("inconsistent types deduced for parameter $3"). Same for the nullable
+    // uuids, which have no type to infer from when they arrive as NULL.
     await this.database.query(
       `UPDATE invoices SET
-         status = $3,
-         sent_at = CASE WHEN $3 IN ('sent','viewed') AND sent_at IS NULL THEN NOW() ELSE sent_at END,
-         paid_at = CASE WHEN $3 = 'paid' THEN NOW() ELSE paid_at END,
-         ar_entry_id = COALESCE($4, ar_entry_id),
-         payment_entry_id = COALESCE($5, payment_entry_id),
+         status = $3::varchar,
+         sent_at = CASE WHEN $3::text IN ('sent','viewed') AND sent_at IS NULL THEN NOW() ELSE sent_at END,
+         paid_at = CASE WHEN $3::text = 'paid' THEN NOW() ELSE paid_at END,
+         ar_entry_id = COALESCE($4::uuid, ar_entry_id),
+         payment_entry_id = COALESCE($5::uuid, payment_entry_id),
          updated_at = NOW()
-       WHERE business_id = $1 AND id = $2`,
+       WHERE business_id = $1::uuid AND id = $2::uuid`,
       [businessId, id, status, entries?.arEntryId ?? null, entries?.paymentEntryId ?? null]
     );
   }
@@ -252,18 +258,50 @@ export class InvoicesRepository {
     return this.mapRow(r, itemsRes.rows);
   }
 
+  /** Active invoices (anything in the recycle bin is excluded). */
   async list(businessId: string): Promise<Invoice[]> {
     const result = await this.database.query(
       `SELECT i.*, c.name AS customer_name, c.email AS customer_email
        FROM invoices i
        LEFT JOIN customers c ON c.id = i.customer_id
-       WHERE i.business_id = $1
+       WHERE i.business_id = $1 AND i.deleted_at IS NULL
        ORDER BY i.issue_date DESC, i.created_at DESC`,
       [businessId]
     );
     return result.rows.map((r: any) => this.mapRow(r, []));
   }
 
+  /** The recycle bin — deleted invoices, most recently deleted first. */
+  async listDeleted(businessId: string): Promise<Invoice[]> {
+    const result = await this.database.query(
+      `SELECT i.*, c.name AS customer_name, c.email AS customer_email
+       FROM invoices i
+       LEFT JOIN customers c ON c.id = i.customer_id
+       WHERE i.business_id = $1 AND i.deleted_at IS NOT NULL
+       ORDER BY i.deleted_at DESC`,
+      [businessId]
+    );
+    return result.rows.map((r: any) => this.mapRow(r, []));
+  }
+
+  /** Move to the recycle bin. Recoverable. */
+  async softDelete(businessId: string, id: string): Promise<boolean> {
+    const result = await this.database.query(
+      'UPDATE invoices SET deleted_at = NOW(), updated_at = NOW() WHERE business_id = $1 AND id = $2 AND deleted_at IS NULL',
+      [businessId, id]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async restore(businessId: string, id: string): Promise<boolean> {
+    const result = await this.database.query(
+      'UPDATE invoices SET deleted_at = NULL, updated_at = NOW() WHERE business_id = $1 AND id = $2',
+      [businessId, id]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /** Gone for good. Only allowed from the recycle bin. */
   async remove(businessId: string, id: string): Promise<boolean> {
     const result = await this.database.query(
       'DELETE FROM invoices WHERE business_id = $1 AND id = $2',
@@ -278,6 +316,7 @@ export class InvoicesRepository {
       `SELECT customer_id, COALESCE(SUM(total), 0) AS owed
        FROM invoices
        WHERE business_id = $1 AND customer_id IS NOT NULL
+         AND deleted_at IS NULL
          AND status IN ('sent','viewed','overdue')
        GROUP BY customer_id`,
       [businessId]
