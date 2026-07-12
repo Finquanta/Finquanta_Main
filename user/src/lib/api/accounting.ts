@@ -11,17 +11,33 @@ export type WorkflowType =
   | 'cash_expense' | 'credit_expense' | 'pay_ap'
   | 'loan_received' | 'loan_payment';
 
-/** Plain-English labels for the workflows (what the user actually picks). */
-export const WORKFLOW_LABELS: Record<WorkflowType, string> = {
-  cash_revenue: 'Revenue received now',
-  credit_revenue: 'Revenue billed (paid later)',
-  receive_ar_payment: 'Customer paid me',
-  cash_expense: 'Expense paid now',
-  credit_expense: 'Expense billed (pay later)',
-  pay_ap: 'I paid a bill',
-  loan_received: 'Loan received',
-  loan_payment: 'Loan payment made',
+export type AccountingBasis = 'cash' | 'accrual';
+
+export interface WorkflowMeta {
+  label: string;
+  /** bookkeeping = simple cash basis; accounting = accrual (AR/AP/loans). */
+  module: 'bookkeeping' | 'accounting';
+  basis: AccountingBasis;
+  affectsCash: boolean;
+}
+
+/**
+ * CASH BASIS (bookkeeping) records only money that actually moved — cash in and
+ * cash out. ACCRUAL (accounting) adds obligations: receivables, payables, loans.
+ */
+export const WORKFLOW_META: Record<WorkflowType, WorkflowMeta> = {
+  cash_revenue:       { label: 'Money received (cash flow)', module: 'bookkeeping', basis: 'cash',    affectsCash: true },
+  cash_expense:       { label: 'Money paid out (expense)',   module: 'bookkeeping', basis: 'cash',    affectsCash: true },
+  credit_revenue:     { label: 'Revenue billed (paid later)', module: 'accounting', basis: 'accrual', affectsCash: false },
+  credit_expense:     { label: 'Expense billed (pay later)',  module: 'accounting', basis: 'accrual', affectsCash: false },
+  receive_ar_payment: { label: 'Customer paid me',            module: 'accounting', basis: 'accrual', affectsCash: true },
+  pay_ap:             { label: 'I paid a bill',               module: 'accounting', basis: 'accrual', affectsCash: true },
+  loan_received:      { label: 'Loan received',               module: 'accounting', basis: 'accrual', affectsCash: true },
+  loan_payment:       { label: 'Loan payment made',           module: 'accounting', basis: 'accrual', affectsCash: true },
 };
+
+export const workflowsFor = (module: 'bookkeeping' | 'accounting'): WorkflowType[] =>
+  (Object.keys(WORKFLOW_META) as WorkflowType[]).filter((t) => WORKFLOW_META[t].module === module);
 
 export interface AccountBalance {
   id: string;
@@ -53,8 +69,13 @@ export async function getAccounts(): Promise<AccountBalance[]> {
   return apiFetch<AccountBalance[]>('/v1/accounting/accounts');
 }
 
-export async function getEntries(limit = 100): Promise<JournalEntry[]> {
-  return apiFetch<JournalEntry[]>(`/v1/accounting/entries?limit=${limit}`);
+/**
+ * The ledger. `basis: 'cash'` returns only entries where money actually moved
+ * (what the simple bookkeeping view reports); 'accrual' returns everything,
+ * including receivables/payables that moved no cash.
+ */
+export async function getEntries(limit = 100, basis: AccountingBasis = 'accrual'): Promise<JournalEntry[]> {
+  return apiFetch<JournalEntry[]>(`/v1/accounting/entries?limit=${limit}&basis=${basis}`);
 }
 
 /** Record a business event; the engine builds the balanced accounting entry. */

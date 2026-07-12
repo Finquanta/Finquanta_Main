@@ -3,7 +3,7 @@ import { Database } from '../../infrastructure/database';
 import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
 import { AccountingRepository } from './accounting.repository';
-import { buildWorkflow, isWorkflowType, WORKFLOW_TYPES } from './accounting.engine';
+import { buildWorkflow, isWorkflowType, WORKFLOW_TYPES, WORKFLOW_META } from './accounting.engine';
 import { JournalLineInput } from './accounting.types';
 
 export async function accountingRoutes(fastify: FastifyInstance, options: { database: Database }) {
@@ -23,18 +23,25 @@ export async function accountingRoutes(fastify: FastifyInstance, options: { data
   // The ledger — recent journal entries with their debit/credit lines.
   fastify.get('/v1/accounting/entries', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const { limit } = request.query as { limit?: string };
+      const { limit, basis } = request.query as { limit?: string; basis?: string };
       const n = Math.min(Math.max(Number.parseInt(limit ?? '100', 10) || 100, 1), 500);
-      return reply.send({ success: true, data: await repo.listEntries(request.businessId!, n) });
+      // 'cash' = only entries where money actually moved; 'accrual' = everything.
+      const b = basis === 'cash' ? 'cash' : 'accrual';
+      return reply.send({ success: true, data: await repo.listEntries(request.businessId!, n, b) });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }) as any);
 
-  // The available workflows (so the UI can render them without hardcoding).
+  /**
+   * The available workflows with their metadata, so the UI can render each
+   * module's options without hardcoding them: bookkeeping = cash basis (cash
+   * flow + expenses), accounting = accrual (AR / AP / loans).
+   */
   fastify.get('/v1/accounting/workflows', { preHandler: pre }, (async (_request: AuthenticatedRequest, reply: FastifyReply) => {
-    return reply.send({ success: true, data: WORKFLOW_TYPES });
+    const data = WORKFLOW_TYPES.map((type) => ({ type, ...WORKFLOW_META[type] }));
+    return reply.send({ success: true, data });
   }) as any);
 
   /**

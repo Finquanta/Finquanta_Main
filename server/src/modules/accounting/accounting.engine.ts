@@ -94,7 +94,47 @@ export const WORKFLOWS: Record<WorkflowType, Builder> = {
   },
 };
 
+/**
+ * Which module an event belongs to, and whether cash actually moves.
+ *
+ * CASH BASIS (bookkeeping) — the simple module. Only events where money really
+ * moved: cash in (cash flow) and cash out (expenses). No accounting knowledge
+ * required to use it.
+ *
+ * ACCRUAL BASIS (accounting) — the added layer. Records obligations whether or
+ * not cash moved: receivables, payables and loans. `credit_revenue` and
+ * `credit_expense` move NO cash at all — that's precisely what makes them
+ * accrual-only. The settlement events (receive_ar_payment, pay_ap) and loan
+ * events do move cash, so they show up in cash flow too.
+ *
+ * Cash-basis reporting is therefore derivable with no extra column: it's simply
+ * the entries that touch the CASH account. Accrual reporting is every entry.
+ */
+export interface WorkflowMeta {
+  label: string;
+  module: 'bookkeeping' | 'accounting';
+  basis: 'cash' | 'accrual';
+  affectsCash: boolean;
+}
+
+export const WORKFLOW_META: Record<WorkflowType, WorkflowMeta> = {
+  // Cash basis — the simple bookkeeping module.
+  cash_revenue:       { label: 'Money received (cash flow)', module: 'bookkeeping', basis: 'cash',    affectsCash: true },
+  cash_expense:       { label: 'Money paid out (expense)',   module: 'bookkeeping', basis: 'cash',    affectsCash: true },
+
+  // Accrual basis — the accounting module.
+  credit_revenue:     { label: 'Revenue billed (paid later)', module: 'accounting', basis: 'accrual', affectsCash: false },
+  credit_expense:     { label: 'Expense billed (pay later)',  module: 'accounting', basis: 'accrual', affectsCash: false },
+  receive_ar_payment: { label: 'Customer paid me',            module: 'accounting', basis: 'accrual', affectsCash: true },
+  pay_ap:             { label: 'I paid a bill',               module: 'accounting', basis: 'accrual', affectsCash: true },
+  loan_received:      { label: 'Loan received',               module: 'accounting', basis: 'accrual', affectsCash: true },
+  loan_payment:       { label: 'Loan payment made',           module: 'accounting', basis: 'accrual', affectsCash: true },
+};
+
 export const WORKFLOW_TYPES = Object.keys(WORKFLOWS) as WorkflowType[];
+
+export const workflowsFor = (module: 'bookkeeping' | 'accounting'): WorkflowType[] =>
+  WORKFLOW_TYPES.filter((t) => WORKFLOW_META[t].module === module);
 
 export const isWorkflowType = (v: unknown): v is WorkflowType =>
   typeof v === 'string' && (WORKFLOW_TYPES as string[]).includes(v);

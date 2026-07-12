@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import {
-  AccountBalance, JournalEntry, WorkflowType, WORKFLOW_LABELS,
+  AccountBalance, AccountingBasis, JournalEntry, WorkflowType, WORKFLOW_META, workflowsFor,
   getAccounts, getEntries, runWorkflow,
 } from "@/lib/api/accounting";
 
 // The balances worth surfacing as headline cards.
 const HEADLINE = ["CASH", "AR", "AP", "LOAN_PAYABLE"] as const;
+
+// Accounting is the ACCRUAL module — receivables, payables, loans. The plain
+// cash events (money in / money out) live in the simple Bookkeeping module.
+const ACCRUAL_WORKFLOWS = workflowsFor("accounting");
 
 const money = (n: number) =>
   `$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -25,21 +29,22 @@ export default function AccountingPage() {
 
   // "Record an event" form — the user describes what happened in plain terms;
   // the engine turns it into a balanced double-entry record.
-  const [type, setType] = useState<WorkflowType>("cash_revenue");
+  const [type, setType] = useState<WorkflowType>("credit_revenue");
   const [amount, setAmount] = useState("");
   const [interest, setInterest] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [basis, setBasis] = useState<AccountingBasis>("accrual");
 
-  const load = () => {
+  const load = (b: AccountingBasis = basis) => {
     setLoading(true);
-    Promise.all([getAccounts(), getEntries(50)])
+    Promise.all([getAccounts(), getEntries(50, b)])
       .then(([a, e]) => { setAccounts(a); setEntries(e); })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load accounting data."))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(basis); }, [basis]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +81,9 @@ export default function AccountingPage() {
           <Link href="/dashboard" className="text-sm text-blue-500 hover:underline">← Dashboard</Link>
         </div>
         <p className={`text-sm mb-6 ${sub}`}>
-          Advanced records. Every event below is turned into a balanced double-entry record automatically —
-          bookkeeping stays simple, the ledger runs underneath.
+          The <strong>accrual</strong> layer: money you&apos;re owed, money you owe, and loans — recorded whether or not cash has
+          moved yet. Plain cash in / cash out stays in <Link href="/bookkeeping" className="text-blue-500 hover:underline">Bookkeeping</Link>.
+          Every event below becomes a balanced double-entry record automatically.
         </p>
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
@@ -104,10 +110,13 @@ export default function AccountingPage() {
                 <label className={`block text-xs mb-1 ${sub}`}>What happened?</label>
                 <select value={type} onChange={(e) => setType(e.target.value as WorkflowType)}
                   className={`w-full text-sm rounded-lg px-3 py-2 border outline-none ${input}`}>
-                  {(Object.keys(WORKFLOW_LABELS) as WorkflowType[]).map((k) => (
-                    <option key={k} value={k}>{WORKFLOW_LABELS[k]}</option>
+                  {ACCRUAL_WORKFLOWS.map((k) => (
+                    <option key={k} value={k}>{WORKFLOW_META[k].label}</option>
                   ))}
                 </select>
+                {!WORKFLOW_META[type].affectsCash && (
+                  <p className={`text-[11px] mt-1 ${sub}`}>No cash moves for this one — it only records the obligation.</p>
+                )}
               </div>
               <div>
                 <label className={`block text-xs mb-1 ${sub}`}>Amount</label>
@@ -135,7 +144,24 @@ export default function AccountingPage() {
 
           {/* The ledger */}
           <div className={`rounded-xl border p-4 lg:col-span-2 ${card}`}>
-            <h2 className={`text-sm font-semibold mb-3 ${text}`}>Ledger</h2>
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <h2 className={`text-sm font-semibold ${text}`}>Ledger</h2>
+              <div className="flex items-center gap-1">
+                {([["cash", "Cash basis"], ["accrual", "Accrual"]] as const).map(([val, lbl]) => (
+                  <button key={val} onClick={() => setBasis(val)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      basis === val ? "bg-blue-500 text-white" : isDark ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className={`text-xs mb-3 ${sub}`}>
+              {basis === "cash"
+                ? "Only entries where money actually moved."
+                : "Every entry, including amounts owed that haven't been paid yet."}
+            </p>
             {loading ? (
               <p className={`text-sm ${sub}`}>Loading…</p>
             ) : entries.length === 0 ? (

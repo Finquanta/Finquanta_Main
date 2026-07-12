@@ -148,8 +148,23 @@ export class AccountingRepository {
     });
   }
 
-  /** Recent journal entries with their lines, newest first. */
-  async listEntries(businessId: string, limit = 100): Promise<JournalEntry[]> {
+  /**
+   * Recent journal entries with their lines, newest first.
+   *
+   * `basis` selects the accounting basis:
+   *  - 'cash'    — only entries where money actually moved (they touch the CASH
+   *                account). This is what the simple bookkeeping view reports.
+   *  - 'accrual' — every entry, including receivables/payables that moved no cash.
+   */
+  async listEntries(businessId: string, limit = 100, basis: 'cash' | 'accrual' = 'accrual'): Promise<JournalEntry[]> {
+    const cashOnly = basis === 'cash'
+      ? `AND EXISTS (
+           SELECT 1 FROM journal_lines cl
+           JOIN accounts ca ON ca.id = cl.account_id
+           WHERE cl.entry_id = e.id AND ca.code = 'CASH'
+         )`
+      : '';
+
     const result = await this.database.query(
       `SELECT e.id, e.date, e.description, e.source_type, e.source_id, e.created_at,
               a.code AS account_code, a.name AS account_name, a.type AS account_type,
@@ -157,7 +172,7 @@ export class AccountingRepository {
        FROM journal_entries e
        JOIN journal_lines l ON l.entry_id = e.id
        JOIN accounts a ON a.id = l.account_id
-       WHERE e.business_id = $1
+       WHERE e.business_id = $1 ${cashOnly}
        ORDER BY e.date DESC, e.created_at DESC, e.id
        LIMIT $2`,
       [businessId, limit * 4] // a few lines per entry
