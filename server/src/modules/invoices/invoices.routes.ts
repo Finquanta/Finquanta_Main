@@ -216,18 +216,44 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
     } catch (error) { return fail(reply, error, request); }
   }) as any);
 
-  /** Cancel — reverses the receivable if one was booked. */
+  /**
+   * Cancel (void) — reverses whatever this invoice actually posted, so the books
+   * end up exactly as if it had never existed.
+   *
+   *   Draft  → nothing was posted, so nothing to reverse.
+   *   Sent   → a receivable was raised (AR ↑, Revenue ↑), so reverse that:
+   *              Revenue ↓ (debit), Accounts Receivable ↓ (credit).
+   *   Paid   → a receivable was raised AND settled, so AR already nets to zero.
+   *            What's left on the books is Revenue ↑ and Cash ↑, so reverse THAT:
+   *              Revenue ↓ (debit), Business Cash ↓ (credit).
+   *
+   * Cancelling a paid invoice is allowed on purpose — otherwise a mistakenly
+   * paid invoice could never be undone or removed.
+   */
   fastify.post('/v1/invoices/:id/cancel', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const invoice = await repo.getById(request.businessId!, id);
       if (!invoice) return reply.status(404).send({ success: false, error: 'Invoice not found' });
-      if (invoice.status === 'paid') {
-        return reply.status(400).send({ success: false, error: 'A paid invoice cannot be cancelled.' });
+      if (invoice.status === 'cancelled') {
+        return reply.send({ success: true, data: invoice }); // already void — nothing to do
       }
 
-      if (invoice.arEntryId) {
-        // Reverse the receivable: Revenue ↓ (debit), Accounts Receivable ↓ (credit).
+      if (invoice.paymentEntryId) {
+        // Paid: the receivable already cancelled itself out. Undo revenue + cash.
+        await ledger.createEntry({
+          businessId: request.businessId!,
+          description: `Voided paid invoice ${invoice.number}`,
+          sourceType: 'invoice_cancelled',
+          sourceId: invoice.id,
+          createdBy: request.user!.id,
+          lines: [
+            { code: 'REVENUE', debit: invoice.total, credit: 0 },
+            { code: 'CASH', debit: 0, credit: invoice.total },
+          ],
+        });
+      } else if (invoice.arEntryId) {
+        // Sent but unpaid: undo the receivable.
         await ledger.createEntry({
           businessId: request.businessId!,
           description: `Cancelled invoice ${invoice.number}`,
@@ -240,6 +266,7 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
           ],
         });
       }
+
       await repo.setStatus(request.businessId!, id, 'cancelled');
       return reply.send({ success: true, data: await repo.getById(request.businessId!, id) });
     } catch (error) { return fail(reply, error, request); }

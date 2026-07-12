@@ -85,7 +85,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
   const canSend = invoice.status === "draft";
   const canPay = invoice.status !== "paid" && invoice.status !== "cancelled";
-  const canCancel = invoice.status !== "paid" && invoice.status !== "cancelled";
+  // A paid invoice CAN be cancelled (voided) — otherwise one paid by mistake
+  // could never be undone. Cancelling reverses whatever it actually posted.
+  const canCancel = invoice.status !== "cancelled";
 
   return (
     <DashboardShell><div className="p-4 sm:p-6">
@@ -133,9 +135,14 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           )}
           {canCancel && (
             <button
-              onClick={() => { if (window.confirm("Cancel this invoice? If it's already in your books, a reversing entry is recorded.")) act(() => cancelInvoice(invoice.id)); }}
+              onClick={() => {
+                const msg = invoice.status === "paid"
+                  ? "Void this paid invoice? The revenue and the cash it recorded will be reversed out of your books."
+                  : "Cancel this invoice? If it's already in your books, a reversing entry is recorded.";
+                if (window.confirm(msg)) act(() => cancelInvoice(invoice.id));
+              }}
               disabled={busy} className={`${btn} hover:!text-red-500`}>
-              <Ban className="h-4 w-4" /> Cancel
+              <Ban className="h-4 w-4" /> {invoice.status === "paid" ? "Void" : "Cancel"}
             </button>
           )}
         </div>
