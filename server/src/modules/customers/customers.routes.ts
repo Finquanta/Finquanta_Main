@@ -3,16 +3,24 @@ import { Database } from '../../infrastructure/database';
 import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
 import { CustomersRepository, CustomerInput } from './customers.repository';
+import { InvoicesRepository } from '../invoices/invoices.repository';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function customerRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new CustomersRepository(options.database);
+  const invoices = new InvoicesRepository(options.database);
   const pre = [authenticate, withBusiness(options.database)];
 
   fastify.get('/v1/customers', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      return reply.send({ success: true, data: await repo.list(request.businessId!) });
+      // Outstanding balance = the customer's unpaid (sent/viewed/overdue) invoices.
+      const [customers, owed] = await Promise.all([
+        repo.list(request.businessId!),
+        invoices.outstandingByCustomer(request.businessId!),
+      ]);
+      const data = customers.map((c) => ({ ...c, outstandingBalance: owed.get(c.id) ?? 0 }));
+      return reply.send({ success: true, data });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Internal server error' });

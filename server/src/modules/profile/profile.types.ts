@@ -37,6 +37,16 @@ export interface BusinessProfile {
   financialGoals?: string;
   country?: string;
   incorporationLocation?: string;
+  // Branding + contact details — these fill the invoice header.
+  logoUrl?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  businessEmail?: string;
+  businessPhone?: string;
+  website?: string;
   onboardingCompleted?: boolean;
 }
 

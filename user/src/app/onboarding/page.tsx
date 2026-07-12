@@ -43,6 +43,7 @@ const STEPS: Step[] = [
   { key: "niche", qKey: "qNiche", hintKey: "hintNiche", type: "text", placeholder: "e.g. vegan meal prep, real estate wholesaling" },
   { key: "entityType", qKey: "qEntity", type: "select", options: ENTITY_TYPES },
   { key: "country", qKey: "qCountry", type: "dropdown", options: COUNTRIES },
+  { key: "website", qKey: "qWebsite", hintKey: "hintWebsite", type: "text", placeholder: "e.g. www.yourbusiness.com" },
   { key: "incorporationLocation", qKey: "qIncorporation", hintKey: "hintIncorporation", type: "text", placeholder: "e.g. Delaware, USA" },
   { key: "maturityStage", qKey: "qMaturity", type: "select", options: MATURITY_STAGES },
   { key: "revenueRange", qKey: "qRevenue", type: "select", options: REVENUE_RANGES },

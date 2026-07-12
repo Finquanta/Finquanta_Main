@@ -87,6 +87,16 @@ export class ProfileRepository {
     // Add columns to pre-existing tables (CREATE TABLE IF NOT EXISTS won't).
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS country VARCHAR(120)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS incorporation_location VARCHAR(160)`);
+    // Branding + contact details — these fill the invoice header.
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(200)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(200)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS city VARCHAR(120)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS region VARCHAR(120)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS postal_code VARCHAR(40)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_email VARCHAR(320)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_phone VARCHAR(40)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255)`);
   }
 
   async getBusiness(userId: string): Promise<BusinessProfile> {
@@ -100,8 +110,10 @@ export class ProfileRepository {
         user_id, business_name, business_type, industry, niche, entity_type,
         maturity_stage, revenue_range, employee_count, financial_goals,
         country, incorporation_location,
+        logo_url, address_line1, address_line2, city, region, postal_code,
+        business_email, business_phone, website,
         onboarding_completed, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
       ON CONFLICT (user_id) DO UPDATE SET
         business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
         business_type = COALESCE(EXCLUDED.business_type, business_profiles.business_type),
@@ -114,6 +126,15 @@ export class ProfileRepository {
         financial_goals = COALESCE(EXCLUDED.financial_goals, business_profiles.financial_goals),
         country = COALESCE(EXCLUDED.country, business_profiles.country),
         incorporation_location = COALESCE(EXCLUDED.incorporation_location, business_profiles.incorporation_location),
+        logo_url = COALESCE(EXCLUDED.logo_url, business_profiles.logo_url),
+        address_line1 = COALESCE(EXCLUDED.address_line1, business_profiles.address_line1),
+        address_line2 = COALESCE(EXCLUDED.address_line2, business_profiles.address_line2),
+        city = COALESCE(EXCLUDED.city, business_profiles.city),
+        region = COALESCE(EXCLUDED.region, business_profiles.region),
+        postal_code = COALESCE(EXCLUDED.postal_code, business_profiles.postal_code),
+        business_email = COALESCE(EXCLUDED.business_email, business_profiles.business_email),
+        business_phone = COALESCE(EXCLUDED.business_phone, business_profiles.business_phone),
+        website = COALESCE(EXCLUDED.website, business_profiles.website),
         onboarding_completed = business_profiles.onboarding_completed OR EXCLUDED.onboarding_completed,
         updated_at = NOW()
       RETURNING *
@@ -131,6 +152,15 @@ export class ProfileRepository {
       data.financialGoals ?? null,
       data.country ?? null,
       data.incorporationLocation ?? null,
+      data.logoUrl ?? null,
+      data.addressLine1 ?? null,
+      data.addressLine2 ?? null,
+      data.city ?? null,
+      data.region ?? null,
+      data.postalCode ?? null,
+      data.businessEmail ?? null,
+      data.businessPhone ?? null,
+      data.website ?? null,
       data.onboardingCompleted ?? false
     ]);
     return this.mapBusiness(result.rows[0]);
@@ -149,6 +179,15 @@ export class ProfileRepository {
       financialGoals: row.financial_goals ?? undefined,
       country: row.country ?? undefined,
       incorporationLocation: row.incorporation_location ?? undefined,
+      logoUrl: row.logo_url ?? undefined,
+      addressLine1: row.address_line1 ?? undefined,
+      addressLine2: row.address_line2 ?? undefined,
+      city: row.city ?? undefined,
+      region: row.region ?? undefined,
+      postalCode: row.postal_code ?? undefined,
+      businessEmail: row.business_email ?? undefined,
+      businessPhone: row.business_phone ?? undefined,
+      website: row.website ?? undefined,
       onboardingCompleted: row.onboarding_completed ?? false
     };
   }
