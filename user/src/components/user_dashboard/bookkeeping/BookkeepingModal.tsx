@@ -192,7 +192,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
     }
   };
 
-  const nameLabel = basis === 'debt' && !isPaymentAction(debtAction) ? 'Loan name' : t('dashboard', 'invoiceNameLabel');
+  const nameLabel = basis === 'debt' && !isPaymentAction(debtAction) ? 'Loan Name' : t('dashboard', 'invoiceNameLabel');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -223,7 +223,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {/* DEBT — which loan is this payment against? */}
         {basis === 'debt' && isPaymentAction(debtAction) && (
           <>
-            <label className="block text-sm font-semibold mb-1">Which loan?</label>
+            <label className="block text-sm font-semibold mb-1">Which Loan?</label>
             {loans.length === 0 ? (
               <p className="text-xs text-gray-400 mb-4">
                 No {loanTypeFor(debtAction) === 'payable' ? 'borrowed' : 'lent-out'} loans yet — record one first.
@@ -260,7 +260,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         )}
 
         <label className="block text-sm font-semibold mb-1">
-          {basis === 'debt' && isPaymentAction(debtAction) ? 'Payment amount' : t('dashboard', 'invoiceAmountLabel')}
+          {basis === 'debt' && isPaymentAction(debtAction) ? 'Payment Amount' : t('dashboard', 'invoiceAmountLabel')}
         </label>
         <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder={t('dashboard', 'enterValue')} type="number"
           value={form.invoiceAmount} onChange={(e) => setForm({ ...form, invoiceAmount: e.target.value })} />
@@ -268,7 +268,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {/* Interest rate when creating a loan */}
         {basis === 'debt' && !isPaymentAction(debtAction) && (
           <>
-            <label className="block text-sm font-semibold mb-1">Annual interest rate (%)</label>
+            <label className="block text-sm font-semibold mb-1">Annual Interest Rate (%)</label>
             <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" type="number" step="0.01" min="0"
               placeholder="e.g. 7.5" value={annualRate} onChange={(e) => setAnnualRate(e.target.value)} />
           </>
@@ -294,7 +294,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {/* Live principal vs interest breakdown for a loan payment */}
         {basis === 'debt' && isPaymentAction(debtAction) && split && selectedLoan && (
           <div className="bg-[#2a2a3e] rounded-lg p-3 mb-4 text-xs">
-            <p className="font-semibold mb-2">This payment breaks down as:</p>
+            <p className="font-semibold mb-2">This Payment Breaks Down As:</p>
             <div className="flex justify-between mb-1">
               <span className="text-gray-300">Interest ({selectedLoan.annualRate}% ÷ 12 on {money(selectedLoan.remainingBalance)})</span>
               <span className="text-orange-400">{money(split.interest)}</span>
@@ -304,7 +304,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
               <span className="text-green-400">{money(split.principal)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-[#3a3a4e]">
-              <span className="text-gray-300">Balance after</span>
+              <span className="text-gray-300">Balance After</span>
               <span className="font-semibold">{money(split.balanceAfter)}</span>
             </div>
           </div>
