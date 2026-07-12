@@ -31,6 +31,8 @@ import { invoiceRoutes } from '../modules/invoices/invoices.routes';
 import { InvoicesRepository } from '../modules/invoices/invoices.repository';
 import { loanRoutes } from '../modules/loans/loans.routes';
 import { LoansRepository } from '../modules/loans/loans.repository';
+import { activityRoutes } from '../modules/activity/activity.routes';
+import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -237,6 +239,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure loans schema');
   }
   await fastify.register(loanRoutes, { database });
+
+  // Financial activity timeline — the complete history of what happened.
+  try {
+    await new ActivityRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure activity schema');
+  }
+  await fastify.register(activityRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the

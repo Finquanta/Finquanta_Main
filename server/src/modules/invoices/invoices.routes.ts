@@ -5,6 +5,7 @@ import { withBusiness } from '../shared/business-context';
 import { InvoicesRepository, InvoiceInput } from './invoices.repository';
 import { AccountingRepository } from '../accounting/accounting.repository';
 import { buildWorkflow } from '../accounting/accounting.engine';
+import { ActivityRepository } from '../activity/activity.repository';
 
 /**
  * Invoices, and the accounting that follows automatically (Section 5):
@@ -21,6 +22,7 @@ import { buildWorkflow } from '../accounting/accounting.engine';
 export async function invoiceRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new InvoicesRepository(options.database);
   const ledger = new AccountingRepository(options.database);
+  const activity = new ActivityRepository(options.database);
   const pre = [authenticate, withBusiness(options.database)];
 
   const fail = (reply: FastifyReply, error: unknown, request: AuthenticatedRequest) => {
@@ -48,6 +50,18 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
     try {
       const body = (request.body as InvoiceInput) || {};
       const created = await repo.create(request.businessId!, request.user!.id, body);
+
+      // A draft touches no ledger, so this event exists only on the timeline.
+      await activity.record(request.businessId!, {
+        type: 'invoice_created',
+        title: `Invoice ${created.number} created`,
+        description: created.customerName ? `For ${created.customerName}` : null,
+        amount: created.total,
+        entityType: 'invoice',
+        entityId: created.id,
+        actorId: request.user!.id,
+      });
+
       return reply.status(201).send({ success: true, data: created });
     } catch (error) { return fail(reply, error, request); }
   }) as any);
@@ -86,6 +100,14 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
         return reply.status(400).send({ success: false, error: 'This invoice is already in your books. Cancel it first, then delete it.' });
       }
       await repo.softDelete(request.businessId!, id);
+      await activity.record(request.businessId!, {
+        type: 'invoice_deleted',
+        title: `Invoice ${existing.number} moved to the recycle bin`,
+        amount: existing.total,
+        entityType: 'invoice',
+        entityId: existing.id,
+        actorId: request.user!.id,
+      });
       return reply.send({ success: true, data: { id } });
     } catch (error) { return fail(reply, error, request); }
   }) as any);
@@ -96,7 +118,16 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
       const { id } = request.params as { id: string };
       const ok = await repo.restore(request.businessId!, id);
       if (!ok) return reply.status(404).send({ success: false, error: 'Invoice not found' });
-      return reply.send({ success: true, data: await repo.getById(request.businessId!, id) });
+      const restored = await repo.getById(request.businessId!, id);
+      await activity.record(request.businessId!, {
+        type: 'invoice_restored',
+        title: `Invoice ${restored?.number ?? ''} restored from the recycle bin`,
+        amount: restored?.total ?? null,
+        entityType: 'invoice',
+        entityId: id,
+        actorId: request.user!.id,
+      });
+      return reply.send({ success: true, data: restored });
     } catch (error) { return fail(reply, error, request); }
   }) as any);
 
