@@ -6,6 +6,7 @@ import { AppProvider } from "@/hooks/context/SimpleAppProvider";
 import { LanguageProvider } from "@/hooks/context/LanguageContext";
 import { ThemeProvider } from "@/hooks/context/ThemeContext";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
+import MaintenanceBanner from "@/components/MaintenanceBanner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         <AppProvider enableDevMode={false}>
           <ThemeProvider>
             <LanguageProvider>
+              <MaintenanceBanner />
               {children}
               <GlobalLoadingIndicator />
             </LanguageProvider>
