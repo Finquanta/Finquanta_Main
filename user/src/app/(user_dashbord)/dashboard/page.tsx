@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
+import AddDataModal from '@/components/user_dashboard/dashboard/AddDataModal';
 import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile/tablet off-canvas drawer
   const [revMetric, setRevMetric] = useState<RevenueMetric>('revenue'); // revenue card: revenue/cashflow/expense
   const [revTotal, setRevTotal] = useState<number | null>(null);
+  const [addDataOpen, setAddDataOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardOverviewResponse | null>(null);
   const [clickCount, setClickCount] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -385,9 +387,6 @@ export default function DashboardPage() {
           <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
-          <Link href="/accounting" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Accounting
-          </Link>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -644,6 +643,22 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Quick actions — sit directly above the Balance / Cashflow / Expense cards */}
+          <div className="flex items-center justify-end gap-2 mb-3 flex-wrap">
+            <button
+              onClick={() => setAddDataOpen(true)}
+              className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+            >
+              <Plus className="h-4 w-4" /> Add data
+            </button>
+            <Link
+              href="/invoices/new"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+            >
+              <FileText className="h-4 w-4" /> Create invoice
+            </Link>
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
@@ -898,6 +913,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {addDataOpen && (
+        <AddDataModal
+          isDark={isDark}
+          onClose={() => setAddDataOpen(false)}
+          onSaved={refresh}
+        />
+      )}
       <BookkeepingModal
         isOpen={bookkeepingModalOpen}
         editing={bookkeepingEditing}
