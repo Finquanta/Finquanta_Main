@@ -1,4 +1,6 @@
+import { Database } from '../../infrastructure/database';
 import { BusinessProfile, CurrentUserResponse, UserProfile, UserSettingsPayload } from './profile.types';
+import { ensureGoalForPrimaryGoal } from './onboarding-goal';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
@@ -10,7 +12,11 @@ export interface ProfileRepositoryPort {
 }
 
 export class ProfileService {
-  constructor(private repository: ProfileRepositoryPort) {}
+  /**
+   * `database` is optional so existing tests can construct the service with a
+   * repository alone; without it, the auto-created goal is simply skipped.
+   */
+  constructor(private repository: ProfileRepositoryPort, private database?: Database) {}
 
   async getMe(userId: string): Promise<CurrentUserResponse> {
     return this.repository.getMe(userId);
@@ -33,7 +39,21 @@ export class ProfileService {
   }
 
   async updateBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile> {
-    return this.repository.upsertBusiness(userId, data);
+    const profile = await this.repository.upsertBusiness(userId, data);
+
+    // Section 9: their chosen primary goal becomes a real goal on the dashboard.
+    // Saving the profile is the thing that must succeed here — if the goal can't
+    // be created, the user still gets their profile saved and simply has no
+    // starter goal, which they can add by hand.
+    if (this.database) {
+      try {
+        await ensureGoalForPrimaryGoal(this.database, userId, profile);
+      } catch {
+        /* a missing starter goal is not worth failing onboarding over */
+      }
+    }
+
+    return profile;
   }
 
   async updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }> {

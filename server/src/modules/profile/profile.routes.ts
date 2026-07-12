@@ -11,7 +11,7 @@ const MAX_LOGO_BYTES = 1024 * 1024; // 1 MB
 
 export async function profileRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repository = new ProfileRepository(options.database);
-  const service = new ProfileService(repository);
+  const service = new ProfileService(repository, options.database);
   const controller = new ProfileController(service);
 
   fastify.get('/v1/me', { preHandler: [authenticate] }, controller.getMe.bind(controller) as any);

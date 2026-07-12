@@ -97,6 +97,9 @@ export class ProfileRepository {
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_email VARCHAR(320)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_phone VARCHAR(40)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255)`);
+    // Section 9 — signup questions that feed the Health Score and Finna.
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS has_debt VARCHAR(20)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS primary_goal VARCHAR(60)`);
   }
 
   async getBusiness(userId: string): Promise<BusinessProfile> {
@@ -112,8 +115,9 @@ export class ProfileRepository {
         country, incorporation_location,
         logo_url, address_line1, address_line2, city, region, postal_code,
         business_email, business_phone, website,
+        has_debt, primary_goal,
         onboarding_completed, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW(),NOW())
       ON CONFLICT (user_id) DO UPDATE SET
         business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
         business_type = COALESCE(EXCLUDED.business_type, business_profiles.business_type),
@@ -135,6 +139,8 @@ export class ProfileRepository {
         business_email = COALESCE(EXCLUDED.business_email, business_profiles.business_email),
         business_phone = COALESCE(EXCLUDED.business_phone, business_profiles.business_phone),
         website = COALESCE(EXCLUDED.website, business_profiles.website),
+        has_debt = COALESCE(EXCLUDED.has_debt, business_profiles.has_debt),
+        primary_goal = COALESCE(EXCLUDED.primary_goal, business_profiles.primary_goal),
         onboarding_completed = business_profiles.onboarding_completed OR EXCLUDED.onboarding_completed,
         updated_at = NOW()
       RETURNING *
@@ -161,6 +167,8 @@ export class ProfileRepository {
       data.businessEmail ?? null,
       data.businessPhone ?? null,
       data.website ?? null,
+      data.hasDebt ?? null,
+      data.primaryGoal ?? null,
       data.onboardingCompleted ?? false
     ]);
     return this.mapBusiness(result.rows[0]);
@@ -175,6 +183,8 @@ export class ProfileRepository {
       entityType: row.entity_type ?? undefined,
       maturityStage: row.maturity_stage ?? undefined,
       revenueRange: row.revenue_range ?? undefined,
+      hasDebt: row.has_debt ?? undefined,
+      primaryGoal: row.primary_goal ?? undefined,
       employeeCount: row.employee_count ?? undefined,
       financialGoals: row.financial_goals ?? undefined,
       country: row.country ?? undefined,

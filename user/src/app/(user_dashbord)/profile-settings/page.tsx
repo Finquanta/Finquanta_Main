@@ -15,6 +15,9 @@ const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation"
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
 const REVENUE_RANGES = ["Pre-revenue", "Under $10k", "$10k–$50k", "$50k–$250k", "$250k–$1M", "$1M–$5M", "$5M+"];
 const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "200+"];
+// Asked at signup; kept editable here. Must match the onboarding options.
+const DEBT_ANSWERS = ["Yes", "No", "Not sure"];
+const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "Get organized"];
 
 export default function ProfileSettingsPage() {
   const [activeSection, setActiveSection] = useState('profile-settings');
@@ -272,6 +275,20 @@ export default function ProfileSettingsPage() {
                   <select className={inputCls} value={biz.employeeCount ?? ''} onChange={(e) => setBizField('employeeCount', e.target.value)}>
                     <option value="">{t('settings', 'selectOption')}</option>
                     {EMPLOYEE_COUNTS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Loans Or Debt</label>
+                  <select className={inputCls} value={biz.hasDebt ?? ''} onChange={(e) => setBizField('hasDebt', e.target.value)}>
+                    <option value="">{t('settings', 'selectOption')}</option>
+                    {DEBT_ANSWERS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Primary Financial Goal</label>
+                  <select className={inputCls} value={biz.primaryGoal ?? ''} onChange={(e) => setBizField('primaryGoal', e.target.value)}>
+                    <option value="">{t('settings', 'selectOption')}</option>
+                    {PRIMARY_GOALS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-2">

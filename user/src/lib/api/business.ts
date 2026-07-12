@@ -12,6 +12,10 @@ export interface BusinessProfile {
   financialGoals?: string;
   country?: string;
   incorporationLocation?: string;
+  // Asked at signup; feeds the Financial Health Score and Finna's advice.
+  // hasDebt: 'Yes' | 'No' | 'Not sure'. primaryGoal creates a starter goal.
+  hasDebt?: string;
+  primaryGoal?: string;
   // Branding + contact details — these fill the invoice header.
   logoUrl?: string;
   addressLine1?: string;
