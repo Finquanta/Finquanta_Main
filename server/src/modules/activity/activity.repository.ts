@@ -163,6 +163,34 @@ export class ActivityRepository {
     return result.rowCount ?? 0;
   }
 
+  /**
+   * Drop events whose subject no longer exists.
+   *
+   * Deleting an invoice erases its journal entries outright (no reversing
+   * entry), so the events those entries produced — "invoice sent", "invoice
+   * paid" — would otherwise linger forever, showing money coming in from an
+   * invoice that is gone. Same for a bookkeeping entry the user removed.
+   *
+   * The timeline is still append-only in normal use: nothing is edited or
+   * back-dated, only events for deleted subjects are dropped, which is what
+   * "deleted completely" has to mean for a financial history.
+   */
+  async purgeOrphans(businessId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM financial_activity fa
+       WHERE fa.business_id = $1::uuid
+         AND (
+           (fa.entity_type = 'entry'
+             AND NOT EXISTS (SELECT 1 FROM journal_entries e WHERE e.id = fa.entity_id))
+           OR
+           (fa.entity_type = 'invoice'
+             AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.id = fa.entity_id))
+         )`,
+      [businessId]
+    );
+    return result.rowCount ?? 0;
+  }
+
   async list(businessId: string, limit = 100): Promise<Activity[]> {
     const result = await this.database.query(
       `SELECT id, type, title, description, amount, entity_type, entity_id, occurred_at, created_at

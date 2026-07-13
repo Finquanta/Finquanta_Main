@@ -94,7 +94,14 @@ const STEPS: Step[] = [
     anchor: "sidebar",
     title: "Your sidebar",
     body:
-      "Invoices for billing, Customers for who you bill, and Activity — a running history of every financial event: every entry, invoice and payment, in order. Settings is where you edit your business details and the answers that shape your score.",
+      "Invoices for billing, Customers for the people you bill, and Activity for your financial history. Settings is at the bottom — that's where you edit your business details and the answers that shape your health score.",
+  },
+  {
+    part: "Getting around",
+    anchor: "activity",
+    title: "Your activity timeline",
+    body:
+      "Every financial event in one place, newest first: entries you record, invoices sent and paid, loan payments. Filter it by Money In, Money Out, Invoices or Debt to answer \"what actually happened last month?\" without digging through your books.",
   },
   {
     part: "Bookkeeping",

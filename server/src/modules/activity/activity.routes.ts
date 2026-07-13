@@ -23,6 +23,10 @@ export async function activityRoutes(fastify: FastifyInstance, options: { databa
       const n = Math.min(Math.max(Number.parseInt(limit ?? '100', 10) || 100, 1), 500);
 
       await ledger.resyncBookkeeping(request.businessId!);
+      // Drop events for things that have since been deleted, THEN pick up what's
+      // new. Order matters: purging first stops a deleted invoice's "paid" event
+      // from sitting in the timeline as phantom money coming in.
+      await repo.purgeOrphans(request.businessId!);
       await repo.syncFromLedger(request.businessId!);
 
       return reply.send({ success: true, data: await repo.list(request.businessId!, n) });
