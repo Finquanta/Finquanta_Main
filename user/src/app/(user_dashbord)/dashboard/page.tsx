@@ -6,6 +6,7 @@ import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, 
 import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
+import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
 import { LedgerTransaction } from '@/lib/api/accounting';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
@@ -704,6 +705,11 @@ export default function DashboardPage() {
                 className={`text-xs rounded-lg px-2 py-1 border outline-none ${colors.input}`}
               />
             )}
+          </div>
+
+          {/* Financial Health Score — top of the dashboard (Section 11) */}
+          <div className="mb-4">
+            <HealthScoreCard isDark={isDark} refreshKey={bookkeepingRefresh} />
           </div>
 
           {/* Quick actions — sit directly above the Balance / Cashflow / Expense cards */}
