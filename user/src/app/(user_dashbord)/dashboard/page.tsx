@@ -469,14 +469,9 @@ export default function DashboardPage() {
           <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             Refer a Business
           </Link>
-          <a
-            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
-          >
-            Give Feedback
-          </a>
+          <Link href="/profile-settings" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Settings
+          </Link>
           {isAdmin && (
             <Link href="/admin-users" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
               {t('dashboard', 'adminPanel')}
@@ -484,24 +479,11 @@ export default function DashboardPage() {
           )}
         </nav>
 
+        {/* The legal documents used to sit loose down here. They now live under
+            Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs">
-          <Link href="/profile-settings" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'profileSettings')}
-          </Link>
-          <Link href="/terms" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'termsOfService')}
-          </Link>
-          <Link href="/privacy" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'privacyPolicy')}
-          </Link>
-          <Link href="/ai-risk-disclosure" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'aiRiskDisclosure')}
-          </Link>
-          <button onClick={handleLogout} className="text-left text-red-400 hover:text-red-500 hover:underline transition-colors">
-            {t('settings', 'logOut')}
-          </button>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          <p className={colors.subtext}>{t('dashboard', 'version')} 1.2.0</p>
+          <p className={colors.subtext}>{t('dashboard', 'version')} 1.3.0</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -511,6 +493,13 @@ export default function DashboardPage() {
             <MessageSquare className="h-3.5 w-3.5" />
             {t('dashboard', 'sendFeedback')}
           </a>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {t('settings', 'logOut')}
+          </button>
         </div>
       </div>
 

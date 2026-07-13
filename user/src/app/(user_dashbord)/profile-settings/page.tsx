@@ -83,7 +83,7 @@ export default function ProfileSettingsPage() {
     <div className={`flex h-full ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
       {/* Middle - Settings Menu */}
       <div className={`w-64 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'profileSettings')}</h2>
+        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Settings</h2>
         <div className="relative mb-4">
           <input
             type="text"
@@ -100,6 +100,7 @@ export default function ProfileSettingsPage() {
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
             { id: 'notifications', label: t('settings', 'notificationSettings') },
+            { id: 'legal', label: 'Legal' },
             { id: 'feedback', label: t('settings', 'giveFeedback') },
             { id: 'logout', label: t('settings', 'logOut') },
           ].filter((item) => item.label.toLowerCase().includes(menuSearch.trim().toLowerCase())).map((item) => (
@@ -482,6 +483,35 @@ export default function ProfileSettingsPage() {
           />
         )}
  
+        {/* Legal — the documents you agreed to at signup. They used to sit loose
+            at the bottom of the sidebar; they belong here. */}
+        {activeSection === 'legal' && (
+          <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Legal</h2>
+            <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              The terms you agreed to when you created your account.
+            </p>
+            <div className="flex flex-col">
+              {[
+                { href: '/terms', label: t('dashboard', 'termsOfService') },
+                { href: '/privacy', label: t('dashboard', 'privacyPolicy') },
+                { href: '/ai-risk-disclosure', label: t('dashboard', 'aiRiskDisclosure') },
+              ].map((doc, i, all) => (
+                <Link
+                  key={doc.href}
+                  href={doc.href}
+                  className={`flex items-center justify-between px-1 py-3 text-sm transition-colors ${
+                    i === all.length - 1 ? '' : `border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`
+                  } ${theme === 'dark' ? 'text-gray-200 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+                >
+                  {doc.label}
+                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>›</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Feedback */}
         {activeSection === 'feedback' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
