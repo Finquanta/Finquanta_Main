@@ -8,6 +8,7 @@ import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboar
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
 import TourGuide from '@/components/user_dashboard/tour/TourGuide';
+import ReferralIdChip from '@/components/user_dashboard/ReferralIdChip';
 import { LedgerTransaction } from '@/lib/api/accounting';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
@@ -455,6 +456,9 @@ export default function DashboardPage() {
           <Link href="/activity" data-tour="activity" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             Activity
           </Link>
+          <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Refer a Business
+          </Link>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -545,6 +549,9 @@ export default function DashboardPage() {
 
           {/* Right */}
           <div className="flex items-center gap-3">
+            {/* Finquanta ID — click to copy your referral link */}
+            <ReferralIdChip isDark={isDark} />
+
             {/* Notification Bell */}
             <div className="relative" ref={notifRef}>
               <button

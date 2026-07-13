@@ -33,6 +33,8 @@ import { loanRoutes } from '../modules/loans/loans.routes';
 import { LoansRepository } from '../modules/loans/loans.repository';
 import { activityRoutes } from '../modules/activity/activity.routes';
 import { healthRoutes } from '../modules/health/health.routes';
+import { referralsRoutes } from '../modules/referrals/referrals.routes';
+import { ReferralsRepository } from '../modules/referrals/referrals.repository';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
@@ -251,6 +253,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Financial Health Score — reads the ledger, no schema of its own.
   await fastify.register(healthRoutes, { database });
+
+  // Referral program (Section 13).
+  try {
+    await new ReferralsRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure referrals schema');
+  }
+  await fastify.register(referralsRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the

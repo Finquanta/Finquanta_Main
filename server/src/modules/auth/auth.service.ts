@@ -5,6 +5,7 @@ import { UserRole } from '../users/types';
 import { JWTManager, JWTPayload } from './jwt';
 import { PasswordManager } from './password';
 import { sendEmail } from '../../infrastructure/email';
+import { ReferralsRepository } from '../referrals/referrals.repository';
 
 export interface RegisterData {
   email: string;
@@ -15,6 +16,8 @@ export interface RegisterData {
   acceptedTerms?: boolean;
   acceptedPrivacy?: boolean;
   acceptedRisk?: boolean;
+  /** Whoever's link they arrived on. Optional, and never blocks signup. */
+  referralCode?: string;
 }
 
 const MIN_AGE_YEARS = 16;
@@ -108,6 +111,16 @@ export class AuthService {
       await this.sendVerificationEmail(user.id, user.email);
     } catch (error) {
       console.error('VERIFICATION EMAIL ERROR:', error instanceof Error ? error.message : String(error));
+    }
+
+    // Credit whoever referred them (Section 13). Also non-fatal: a bad or stale
+    // referral code must never stop someone creating an account.
+    try {
+      const referrals = new ReferralsRepository(this.database);
+      await referrals.ensureSchema();
+      await referrals.attribute(userData.referralCode, user.id);
+    } catch (error) {
+      console.error('REFERRAL ATTRIBUTION ERROR:', error instanceof Error ? error.message : String(error));
     }
 
     // Generate tokens
