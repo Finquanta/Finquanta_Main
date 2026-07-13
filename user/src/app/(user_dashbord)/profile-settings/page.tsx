@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { restartTour } from '@/components/user_dashboard/tour/TourGuide';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
@@ -385,6 +386,22 @@ export default function ProfileSettingsPage() {
             </div>
           );
         })()}
+
+        {/* Product tour — the spec requires it be restartable from settings */}
+        {activeSection === 'business-profile' && (
+          <div className={`p-6 rounded-lg max-w-2xl mt-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Product Tour</h2>
+            <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              A five-step walkthrough of the dashboard, bookkeeping, invoices and Finna. Takes about a minute.
+            </p>
+            <button
+              onClick={() => { restartTour(); router.push('/dashboard'); }}
+              className={`inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+            >
+              Restart Tour
+            </button>
+          </div>
+        )}
 
         {/* Language Settings */}
         {activeSection === 'languages' && (

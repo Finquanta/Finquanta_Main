@@ -331,6 +331,7 @@ export default function ChatbotWidget() {
       {/* Dashboard-only trigger */}
       {isDashboard && (
         <button
+          data-tour="finna"
           onClick={() => setOpen(!open)}
           style={{
             position: "fixed",

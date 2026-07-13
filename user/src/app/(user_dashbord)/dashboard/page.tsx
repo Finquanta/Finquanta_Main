@@ -7,6 +7,7 @@ import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
+import TourGuide from '@/components/user_dashboard/tour/TourGuide';
 import { LedgerTransaction } from '@/lib/api/accounting';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
@@ -708,12 +709,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Financial Health Score — top of the dashboard (Section 11) */}
-          <div className="mb-4">
+          <div className="mb-4" data-tour="health">
             <HealthScoreCard isDark={isDark} refreshKey={bookkeepingRefresh} />
           </div>
 
           {/* Quick actions — sit directly above the Balance / Cashflow / Expense cards */}
-          <div className="flex items-center justify-end gap-2 mb-3 flex-wrap">
+          <div className="flex items-center justify-end gap-2 mb-3 flex-wrap" data-tour="actions">
             <button
               onClick={() => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); }}
               className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
@@ -722,6 +723,7 @@ export default function DashboardPage() {
             </button>
             <Link
               href="/invoices/new"
+              data-tour="invoices"
               className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               <FileText className="h-4 w-4" /> Create invoice
@@ -729,7 +731,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" data-tour="summary">
             {[
               { label: t('dashboard', 'balance'), value: '$0.00' },
               { label: t('dashboard', 'cashflow'), value: '$0.00' },
@@ -773,16 +775,18 @@ export default function DashboardPage() {
             {/* One list, everything in it: your entries plus invoices and loans.
                 Cash Basis / Accrual switches what counts; "Accountant view"
                 reveals the double-entry behind each row. */}
-            <BookkeepingCard
-              isDark={isDark}
-              refreshKey={bookkeepingRefresh}
-              colors={colors}
-              t={t}
-              onEdit={editLedgerRow}
-              onDelete={deleteLedgerRow}
-              onDeleteInvoice={deleteInvoiceRow}
-              onViewReceipt={viewReceipt}
-            />
+            <div data-tour="bookkeeping">
+              <BookkeepingCard
+                isDark={isDark}
+                refreshKey={bookkeepingRefresh}
+                colors={colors}
+                t={t}
+                onEdit={editLedgerRow}
+                onDelete={deleteLedgerRow}
+                onDeleteInvoice={deleteInvoiceRow}
+                onViewReceipt={viewReceipt}
+              />
+            </div>
 
             {/* Recently deleted */}
             {recentlyDeleted.length > 0 && (
@@ -821,7 +825,7 @@ export default function DashboardPage() {
           {/* Bottom Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Total Revenue / Cashflow / Expense */}
-            <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
+            <div className={`${colors.card} rounded-xl p-4 shadow-sm`} data-tour="chart">
               <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                 <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {revMetric === 'revenue' ? t('dashboard', 'totalRevenue') : revMetric === 'cashflow' ? 'Total Cashflow' : 'Total Expense'}
@@ -847,7 +851,7 @@ export default function DashboardPage() {
               <RevenueChart isDark={isDark} metric={revMetric} onTotal={setRevTotal} />
             </div>
 
-            <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
+            <div className={`${colors.card} rounded-xl p-4 shadow-sm`} data-tour="goals">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-1 text-sm font-semibold">
                   <button
@@ -1011,6 +1015,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* 5-step tour — runs itself for a new user, restartable from Settings */}
+      <TourGuide isDark={isDark} />
     </div>
   );
 }

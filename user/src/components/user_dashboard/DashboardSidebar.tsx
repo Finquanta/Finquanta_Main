@@ -68,7 +68,7 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2" data-tour="sidebar">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className={linkClass(n.href)} onClick={onClose}>
               {n.labelKey ? t("dashboard", n.labelKey) : n.label}
