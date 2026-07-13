@@ -19,6 +19,7 @@ export type AccountCode =
   | 'REVENUE'
   | 'EXPENSE'
   | 'INTEREST_EXPENSE'
+  | 'INTEREST_INCOME'
   | 'EQUITY';
 
 export interface AccountDef {
@@ -36,6 +37,7 @@ export const CHART_OF_ACCOUNTS: AccountDef[] = [
   { code: 'LOAN_PAYABLE', name: 'Loan Payable', type: 'liability' },
   { code: 'EQUITY', name: "Owner's Equity", type: 'equity' },
   { code: 'REVENUE', name: 'Revenue', type: 'revenue' },
+  { code: 'INTEREST_INCOME', name: 'Interest Income', type: 'revenue' },
   { code: 'EXPENSE', name: 'Expenses', type: 'expense' },
   { code: 'INTEREST_EXPENSE', name: 'Interest Expense', type: 'expense' },
 ];

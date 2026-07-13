@@ -112,29 +112,71 @@ export const WORKFLOWS: Record<WorkflowType, Builder> = {
  */
 export interface WorkflowMeta {
   label: string;
+  /** Plain-English explanation of what the entry actually does. */
+  description: string;
   module: 'bookkeeping' | 'accounting';
   basis: 'cash' | 'accrual';
+  /** Grouping in the UI. Loans live under "Debt". */
+  group: 'cash' | 'accrual' | 'debt';
   affectsCash: boolean;
 }
 
 export const WORKFLOW_META: Record<WorkflowType, WorkflowMeta> = {
   // Cash basis — the simple bookkeeping module.
-  cash_revenue:       { label: 'Money received (cash flow)', module: 'bookkeeping', basis: 'cash',    affectsCash: true },
-  cash_expense:       { label: 'Money paid out (expense)',   module: 'bookkeeping', basis: 'cash',    affectsCash: true },
+  cash_revenue: {
+    label: 'Money received (cash flow)',
+    description: 'Cash comes in and revenue increases.',
+    module: 'bookkeeping', basis: 'cash', group: 'cash', affectsCash: true,
+  },
+  cash_expense: {
+    label: 'Money paid out (expense)',
+    description: 'Cash goes out and expenses increase.',
+    module: 'bookkeeping', basis: 'cash', group: 'cash', affectsCash: true,
+  },
 
-  // Accrual basis — the accounting module.
-  credit_revenue:     { label: 'Revenue billed (paid later)', module: 'accounting', basis: 'accrual', affectsCash: false },
-  credit_expense:     { label: 'Expense billed (pay later)',  module: 'accounting', basis: 'accrual', affectsCash: false },
-  receive_ar_payment: { label: 'Customer paid me',            module: 'accounting', basis: 'accrual', affectsCash: true },
-  pay_ap:             { label: 'I paid a bill',               module: 'accounting', basis: 'accrual', affectsCash: true },
-  loan_received:      { label: 'Loan received',               module: 'accounting', basis: 'accrual', affectsCash: true },
-  loan_payment:       { label: 'Loan payment made',           module: 'accounting', basis: 'accrual', affectsCash: true },
+  // Accrual basis — money owed to you / money you owe.
+  credit_revenue: {
+    label: 'Accounts Receivable',
+    description: 'Customer pays on credit and revenue increases. Once the customer pays, business cash increases and Accounts Receivable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: false,
+  },
+  credit_expense: {
+    label: 'Accounts Payable',
+    description: 'Business buys on credit and expenses increase. Once the business pays the bill, cash decreases and Accounts Payable decreases.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: false,
+  },
+  receive_ar_payment: {
+    label: 'Increase Revenue (Increase Business Cash)',
+    description: 'Your customer paid what they owed. Business Cash increases and Accounts Receivable decreases by the same amount.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
+  },
+  pay_ap: {
+    label: 'Increase Expense (Decrease Business Cash)',
+    description: 'You paid a bill you owed. Business Cash decreases and Accounts Payable decreases by the same amount.',
+    module: 'accounting', basis: 'accrual', group: 'accrual', affectsCash: true,
+  },
+
+  // Debt. These are recorded through the Loans module so each payment can split
+  // principal vs interest off the loan's rate and remaining balance.
+  loan_received: {
+    label: 'Loan Payable Increase (Business Cash Increase)',
+    description: 'You borrowed money. The loan you owe goes up, and your business cash goes up by the same amount.',
+    module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
+  },
+  loan_payment: {
+    label: 'Loan Payable Decrease (Business Cash Decrease)',
+    description: 'You made a payment on a loan you owe. Cash goes down by the full payment; the loan balance drops by the principal portion, and the interest portion is recorded as Interest Expense.',
+    module: 'accounting', basis: 'accrual', group: 'debt', affectsCash: true,
+  },
 };
 
 export const WORKFLOW_TYPES = Object.keys(WORKFLOWS) as WorkflowType[];
 
 export const workflowsFor = (module: 'bookkeeping' | 'accounting'): WorkflowType[] =>
   WORKFLOW_TYPES.filter((t) => WORKFLOW_META[t].module === module);
+
+export const workflowsInGroup = (group: 'cash' | 'accrual' | 'debt'): WorkflowType[] =>
+  WORKFLOW_TYPES.filter((t) => WORKFLOW_META[t].group === group);
 
 export const isWorkflowType = (v: unknown): v is WorkflowType =>
   typeof v === 'string' && (WORKFLOW_TYPES as string[]).includes(v);

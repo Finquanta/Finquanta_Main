@@ -8,6 +8,11 @@ const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation"
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
 const REVENUE_RANGES = ["Pre-revenue", "Under $10k", "$10k–$50k", "$50k–$250k", "$250k–$1M", "$1M–$5M", "$5M+"];
 const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "200+"];
+// Section 9 — these two feed the Financial Health Score and Finna's advice.
+// PRIMARY_GOALS must stay in step with the server's PRIMARY_GOALS, which maps
+// each choice to a starter goal on the dashboard.
+const DEBT_ANSWERS = ["Yes", "No", "Not sure"];
+const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "Get organized"];
 const COUNTRIES = [
   "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan",
   "Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi",
@@ -43,10 +48,13 @@ const STEPS: Step[] = [
   { key: "niche", qKey: "qNiche", hintKey: "hintNiche", type: "text", placeholder: "e.g. vegan meal prep, real estate wholesaling" },
   { key: "entityType", qKey: "qEntity", type: "select", options: ENTITY_TYPES },
   { key: "country", qKey: "qCountry", type: "dropdown", options: COUNTRIES },
+  { key: "website", qKey: "qWebsite", hintKey: "hintWebsite", type: "text", placeholder: "e.g. www.yourbusiness.com" },
   { key: "incorporationLocation", qKey: "qIncorporation", hintKey: "hintIncorporation", type: "text", placeholder: "e.g. Delaware, USA" },
   { key: "maturityStage", qKey: "qMaturity", type: "select", options: MATURITY_STAGES },
-  { key: "revenueRange", qKey: "qRevenue", type: "select", options: REVENUE_RANGES },
+  { key: "revenueRange", qKey: "qRevenue", hintKey: "hintRevenue", type: "select", options: REVENUE_RANGES },
   { key: "employeeCount", qKey: "qEmployees", type: "select", options: EMPLOYEE_COUNTS },
+  { key: "hasDebt", qKey: "qDebt", hintKey: "hintDebt", type: "select", options: DEBT_ANSWERS },
+  { key: "primaryGoal", qKey: "qPrimaryGoal", hintKey: "hintPrimaryGoal", type: "select", options: PRIMARY_GOALS },
   { key: "financialGoals", qKey: "qGoals", hintKey: "hintGoals", type: "textarea", placeholder: "e.g. Reach $20k/month, cut expenses 15%, build a 6-month runway" },
 ];
 

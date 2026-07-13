@@ -3,9 +3,20 @@ import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
+/** A write Finna has drafted. Mirrors PendingAction in lib/finna/tools.ts. */
+interface PendingAction {
+  type: "create_invoice" | "add_entry";
+  summary: string;
+  payload: Record<string, unknown>;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  /** Set when Finna drafted a write. Nothing happens until the user confirms. */
+  pendingAction?: PendingAction;
+  /** Once acted on, the card collapses to its outcome. */
+  actionState?: "confirmed" | "cancelled";
 }
 
 const LANDING_QA: Record<string, string> = {
@@ -17,29 +28,28 @@ const LANDING_QA: Record<string, string> = {
 };
 
 const LANDING_QUICK = Object.keys(LANDING_QA);
-const DASHBOARD_QUICK = ["Budget Planner", "Track Expenses", "Investment Tips", "Savings Goals"];
-
-const DASHBOARD_RESPONSES: Record<string, string> = {
-  "Budget Planner": "I can help you build a budget! Tell me your monthly income and I'll help you allocate it across expenses, savings, and investments.",
-  "Track Expenses": "Expense tracking is key to financial health. I can help you categorize and monitor your spending. What categories would you like to track?",
-  "Investment Tips": "Here are 3 starter tips:\n\n1. Diversify your portfolio\n2. Invest consistently each month\n3. Focus on long-term growth over short-term gains.",
-  "Savings Goals": "Let's set up your savings goals! Whether it's an emergency fund, a home, or retirement — I'll help you create a realistic plan.",
-};
+// Finna can answer these from the user's real books now, so the prompts point at
+// their actual data rather than generic personal-finance advice.
+const DASHBOARD_QUICK = [
+  "What were my expenses this month?",
+  "Who owes me money?",
+  "How is my business doing?",
+  "What was my biggest expense?",
+];
 
 const getFallbackReply = (text: string, isDashboard: boolean) => {
   const lower = text.toLowerCase();
-  if (!isDashboard) {
-    if (lower.includes("finquanta")) return LANDING_QA["What is Finquanta?"];
-    if (lower.includes("ai") || lower.includes("how")) return LANDING_QA["How does Finquanta use AI?"];
-    if (lower.includes("who") || lower.includes("for")) return LANDING_QA["Who is Finquanta built for?"];
-    if (lower.includes("problem") || lower.includes("solve")) return LANDING_QA["What problem does Finquanta solve?"];
-    return "Finquanta is an AI-powered platform that automates bookkeeping and financial operations for businesses. Would you like to know more?";
+  // On the dashboard Finna answers from the user's real books. If the request
+  // failed we couldn't read them — so say that, rather than falling back to
+  // generic advice that sounds like it might be about their business.
+  if (isDashboard) {
+    return "I can't reach your books right now, so I'd rather not guess. Please try again in a moment.";
   }
-  if (lower.includes("budget")) return "Budgeting is the foundation of financial success. The 50/30/20 rule is a great place to start — 50% needs, 30% wants, 20% savings.";
-  if (lower.includes("invest")) return "Investing early is one of the best financial decisions you can make. Even small amounts compound significantly over time.";
-  if (lower.includes("save") || lower.includes("saving")) return "A good goal is to save at least 3–6 months of expenses as an emergency fund before investing.";
-  if (lower.includes("expense")) return "Tracking your expenses monthly helps you spot patterns and cut unnecessary spending. Would you like tips on specific categories?";
-  return "I'm here to help with your finances! Ask me about budgeting, savings, expenses, or investments.";
+  if (lower.includes("finquanta")) return LANDING_QA["What is Finquanta?"];
+  if (lower.includes("ai") || lower.includes("how")) return LANDING_QA["How does Finquanta use AI?"];
+  if (lower.includes("who") || lower.includes("for")) return LANDING_QA["Who is Finquanta built for?"];
+  if (lower.includes("problem") || lower.includes("solve")) return LANDING_QA["What problem does Finquanta solve?"];
+  return "Finquanta is an AI-powered platform that automates bookkeeping and financial operations for businesses. Would you like to know more?";
 };
 
 export default function ChatbotWidget() {
@@ -83,6 +93,44 @@ export default function ChatbotWidget() {
 
   const quickActions = isDashboard ? DASHBOARD_QUICK : LANDING_QUICK;
 
+  /** The signed-in user's credentials, so Finna reads only their own books. */
+  const creds = () => ({
+    token: typeof window !== "undefined" ? localStorage.getItem("accessToken") : null,
+    businessId: typeof window !== "undefined" ? localStorage.getItem("activeBusinessId") : null,
+  });
+
+  /**
+   * The user approved a draft. This is the only path where a chat message can
+   * change the books — Finna never writes on its own.
+   */
+  const confirmAction = async (index: number) => {
+    const action = messages[index]?.pendingAction;
+    if (!action) return;
+
+    setMessages((ms) => ms.map((m, i) => (i === index ? { ...m, actionState: "confirmed" } : m)));
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...creds() }),
+      });
+      const data = await res.json();
+      setMessages((ms) => [...ms, { role: "assistant", content: data.content }]);
+      if (data.dataChanged && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("finna:dataChanged"));
+      }
+    } catch {
+      setMessages((ms) => [...ms, { role: "assistant", content: "That didn't go through. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelAction = (index: number) => {
+    setMessages((ms) => ms.map((m, i) => (i === index ? { ...m, actionState: "cancelled" } : m)));
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     const newMessages: Message[] = [...messages, { role: "user", content: text }];
@@ -90,19 +138,23 @@ export default function ChatbotWidget() {
     setInput("");
     setLoading(true);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages,
+          // Only the text goes to the model — never the local action state.
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           isDashboard,
-          token,
+          ...creds(),
           language
         }),
       });
       const data = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: data.content }]);
+      setMessages([...newMessages, {
+        role: "assistant",
+        content: data.content,
+        pendingAction: data.pendingAction,
+      }]);
       // Finna created/changed data — let the dashboard refresh itself.
       if (data.dataChanged && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("finna:dataChanged"));
@@ -189,18 +241,62 @@ export default function ChatbotWidget() {
                   Hello! How can I help you today?
                 </div>
                 {messages.map((m, i) => (
-                  <div key={i} style={{
-                    alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                    background: m.role === "user" ? "#22c55e" : "#1a1a1a",
-                    border: m.role === "user" ? "none" : "0.5px solid #222",
-                    color: m.role === "user" ? "#fff" : "#ccc",
-                    borderRadius: 12,
-                    borderBottomRightRadius: m.role === "user" ? 4 : 12,
-                    borderBottomLeftRadius: m.role === "assistant" ? 4 : 12,
-                    padding: "9px 12px", fontSize: 12, maxWidth: "85%",
-                    lineHeight: 1.5, whiteSpace: "pre-wrap",
-                  }}>
-                    {m.content}
+                  <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+                    <div style={{
+                      background: m.role === "user" ? "#22c55e" : "#1a1a1a",
+                      border: m.role === "user" ? "none" : "0.5px solid #222",
+                      color: m.role === "user" ? "#fff" : "#ccc",
+                      borderRadius: 12,
+                      borderBottomRightRadius: m.role === "user" ? 4 : 12,
+                      borderBottomLeftRadius: m.role === "assistant" ? 4 : 12,
+                      padding: "9px 12px", fontSize: 12,
+                      lineHeight: 1.5, whiteSpace: "pre-wrap",
+                    }}>
+                      {m.content}
+                    </div>
+
+                    {/* Finna drafted a write. Nothing is recorded until this is confirmed. */}
+                    {m.pendingAction && (
+                      <div style={{
+                        marginTop: 6, background: "#0f0f0f", border: "0.5px solid #2a2a2a",
+                        borderRadius: 10, padding: "10px 12px",
+                      }}>
+                        <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
+                          {m.pendingAction.type === "create_invoice" ? "New invoice" : "New bookkeeping entry"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>
+                          {m.pendingAction.summary}
+                        </div>
+
+                        {m.actionState === "confirmed" ? (
+                          <div style={{ fontSize: 11, color: "#22c55e", marginTop: 8 }}>✓ Confirmed</div>
+                        ) : m.actionState === "cancelled" ? (
+                          <div style={{ fontSize: 11, color: "#666", marginTop: 8 }}>Cancelled — nothing was saved.</div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                            <button
+                              onClick={() => confirmAction(i)}
+                              disabled={loading}
+                              style={{
+                                background: "#22c55e", color: "#fff", border: "none", borderRadius: 6,
+                                padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                              }}
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => cancelAction(i)}
+                              style={{
+                                background: "transparent", color: "#888", border: "0.5px solid #333",
+                                borderRadius: 6, padding: "5px 12px", fontSize: 11, cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {loading && (
@@ -235,6 +331,7 @@ export default function ChatbotWidget() {
       {/* Dashboard-only trigger */}
       {isDashboard && (
         <button
+          data-tour="finna"
           onClick={() => setOpen(!open)}
           style={{
             position: "fixed",

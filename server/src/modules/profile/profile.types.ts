@@ -37,6 +37,20 @@ export interface BusinessProfile {
   financialGoals?: string;
   country?: string;
   incorporationLocation?: string;
+  // Section 9 — asked at signup, used by the Health Score and Finna for context.
+  // hasDebt: 'Yes' | 'No' | 'Not sure'. primaryGoal: one of PRIMARY_GOALS.
+  hasDebt?: string;
+  primaryGoal?: string;
+  // Branding + contact details — these fill the invoice header.
+  logoUrl?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  businessEmail?: string;
+  businessPhone?: string;
+  website?: string;
   onboardingCompleted?: boolean;
 }
 

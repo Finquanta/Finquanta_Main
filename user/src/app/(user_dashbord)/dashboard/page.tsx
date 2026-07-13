@@ -2,9 +2,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
 import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
+import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
+import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
+import TourGuide from '@/components/user_dashboard/tour/TourGuide';
+import ReferralIdChip from '@/components/user_dashboard/ReferralIdChip';
+import { InboxItem, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/api/notifications';
+import { LedgerTransaction } from '@/lib/api/accounting';
+import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
@@ -39,10 +46,6 @@ const LANGUAGES = [
   { code: 'ru', label: 'Русский' },
 ];
 
-const NOTIFICATION_DEFS = [
-  { id: 1, titleKey: 'welcomeTitle', bodyKey: 'welcomeBody', timestamp: Date.now(), read: false },
-  { id: 3, titleKey: 'betaTitle', bodyKey: 'betaBody', timestamp: Date.now(), read: true },
-];
 
 export default function DashboardPage() {
   const { language, setLanguage, t } = useLanguage();
@@ -51,6 +54,7 @@ export default function DashboardPage() {
 
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
   const [bookkeepingEditing, setBookkeepingEditing] = useState<BookkeepingEditing | null>(null);
+  const [bookkeepingRefresh, setBookkeepingRefresh] = useState(0);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
@@ -62,8 +66,13 @@ export default function DashboardPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATION_DEFS);
+  // Real notifications, pushed from the admin panel.
+  const [notifications, setNotifications] = useState<InboxItem[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getNotifications().then(setNotifications).catch(() => setNotifications([]));
+  }, []);
 
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [verifyResent, setVerifyResent] = useState(false);
@@ -206,6 +215,61 @@ export default function DashboardPage() {
   const dismissGoalPrompt = () => {
     localStorage.setItem(GOAL_PROMPT_DISMISSED_KEY, String(Date.now()));
     setGoalPromptOpen(false);
+  };
+
+  /**
+   * The Bookkeeping list is ledger-backed, so a row can come from an invoice or
+   * a loan. Only rows you typed yourself carry a `transactionId` — those are the
+   * ones we can edit or delete here. Anything else must be changed at its source
+   * (the invoice, the loan), or the books would disagree with the document.
+   */
+  const editLedgerRow = (tx: LedgerTransaction) => {
+    if (!tx.transactionId) return;
+    setBookkeepingEditing({
+      id: tx.transactionId,
+      invoiceName: tx.category ?? tx.description,
+      invoiceDescription: '',
+      invoiceAmount: String(Math.abs(tx.signedAmount)),
+      invoiceType: tx.direction === 'in' ? 'Cashflow' : 'Expense',
+      dateOfInvoice: tx.date ?? '',
+      recurrence: (tx.recurrence as Recurrence) ?? 'once',
+      hasReceipt: tx.hasReceipt,
+    });
+    setBookkeepingModalOpen(true);
+  };
+
+  const deleteLedgerRow = async (tx: LedgerTransaction) => {
+    if (!tx.transactionId) return;
+    if (!window.confirm(`Delete “${tx.category ?? tx.description}”?`)) return;
+    try {
+      await deleteTransaction(tx.transactionId);
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete that entry.');
+    }
+  };
+
+  /**
+   * Deleting an invoice row from Bookkeeping. The backend erases the invoice's
+   * journal entries outright — no reversing entry — so it disappears from the
+   * books completely. The document goes to the recycle bin, and restoring it
+   * puts the same entries back.
+   */
+  const deleteInvoiceRow = async (tx: LedgerTransaction) => {
+    if (!tx.sourceId) return;
+    const ok = window.confirm(
+      'This removes the invoice from your books completely, as if it had never been raised.\n\n' +
+      'It goes to Invoices → Recycle Bin, where you can restore it. Continue?'
+    );
+    if (!ok) return;
+    try {
+      await deleteInvoice(tx.sourceId);
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete that invoice.');
+    }
   };
 
   const openNewBookkeeping = () => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); };
@@ -353,12 +417,20 @@ export default function DashboardPage() {
     buttonBg: isDark ? 'bg-gray-700 text-white border-gray-600' : 'bg-gray-100 text-gray-900 border-gray-300',
   };
 
+  /**
+   * Read state lives on the server, so it follows the user across devices.
+   * The UI updates immediately and the request goes out behind it — a failed
+   * mark-as-read isn't worth blocking on or shouting about.
+   */
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    markAllNotificationsRead().catch(() => {});
   };
 
-  const dismissNotification = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  /** Clicking a notification marks it read. It stays in the inbox. */
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
+    markNotificationRead(id).catch(() => {});
   };
 
   const handleLogout = () => {
@@ -381,21 +453,25 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2" data-tour="sidebar">
           <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
-          <Link href="/accounting" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Accounting
+          <Link href="/invoices" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Invoices
           </Link>
-          <a
-            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
-          >
-            Give Feedback
-          </a>
+          <Link href="/customers" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Customers
+          </Link>
+          <Link href="/activity" data-tour="activity" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Activity
+          </Link>
+          <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Refer a Business
+          </Link>
+          <Link href="/profile-settings" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Settings
+          </Link>
           {isAdmin && (
             <Link href="/admin-users" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
               {t('dashboard', 'adminPanel')}
@@ -403,24 +479,11 @@ export default function DashboardPage() {
           )}
         </nav>
 
+        {/* The legal documents used to sit loose down here. They now live under
+            Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs">
-          <Link href="/profile-settings" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'profileSettings')}
-          </Link>
-          <Link href="/terms" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'termsOfService')}
-          </Link>
-          <Link href="/privacy" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'privacyPolicy')}
-          </Link>
-          <Link href="/ai-risk-disclosure" className={`hover:underline ${colors.text}`}>
-            {t('dashboard', 'aiRiskDisclosure')}
-          </Link>
-          <button onClick={handleLogout} className="text-left text-red-400 hover:text-red-500 hover:underline transition-colors">
-            {t('settings', 'logOut')}
-          </button>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          <p className={colors.subtext}>{t('dashboard', 'version')} 1.2.0</p>
+          <p className={colors.subtext}>{t('dashboard', 'version')} 1.3.0</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -430,6 +493,13 @@ export default function DashboardPage() {
             <MessageSquare className="h-3.5 w-3.5" />
             {t('dashboard', 'sendFeedback')}
           </a>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {t('settings', 'logOut')}
+          </button>
         </div>
       </div>
 
@@ -478,6 +548,9 @@ export default function DashboardPage() {
 
           {/* Right */}
           <div className="flex items-center gap-3">
+            {/* Finquanta ID — click to copy your referral link */}
+            <ReferralIdChip isDark={isDark} />
+
             {/* Notification Bell */}
             <div className="relative" ref={notifRef}>
               <button
@@ -529,28 +602,23 @@ export default function DashboardPage() {
                       notifications.map(n => (
                         <div
                           key={n.id}
-                          className={`flex items-start gap-3 px-4 py-3 border-b transition-colors ${colors.notifItem} ${
+                          onClick={() => dismissNotification(n.id)}
+                          className={`flex items-start gap-3 px-4 py-3 border-b transition-colors cursor-pointer ${colors.notifItem} ${
                             !n.read ? (isDark ? 'bg-gray-700/50' : 'bg-blue-50') : ''
                           }`}
                         >
                           <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read ? 'bg-blue-500' : 'bg-transparent'}`} />
                           <div className="flex-1 min-w-0">
                             <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {t('notifications', n.titleKey)}
+                              {n.title}
                             </p>
-                            <p className={`text-xs mt-0.5 ${colors.text}`}>
-                              {t('notifications', n.bodyKey)}
+                            <p className={`text-xs mt-0.5 whitespace-pre-wrap ${colors.text}`}>
+                              {n.body}
                             </p>
                             <p className={`text-[10px] mt-1 ${colors.subtext}`}>
-                              {new Date(n.timestamp).toLocaleString()}
+                              {new Date(n.createdAt).toLocaleString()}
                             </p>
                           </div>
-                          <button
-                            onClick={() => dismissNotification(n.id)}
-                            className={`flex-shrink-0 ${colors.text} hover:text-red-400 transition-colors`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
                         </div>
                       ))
                     )}
@@ -644,8 +712,30 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Financial Health Score — top of the dashboard (Section 11) */}
+          <div className="mb-4" data-tour="health">
+            <HealthScoreCard isDark={isDark} refreshKey={bookkeepingRefresh} />
+          </div>
+
+          {/* Quick actions — sit directly above the Balance / Cashflow / Expense cards */}
+          <div className="flex items-center justify-end gap-2 mb-3 flex-wrap" data-tour="actions">
+            <button
+              onClick={() => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); }}
+              className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+            >
+              <Plus className="h-4 w-4" /> Add data
+            </button>
+            <Link
+              href="/invoices/new"
+              data-tour="invoices"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+            >
+              <FileText className="h-4 w-4" /> Create invoice
+            </Link>
+          </div>
+
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" data-tour="summary">
             {[
               { label: t('dashboard', 'balance'), value: '$0.00' },
               { label: t('dashboard', 'cashflow'), value: '$0.00' },
@@ -686,61 +776,21 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <table className="w-full text-xs">
-              <thead>
-                <tr className={`${colors.tableHead} border-b`}>
-                  <th className="text-left pb-2">{t('dashboard', 'date')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'type')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'detail')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'price')}</th>
-                  <th className="text-left pb-2">{t('dashboard', 'amount')}</th>
-                  <th className="text-right pb-2"></th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${colors.tableRow}`}>
-                {dashboardData?.latestTransactions?.length ? (
-                  dashboardData.latestTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="group">
-                      <td className="py-3">{transaction.date}</td>
-                      <td className="py-3">
-                        <span>{transaction.type}</span>
-                        {transaction.recurrence && transaction.recurrence !== 'once' && (
-                          <span className={`ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-blue-50 text-blue-600'}`}>
-                            <RefreshCw className="h-2.5 w-2.5" />
-                            {t('dashboard', transaction.recurrence === 'monthly' ? 'recurrenceMonthly' : 'recurrenceYearly')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <span>{transaction.name}</span>
-                        {transaction.detail && <span className={`block text-[10px] ${colors.subtext}`}>{transaction.detail}</span>}
-                      </td>
-                      <td className="py-3">${transaction.price.toFixed(2)}</td>
-                      <td className="py-3">{transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toFixed(2)}</td>
-                      <td className="py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          {transaction.hasReceipt && (
-                            <button onClick={() => viewReceipt(transaction.id)} className="text-gray-500 hover:text-gray-700" title={t('dashboard', 'viewReceipt')}>
-                              <Paperclip className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button onClick={() => openEditBookkeeping(transaction)} className="text-blue-500 hover:text-blue-700" title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => handleDeleteTransaction(transaction)} className="text-red-500 hover:text-red-700" title="Delete">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className={`py-6 text-center ${colors.text}`}>{t('dashboard', 'noTransactions')}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {/* One list, everything in it: your entries plus invoices and loans.
+                Cash Basis / Accrual switches what counts; "Accountant view"
+                reveals the double-entry behind each row. */}
+            <div data-tour="bookkeeping">
+              <BookkeepingCard
+                isDark={isDark}
+                refreshKey={bookkeepingRefresh}
+                colors={colors}
+                t={t}
+                onEdit={editLedgerRow}
+                onDelete={deleteLedgerRow}
+                onDeleteInvoice={deleteInvoiceRow}
+                onViewReceipt={viewReceipt}
+              />
+            </div>
 
             {/* Recently deleted */}
             {recentlyDeleted.length > 0 && (
@@ -779,7 +829,7 @@ export default function DashboardPage() {
           {/* Bottom Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Total Revenue / Cashflow / Expense */}
-            <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
+            <div className={`${colors.card} rounded-xl p-4 shadow-sm`} data-tour="chart">
               <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                 <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {revMetric === 'revenue' ? t('dashboard', 'totalRevenue') : revMetric === 'cashflow' ? 'Total Cashflow' : 'Total Expense'}
@@ -805,7 +855,7 @@ export default function DashboardPage() {
               <RevenueChart isDark={isDark} metric={revMetric} onTotal={setRevTotal} />
             </div>
 
-            <div className={`${colors.card} rounded-xl p-4 shadow-sm`}>
+            <div className={`${colors.card} rounded-xl p-4 shadow-sm`} data-tour="goals">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-1 text-sm font-semibold">
                   <button
@@ -969,6 +1019,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* 5-step tour — runs itself for a new user, restartable from Settings */}
+      <TourGuide isDark={isDark} />
     </div>
   );
 }

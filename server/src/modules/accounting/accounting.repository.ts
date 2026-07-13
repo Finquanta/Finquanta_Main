@@ -6,8 +6,52 @@ import {
 
 const money = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
+/** The journal entries an invoice can put on the books. */
+const INVOICE_SOURCE_TYPES = ['invoice', 'invoice_payment', 'invoice_cancelled'];
+
 export class AccountingRepository {
   constructor(private database: Database) {}
+
+  /**
+   * Erase every journal entry an invoice put on the books.
+   *
+   * Deleting an invoice does NOT post a reversing entry — the entries are
+   * removed outright, so a deleted invoice leaves no trace anywhere in the
+   * books. Lines cascade with the entry.
+   *
+   * Idempotent: safe to call on an invoice that never hit the ledger.
+   */
+  async purgeInvoiceEntries(businessId: string, invoiceId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries
+       WHERE business_id = $1::uuid
+         AND source_id = $2::uuid
+         AND source_type = ANY($3::text[])`,
+      [businessId, invoiceId, INVOICE_SOURCE_TYPES]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Enforce the invariant "an invoice in the recycle bin owns no journal
+   * entries" across the whole business.
+   *
+   * Cheap and idempotent, so it runs on the ledger resync. It also cleans up
+   * invoices that were binned by an older build, which left their entries (and
+   * a reversing entry) behind.
+   */
+  async purgeBinnedInvoiceEntries(businessId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries e
+       USING invoices i
+       WHERE e.business_id = $1::uuid
+         AND i.id = e.source_id
+         AND i.deleted_at IS NOT NULL
+         AND e.source_type = ANY($2::text[])`,
+      [businessId, INVOICE_SOURCE_TYPES]
+    );
+    return result.rowCount ?? 0;
+  }
 
   /** Idempotently create the ledger tables. */
   async ensureSchema(): Promise<void> {
@@ -118,6 +162,283 @@ export class AccountingRepository {
       );
 
       return entryId;
+    });
+  }
+
+  /**
+   * Mirror bookkeeping entries into the ledger, so the ledger is the single
+   * source of truth for every number the dashboard shows.
+   *
+   * A bookkeeping transaction is cash that actually moved:
+   *   income  -> Business Cash ↑ , Revenue ↑
+   *   expense -> Expenses ↑      , Business Cash ↓
+   *
+   * Idempotent and safe to run on every request: an entry is only written for a
+   * transaction that doesn't already have one (matched on source_type +
+   * source_id), so it both BACKFILLS existing history and keeps new entries in
+   * step. Deterministic code — no AI.
+   */
+  async syncBookkeeping(businessId: string): Promise<number> {
+    await this.ensureAccounts(businessId);
+
+    const result = await this.database.query(
+      `WITH new_entries AS (
+         INSERT INTO journal_entries (business_id, date, description, source_type, source_id, created_by)
+         SELECT t.business_id,
+                t.date,
+                COALESCE(NULLIF(t.category, ''), 'Bookkeeping entry'),
+                'bookkeeping',
+                t.id,
+                t.user_id
+         FROM financial_transactions t
+         WHERE t.business_id = $1::uuid
+           AND t.status = 'completed'
+           AND t.amount > 0
+           AND NOT EXISTS (
+             SELECT 1 FROM journal_entries e
+             WHERE e.source_type = 'bookkeeping' AND e.source_id = t.id
+           )
+         RETURNING id AS entry_id, source_id
+       )
+       INSERT INTO journal_lines (entry_id, account_id, debit, credit)
+       SELECT ne.entry_id, a.id, l.debit, l.credit
+       FROM new_entries ne
+       JOIN financial_transactions t ON t.id = ne.source_id
+       CROSS JOIN LATERAL (VALUES
+         -- income: debit Cash / expense: debit Expenses
+         (CASE WHEN t.type = 'income' THEN 'CASH' ELSE 'EXPENSE' END, t.amount, 0::numeric),
+         -- income: credit Revenue / expense: credit Cash
+         (CASE WHEN t.type = 'income' THEN 'REVENUE' ELSE 'CASH' END, 0::numeric, t.amount)
+       ) AS l(code, debit, credit)
+       JOIN accounts a ON a.business_id = t.business_id AND a.code = l.code`,
+      [businessId]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Remove the ledger entries for bookkeeping transactions that no longer exist
+   * (or are no longer completed), so an edited/deleted entry doesn't leave a
+   * stale figure behind on the dashboard.
+   */
+  async pruneBookkeeping(businessId: string): Promise<number> {
+    const result = await this.database.query(
+      `DELETE FROM journal_entries e
+       WHERE e.business_id = $1::uuid
+         AND e.source_type = 'bookkeeping'
+         AND NOT EXISTS (
+           SELECT 1 FROM financial_transactions t
+           WHERE t.id = e.source_id AND t.status = 'completed'
+         )`,
+      [businessId]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Re-post any bookkeeping entry whose amount/type/date changed after it was
+   * mirrored. Cheapest correct approach: drop the stale entry, then re-sync.
+   */
+  async resyncBookkeeping(businessId: string): Promise<void> {
+    await this.database.query(
+      `DELETE FROM journal_entries e
+       USING financial_transactions t
+       WHERE e.business_id = $1::uuid
+         AND e.source_type = 'bookkeeping'
+         AND t.id = e.source_id
+         AND (
+           e.date <> t.date
+           OR NOT EXISTS (
+             SELECT 1 FROM journal_lines l
+             JOIN accounts a ON a.id = l.account_id
+             WHERE l.entry_id = e.id
+               AND a.code = CASE WHEN t.type = 'income' THEN 'CASH' ELSE 'EXPENSE' END
+               AND l.debit = t.amount
+           )
+         )`,
+      [businessId]
+    );
+    await this.pruneBookkeeping(businessId);
+    await this.syncBookkeeping(businessId);
+    // A deleted invoice must own nothing on the books.
+    await this.purgeBinnedInvoiceEntries(businessId);
+  }
+
+  /**
+   * The numbers the dashboard shows, derived from the ledger.
+   *
+   * basis 'cash'    — only entries where money actually moved (they touch CASH).
+   *                   An unpaid invoice is invisible here, which is the point.
+   * basis 'accrual' — everything, including money owed to you.
+   */
+  async getLedgerSummary(
+    businessId: string,
+    startDate: string,
+    endDate: string,
+    basis: 'cash' | 'accrual' = 'accrual'
+  ): Promise<{ totalIncome: string; totalExpenses: string; netIncome: string; transactionCount: number }> {
+    await this.ensureAccounts(businessId);
+
+    const cashOnly = basis === 'cash'
+      ? `AND EXISTS (
+           SELECT 1 FROM journal_lines cl
+           JOIN accounts ca ON ca.id = cl.account_id
+           WHERE cl.entry_id = e.id AND ca.code = 'CASH'
+         )`
+      : '';
+
+    const result = await this.database.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN a.type = 'revenue' THEN l.credit - l.debit ELSE 0 END), 0) AS income,
+         COALESCE(SUM(CASE WHEN a.type = 'expense' THEN l.debit - l.credit ELSE 0 END), 0) AS expenses,
+         COUNT(DISTINCT e.id) AS entries
+       FROM journal_entries e
+       JOIN journal_lines l ON l.entry_id = e.id
+       JOIN accounts a ON a.id = l.account_id
+       WHERE e.business_id = $1::uuid
+         AND e.date >= $2::date AND e.date <= $3::date
+         ${cashOnly}`,
+      [businessId, startDate, endDate]
+    );
+
+    const r = result.rows[0] ?? {};
+    const income = money(Number.parseFloat(r.income ?? '0'));
+    const expenses = money(Number.parseFloat(r.expenses ?? '0'));
+    return {
+      totalIncome: income.toFixed(2),
+      totalExpenses: expenses.toFixed(2),
+      netIncome: money(income - expenses).toFixed(2),
+      transactionCount: Number.parseInt(r.entries ?? '0', 10),
+    };
+  }
+
+  /**
+   * The unified transactions list behind the Bookkeeping card — every event, in
+   * plain English, with no debits or credits on show.
+   *
+   *  basis 'cash'    — money that actually moved: your own entries PLUS invoice
+   *                    payments and loan payments.
+   *  basis 'accrual' — the above, plus what's owed (invoices raised, bills).
+   *
+   * Rows that came from a bookkeeping entry carry `transactionId`, so they stay
+   * editable/deletable with their receipt. Rows generated by an invoice or a
+   * loan are read-only — editing them here would put the books out of step with
+   * the document that produced them.
+   */
+  async listTransactions(
+    businessId: string,
+    basis: 'cash' | 'accrual' = 'cash',
+    limit = 100
+  ): Promise<Array<{
+    id: string;
+    date: string | null;
+    description: string;
+    sourceType: string;
+    sourceId: string | null;
+    /** Positive = money in / owed to you. Negative = money out / you owe. */
+    signedAmount: number;
+    direction: 'in' | 'out' | 'owed_to_you' | 'you_owe';
+    cashMoved: boolean;
+    transactionId: string | null;
+    category: string | null;
+    hasReceipt: boolean;
+    recurrence: string | null;
+    lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }>;
+  }>> {
+    await this.ensureAccounts(businessId);
+
+    const cashOnly = basis === 'cash'
+      ? `AND EXISTS (
+           SELECT 1 FROM journal_lines cl JOIN accounts ca ON ca.id = cl.account_id
+           WHERE cl.entry_id = e.id AND ca.code = 'CASH' AND (cl.debit > 0 OR cl.credit > 0)
+         )`
+      : '';
+
+    const result = await this.database.query(
+      `SELECT
+         e.id, e.date, e.description, e.source_type, e.source_id,
+         COALESCE((SELECT SUM(l.debit - l.credit) FROM journal_lines l
+                   JOIN accounts a ON a.id = l.account_id
+                   WHERE l.entry_id = e.id AND a.code = 'CASH'), 0) AS cash_delta,
+         COALESCE((SELECT SUM(l.debit - l.credit) FROM journal_lines l
+                   JOIN accounts a ON a.id = l.account_id
+                   WHERE l.entry_id = e.id AND a.code = 'AR'), 0) AS ar_delta,
+         COALESCE((SELECT SUM(l.credit - l.debit) FROM journal_lines l
+                   JOIN accounts a ON a.id = l.account_id
+                   WHERE l.entry_id = e.id AND a.code = 'AP'), 0) AS ap_delta,
+         COALESCE((SELECT SUM(l.debit) FROM journal_lines l WHERE l.entry_id = e.id), 0) AS gross,
+         t.id AS tx_id, t.category, t.metadata,
+         EXISTS (SELECT 1 FROM transaction_receipts r WHERE r.transaction_id = t.id) AS has_receipt
+       FROM journal_entries e
+       LEFT JOIN financial_transactions t
+              ON e.source_type = 'bookkeeping' AND t.id = e.source_id
+       WHERE e.business_id = $1::uuid ${cashOnly}
+       ORDER BY e.date DESC, e.created_at DESC
+       LIMIT $2`,
+      [businessId, limit]
+    );
+
+    const rows = result.rows as any[];
+    if (rows.length === 0) return [];
+
+    // Fetch the debit/credit lines for the optional "Accountant view".
+    const ids = rows.map((r) => r.id);
+    const lineRes = await this.database.query(
+      `SELECT l.entry_id, a.code, a.name, l.debit, l.credit
+       FROM journal_lines l JOIN accounts a ON a.id = l.account_id
+       WHERE l.entry_id = ANY($1::uuid[])`,
+      [ids]
+    );
+    const linesBy = new Map<string, any[]>();
+    for (const l of lineRes.rows as any[]) {
+      const arr = linesBy.get(l.entry_id) ?? [];
+      arr.push({
+        accountCode: l.code,
+        accountName: l.name,
+        debit: Number.parseFloat(l.debit ?? '0'),
+        credit: Number.parseFloat(l.credit ?? '0'),
+      });
+      linesBy.set(l.entry_id, arr);
+    }
+
+    return rows.map((r) => {
+      const cash = money(Number.parseFloat(r.cash_delta ?? '0'));
+      const ar = money(Number.parseFloat(r.ar_delta ?? '0'));
+      const ap = money(Number.parseFloat(r.ap_delta ?? '0'));
+      const gross = money(Number.parseFloat(r.gross ?? '0'));
+
+      let signedAmount: number;
+      let direction: 'in' | 'out' | 'owed_to_you' | 'you_owe';
+      if (cash !== 0) {
+        signedAmount = cash;
+        direction = cash > 0 ? 'in' : 'out';
+      } else if (ar > 0) {
+        signedAmount = ar;
+        direction = 'owed_to_you';
+      } else if (ap > 0) {
+        signedAmount = -ap;
+        direction = 'you_owe';
+      } else {
+        signedAmount = gross;
+        direction = 'in';
+      }
+
+      const meta = r.metadata ?? {};
+      return {
+        id: r.id,
+        date: r.date ? new Date(r.date).toISOString().slice(0, 10) : null,
+        description: r.description,
+        sourceType: r.source_type,
+        sourceId: r.source_id ?? null,
+        signedAmount: money(signedAmount),
+        direction,
+        cashMoved: cash !== 0,
+        transactionId: r.tx_id ?? null,
+        category: r.category ?? null,
+        hasReceipt: !!r.has_receipt,
+        recurrence: typeof meta?.recurrence === 'string' ? meta.recurrence : null,
+        lines: linesBy.get(r.id) ?? [],
+      };
     });
   }
 

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, MailIcon, LockIcon, CheckIcon, UserIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { captureReferralCode, clearReferralCode, storedReferralCode } from "@/lib/api/referrals";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -45,18 +46,26 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState<boolean>(false);
   const [acceptedRisk, setAcceptedRisk] = useState<boolean>(false);
+  /** Set when they arrived on someone's referral link — shown as a confirmation. */
+  const [referredBy, setReferredBy] = useState<string | undefined>(undefined);
 
   const age = dateOfBirth ? ageFrom(dateOfBirth) : NaN;
   const ageValid = !isNaN(age) && age >= MIN_AGE;
   const allAccepted = acceptedTerms && acceptedPrivacy && acceptedRisk;
 
-  // Pre-fill the email when arriving from the homepage "Sign Up" box (?email=).
+  // Pre-fill the email when arriving from the homepage "Sign Up" box (?email=),
+  // and remember a referral code if they arrived on someone's link (?ref=).
   useEffect(() => {
-    const prefill = new URLSearchParams(window.location.search).get('email');
+    const params = new URLSearchParams(window.location.search);
+
+    const prefill = params.get('email');
     if (prefill) {
       setEmail(prefill);
       setEmailValid(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(prefill));
     }
+
+    captureReferralCode(params.get('ref'));
+    setReferredBy(storedReferralCode());
   }, []);
 
   const validateEmail = (email: string) => {
@@ -106,10 +115,18 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName, dateOfBirth, acceptedTerms, acceptedPrivacy, acceptedRisk }),
+        body: JSON.stringify({
+          email, password, firstName, lastName, dateOfBirth,
+          acceptedTerms, acceptedPrivacy, acceptedRisk,
+          // Whoever's link they arrived on, if any. The server ignores it if the
+          // code is unknown, so a stale link can never block signup.
+          referralCode: storedReferralCode(),
+        }),
       });
 
       if (res.ok) {
+        // Attributed (or not) — either way it's spent, so don't credit it twice.
+        clearReferralCode();
         const data = await res.json();
         auth.login({
           token: data.accessToken,
@@ -153,6 +170,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     <div className={cn("grid gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
         <div className="grid gap-4">
+          {/* Arrived on someone's link — tell them it landed. */}
+          {referredBy && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+              <CheckIcon className="h-4 w-4 shrink-0" />
+              <span>You were invited. Referral code <strong>{referredBy}</strong> applied.</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">

@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { logoutAndRedirect } from "@/lib/auth";
 
-type Tab = "users" | "blog" | "usage" | "playbook" | "audit" | "patch";
+type Tab = "users" | "blog" | "usage" | "playbook" | "audit" | "patch" | "referrals" | "notifications";
 
 const NAV: { key: Tab; label: string; href: string }[] = [
   { key: "users", label: "Users", href: "/admin-users" },
+  { key: "notifications", label: "Notifications", href: "/admin-notifications" },
+  { key: "referrals", label: "Referrals", href: "/admin-referrals" },
   { key: "blog", label: "Blog", href: "/admin-blog" },
   { key: "usage", label: "API Usage", href: "/admin-usage" },
   { key: "audit", label: "Audit Logs", href: "/admin-audit" },

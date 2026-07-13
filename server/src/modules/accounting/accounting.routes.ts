@@ -20,6 +20,28 @@ export async function accountingRoutes(fastify: FastifyInstance, options: { data
     }
   }) as any);
 
+  /**
+   * The unified transactions list behind the Bookkeeping card.
+   *
+   *   basis=cash    — money that actually moved (your entries + invoice/loan payments)
+   *   basis=accrual — the above, plus what's owed (invoices raised, bills)
+   *
+   * Syncs bookkeeping into the ledger first, so nothing is missing.
+   */
+  fastify.get('/v1/accounting/transactions', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { basis, limit } = request.query as { basis?: string; limit?: string };
+      const b = basis === 'accrual' ? 'accrual' : 'cash';
+      const n = Math.min(Math.max(Number.parseInt(limit ?? '100', 10) || 100, 1), 500);
+
+      await repo.resyncBookkeeping(request.businessId!);
+      return reply.send({ success: true, data: await repo.listTransactions(request.businessId!, b, n) });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
   // The ledger — recent journal entries with their debit/credit lines.
   fastify.get('/v1/accounting/entries', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {

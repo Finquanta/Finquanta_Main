@@ -25,6 +25,20 @@ import { newsletterRoutes } from '../modules/newsletter/newsletter.routes';
 import { NewsletterRepository } from '../modules/newsletter/newsletter.repository';
 import { accountingRoutes } from '../modules/accounting/accounting.routes';
 import { AccountingRepository } from '../modules/accounting/accounting.repository';
+import { customerRoutes } from '../modules/customers/customers.routes';
+import { CustomersRepository } from '../modules/customers/customers.repository';
+import { invoiceRoutes } from '../modules/invoices/invoices.routes';
+import { InvoicesRepository } from '../modules/invoices/invoices.repository';
+import { loanRoutes } from '../modules/loans/loans.routes';
+import { LoansRepository } from '../modules/loans/loans.repository';
+import { activityRoutes } from '../modules/activity/activity.routes';
+import { healthRoutes } from '../modules/health/health.routes';
+import { referralsRoutes } from '../modules/referrals/referrals.routes';
+import { ReferralsRepository } from '../modules/referrals/referrals.repository';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
+import { NotificationsRepository } from '../modules/notifications/notifications.repository';
+import { siteRoutes } from '../modules/site/site.routes';
+import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -206,6 +220,61 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure accounting schema');
   }
   await fastify.register(accountingRoutes, { database });
+
+  // Customers (invoices are raised against these).
+  try {
+    await new CustomersRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure customers schema');
+  }
+  await fastify.register(customerRoutes, { database });
+
+  // Invoices — depend on customers (billed to) and the ledger (AR automation).
+  try {
+    await new InvoicesRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure invoices schema');
+  }
+  await fastify.register(invoiceRoutes, { database });
+
+  // Debt — loans payable (borrowed) and receivable (lent out), with
+  // principal/interest splitting on every payment.
+  try {
+    await new LoansRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure loans schema');
+  }
+  await fastify.register(loanRoutes, { database });
+
+  // Financial activity timeline — the complete history of what happened.
+  try {
+    await new ActivityRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure activity schema');
+  }
+  await fastify.register(activityRoutes, { database });
+
+  // Financial Health Score — reads the ledger, no schema of its own.
+  await fastify.register(healthRoutes, { database });
+
+  // Referral program (Section 13).
+  try {
+    await new ReferralsRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure referrals schema');
+  }
+  await fastify.register(referralsRoutes, { database });
+
+  // Admin-authored notifications, delivered to users' inboxes.
+  try {
+    await new NotificationsRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure notifications schema');
+  }
+  await fastify.register(notificationsRoutes, { database });
+
+  // Site-wide settings (the maintenance banner) — admin-toggleable, no redeploy.
+  await fastify.register(siteRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the

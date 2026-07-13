@@ -298,3 +298,32 @@
     }
   }
 }
+/* ---- Invoice printing ----------------------------------------------------
+   Print / "Save as PDF" shows only the invoice: app chrome, buttons and the
+   maintenance banner are hidden, and the "Powered by Finquanta" footer repeats
+   at the bottom of every printed page. */
+@media print {
+  body * { visibility: hidden; }
+  #invoice-print-area, #invoice-print-area * { visibility: visible; }
+  #invoice-print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 32px 40px;
+    max-width: none;
+    width: 100%;
+    background: #fff;
+    color: #0f172a;
+  }
+  .no-print { display: none !important; }
+  /* Repeat the footer at the bottom of every printed page. */
+  #invoice-print-area .invoice-footer {
+    position: fixed;
+    bottom: 0;
+    left: 40px;
+    right: 40px;
+  }
+  /* Don't split a line item across a page break. */
+  #invoice-print-area tr { break-inside: avoid; }
+  @page { margin: 12mm; }
+}

@@ -2,18 +2,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { restartTour } from '@/components/user_dashboard/tour/TourGuide';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
-import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from '@/lib/api/business';
+import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
+import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
 const REVENUE_RANGES = ["Pre-revenue", "Under $10k", "$10k–$50k", "$50k–$250k", "$250k–$1M", "$1M–$5M", "$5M+"];
 const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "200+"];
+// Asked at signup; kept editable here. Must match the onboarding options.
+const DEBT_ANSWERS = ["Yes", "No", "Not sure"];
+const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "Get organized"];
 
 export default function ProfileSettingsPage() {
   const [activeSection, setActiveSection] = useState('profile-settings');
@@ -52,6 +57,7 @@ export default function ProfileSettingsPage() {
   const [biz, setBiz] = useState<BusinessProfile>({});
   const [bizSaving, setBizSaving] = useState(false);
   const [bizSaved, setBizSaved] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => { getBusinessProfile().then(setBiz).catch(() => {}); }, []);
 
@@ -73,30 +79,11 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className={`flex h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      {/* Left Sidebar */}
-      <div className={`w-48 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <div className="mb-8">
-          <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
-        </div>
-        <nav className="flex flex-col gap-2">
-          <Link href="/dashboard" className={`text-sm font-semibold px-3 py-2 rounded-lg ${theme === 'dark' ? 'text-orange-400 bg-orange-900 bg-opacity-30' : 'text-orange-500 bg-orange-50'}`}>
-            {t('dashboard', 'title')}
-          </Link>
-        </nav>
-        <div className={`mt-auto flex flex-col gap-2 text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-          <Link href="/profile-settings" className={`font-medium hover:underline ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>{t('dashboard', 'profileSettings')}</Link>
-          <Link href="/terms" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'termsOfService')}</Link>
-          <Link href="/privacy" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'privacyPolicy')}</Link>
-          <Link href="/ai-risk-disclosure" className={`hover:underline ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t('dashboard', 'aiRiskDisclosure')}</Link>
-          <button onClick={() => router.push('/login')} className={`text-left hover:underline ${theme === 'dark' ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-600'}`}>{t('settings', 'logOut')}</button>
-          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard', 'version')} 1.1.0</p>
-        </div>
-      </div>
- 
+    <DashboardShell>
+    <div className={`flex h-full ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
       {/* Middle - Settings Menu */}
       <div className={`w-64 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('dashboard', 'profileSettings')}</h2>
+        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Settings</h2>
         <div className="relative mb-4">
           <input
             type="text"
@@ -113,6 +100,7 @@ export default function ProfileSettingsPage() {
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
             { id: 'notifications', label: t('settings', 'notificationSettings') },
+            { id: 'legal', label: 'Legal' },
             { id: 'feedback', label: t('settings', 'giveFeedback') },
             { id: 'logout', label: t('settings', 'logOut') },
           ].filter((item) => item.label.toLowerCase().includes(menuSearch.trim().toLowerCase())).map((item) => (
@@ -291,11 +279,105 @@ export default function ProfileSettingsPage() {
                     {EMPLOYEE_COUNTS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className={labelCls}>Loans Or Debt</label>
+                  <select className={inputCls} value={biz.hasDebt ?? ''} onChange={(e) => setBizField('hasDebt', e.target.value)}>
+                    <option value="">{t('settings', 'selectOption')}</option>
+                    {DEBT_ANSWERS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Primary Financial Goal</label>
+                  <select className={inputCls} value={biz.primaryGoal ?? ''} onChange={(e) => setBizField('primaryGoal', e.target.value)}>
+                    <option value="">{t('settings', 'selectOption')}</option>
+                    {PRIMARY_GOALS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fFinancialGoals')}</label>
                   <textarea className={`${inputCls} min-h-[80px]`} value={biz.financialGoals ?? ''} onChange={(e) => setBizField('financialGoals', e.target.value)} placeholder="e.g. Reach $20k/month, build 6-month runway" />
                 </div>
               </div>
+
+              {/* Business Details — exactly what prints at the top of every invoice */}
+              <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Business Details</h3>
+                <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  These appear at the top of every invoice your customers receive.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Business Email</label>
+                    <input type="email" className={inputCls} value={biz.businessEmail ?? ''} onChange={(e) => setBizField('businessEmail', e.target.value)} placeholder="billing@yourbusiness.com" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Business Phone</label>
+                    <input className={inputCls} value={biz.businessPhone ?? ''} onChange={(e) => setBizField('businessPhone', e.target.value)} placeholder="+1 555 000 0000" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Website</label>
+                    <input className={inputCls} value={biz.website ?? ''} onChange={(e) => setBizField('website', e.target.value)} placeholder="www.yourbusiness.com" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Business Address</label>
+                    <input className={`${inputCls} mb-2`} value={biz.addressLine1 ?? ''} onChange={(e) => setBizField('addressLine1', e.target.value)} placeholder="Address line 1" />
+                    <input className={inputCls} value={biz.addressLine2 ?? ''} onChange={(e) => setBizField('addressLine2', e.target.value)} placeholder="Address line 2" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>City</label>
+                    <input className={inputCls} value={biz.city ?? ''} onChange={(e) => setBizField('city', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>State / Region</label>
+                    <input className={inputCls} value={biz.region ?? ''} onChange={(e) => setBizField('region', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Zip Code</label>
+                    <input className={inputCls} value={biz.postalCode ?? ''} onChange={(e) => setBizField('postalCode', e.target.value)} />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Business Logo</label>
+                    <div className="flex items-center gap-3">
+                      {biz.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={biz.logoUrl} alt="Logo" className="rounded-lg object-contain bg-white border" style={{ width: 56, height: 56 }} />
+                      ) : (
+                        <div className={`rounded-lg flex items-center justify-center text-xs ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-400'}`} style={{ width: 56, height: 56 }}>
+                          None
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          disabled={logoUploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setLogoUploading(true);
+                            try {
+                              const saved = await uploadBusinessLogo(file);
+                              setBiz((p) => ({ ...p, logoUrl: saved.logoUrl }));
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : 'Could not upload logo.');
+                            } finally {
+                              setLogoUploading(false);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-500 file:text-white file:cursor-pointer disabled:opacity-60"
+                        />
+                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {logoUploading ? 'Uploading…' : 'PNG or JPEG, up to 1MB.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-3 mt-6">
                 <button onClick={saveBiz} disabled={bizSaving} className={`px-6 py-2 rounded-lg text-white font-medium disabled:opacity-60 ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}>
                   {bizSaving ? t('onboarding', 'saving') : t('settings', 'saveChanges')}
@@ -305,6 +387,22 @@ export default function ProfileSettingsPage() {
             </div>
           );
         })()}
+
+        {/* Product tour — the spec requires it be restartable from settings */}
+        {activeSection === 'business-profile' && (
+          <div className={`p-6 rounded-lg max-w-2xl mt-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Product Tour</h2>
+            <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              A five-step walkthrough of the dashboard, bookkeeping, invoices and Finna. Takes about a minute.
+            </p>
+            <button
+              onClick={() => { restartTour(); router.push('/dashboard'); }}
+              className={`inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+            >
+              Restart Tour
+            </button>
+          </div>
+        )}
 
         {/* Language Settings */}
         {activeSection === 'languages' && (
@@ -385,6 +483,35 @@ export default function ProfileSettingsPage() {
           />
         )}
  
+        {/* Legal — the documents you agreed to at signup. They used to sit loose
+            at the bottom of the sidebar; they belong here. */}
+        {activeSection === 'legal' && (
+          <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Legal</h2>
+            <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              The terms you agreed to when you created your account.
+            </p>
+            <div className="flex flex-col">
+              {[
+                { href: '/terms', label: t('dashboard', 'termsOfService') },
+                { href: '/privacy', label: t('dashboard', 'privacyPolicy') },
+                { href: '/ai-risk-disclosure', label: t('dashboard', 'aiRiskDisclosure') },
+              ].map((doc, i, all) => (
+                <Link
+                  key={doc.href}
+                  href={doc.href}
+                  className={`flex items-center justify-between px-1 py-3 text-sm transition-colors ${
+                    i === all.length - 1 ? '' : `border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`
+                  } ${theme === 'dark' ? 'text-gray-200 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+                >
+                  {doc.label}
+                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>›</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Feedback */}
         {activeSection === 'feedback' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
@@ -416,5 +543,6 @@ export default function ProfileSettingsPage() {
  
       </div>
     </div>
+    </DashboardShell>
   );
 }

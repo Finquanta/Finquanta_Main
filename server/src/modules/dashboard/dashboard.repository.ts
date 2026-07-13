@@ -1,5 +1,6 @@
 import { Database } from '../../infrastructure/database';
 import { getPreviousMonthRange } from '../shared/date-range';
+import { AccountingRepository } from '../accounting/accounting.repository';
 import { CreateGoalData, ExpenseSegment, LatestTransaction, RevenueMetric, RevenuePoint, RevenueRange, UpdateGoalData, WeeklyData } from './dashboard.types';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -8,24 +9,51 @@ const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'Jul
 const segmentColors = ['#1e1b4b', '#0f766e', '#f97316', '#06b6d4', '#778da9'];
 
 export class DashboardRepository {
-  constructor(private database: Database) {}
+  private ledger: AccountingRepository;
 
+  constructor(private database: Database) {
+    this.ledger = new AccountingRepository(database);
+  }
+
+  /**
+   * Bring the ledger up to date with bookkeeping before reading from it. This
+   * backfills any transaction that predates the ledger and re-posts anything
+   * that was edited, so the dashboard can safely treat the ledger as the single
+   * source of truth. Idempotent and cheap once caught up.
+   */
+  private async syncLedger(businessId: string): Promise<void> {
+    await this.ledger.resyncBookkeeping(businessId);
+  }
+
+  /**
+   * The headline numbers, now derived from the LEDGER rather than from
+   * bookkeeping alone — so an invoice you've marked Sent (Accounts Receivable)
+   * and a loan actually show up on the dashboard.
+   */
   async getSummary(businessId: string, startDate: string, endDate: string) {
-    const query = `
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as total_income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_expenses,
-        COUNT(*) as transaction_count
-      FROM financial_transactions
-      WHERE business_id = $1 AND date >= $2 AND date <= $3 AND status = 'completed'
-    `;
-    const result = await this.database.query(query, [businessId, startDate, endDate]);
-    return this.mapSummary(result.rows[0], startDate, endDate);
+    await this.syncLedger(businessId);
+    const s = await this.ledger.getLedgerSummary(businessId, startDate, endDate, 'accrual');
+    return {
+      totalIncome: s.totalIncome,
+      totalExpenses: s.totalExpenses,
+      netIncome: s.netIncome,
+      transactionCount: s.transactionCount,
+      startDate,
+      endDate,
+    };
   }
 
   async getPreviousSummary(businessId: string, startDate: string) {
     const previous = getPreviousMonthRange(startDate);
-    return this.getSummary(businessId, previous.startDate, previous.endDate);
+    const s = await this.ledger.getLedgerSummary(businessId, previous.startDate, previous.endDate, 'accrual');
+    return {
+      totalIncome: s.totalIncome,
+      totalExpenses: s.totalExpenses,
+      netIncome: s.netIncome,
+      transactionCount: s.transactionCount,
+      startDate: previous.startDate,
+      endDate: previous.endDate,
+    };
   }
 
   async getWeeklyTrend(businessId: string, startDate: string, endDate: string): Promise<WeeklyData[]> {
@@ -68,23 +96,35 @@ export class DashboardRepository {
   }
 
   async getRevenueSeries(businessId: string, range: RevenueRange, metric: RevenueMetric = 'revenue'): Promise<RevenuePoint[]> {
-    // The value expression + type filter depend on the chosen metric:
-    //   revenue  -> sum of income
-    //   expense  -> sum of expenses
-    //   cashflow -> income minus expenses (net)
+    // Read from the LEDGER, so invoices and loans appear on the chart too — not
+    // just bookkeeping. Sync first so nothing predating the ledger is missing.
+    await this.syncLedger(businessId);
+
+    // Each metric reads a different part of the books:
+    //   revenue  -> the Revenue accounts   (credit − debit)
+    //   expense  -> the Expense accounts   (debit − credit)
+    //   cashflow -> the Business Cash account (debit − credit) = money actually
+    //               in/out. An unpaid invoice moves no cash, so it stays out of
+    //               cashflow while still counting as revenue.
     const sumExpr =
-      metric === 'cashflow'
-        ? `COALESCE(SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END), 0)`
-        : `COALESCE(SUM(amount), 0)`;
-    const typeClause = metric === 'expense' ? `AND type = 'expense'` : metric === 'revenue' ? `AND type = 'income'` : ``;
+      metric === 'expense'
+        ? `COALESCE(SUM(CASE WHEN a.type = 'expense' THEN l.debit - l.credit ELSE 0 END), 0)`
+        : metric === 'cashflow'
+          ? `COALESCE(SUM(CASE WHEN a.code = 'CASH' THEN l.debit - l.credit ELSE 0 END), 0)`
+          : `COALESCE(SUM(CASE WHEN a.type = 'revenue' THEN l.credit - l.debit ELSE 0 END), 0)`;
+
+    const LEDGER_FROM = `
+      FROM journal_entries e
+      JOIN journal_lines l ON l.entry_id = e.id
+      JOIN accounts a ON a.id = l.account_id`;
 
     if (range === 'day') {
       const result = await this.database.query(
-        `SELECT date::date as bucket, ${sumExpr} as v
-         FROM financial_transactions
-         WHERE business_id = $1 AND status = 'completed' ${typeClause}
-           AND date >= (CURRENT_DATE - INTERVAL '29 days') AND date <= CURRENT_DATE
-         GROUP BY date::date`,
+        `SELECT e.date::date as bucket, ${sumExpr} as v
+         ${LEDGER_FROM}
+         WHERE e.business_id = $1::uuid
+           AND e.date >= (CURRENT_DATE - INTERVAL '29 days') AND e.date <= CURRENT_DATE
+         GROUP BY e.date::date`,
         [businessId]
       );
       const map = new Map<string, number>(
@@ -107,10 +147,10 @@ export class DashboardRepository {
 
     if (range === 'month') {
       const result = await this.database.query(
-        `SELECT EXTRACT(MONTH FROM date)::int as bucket, ${sumExpr} as v
-         FROM financial_transactions
-         WHERE business_id = $1 AND status = 'completed' ${typeClause}
-           AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+        `SELECT EXTRACT(MONTH FROM e.date)::int as bucket, ${sumExpr} as v
+         ${LEDGER_FROM}
+         WHERE e.business_id = $1::uuid
+           AND EXTRACT(YEAR FROM e.date) = EXTRACT(YEAR FROM CURRENT_DATE)
          GROUP BY bucket`,
         [businessId]
       );
@@ -125,10 +165,10 @@ export class DashboardRepository {
 
     // range === 'year' — last 5 years
     const result = await this.database.query(
-      `SELECT EXTRACT(YEAR FROM date)::int as bucket, ${sumExpr} as v
-       FROM financial_transactions
-       WHERE business_id = $1 AND status = 'completed' ${typeClause}
-         AND date >= (CURRENT_DATE - INTERVAL '4 years')
+      `SELECT EXTRACT(YEAR FROM e.date)::int as bucket, ${sumExpr} as v
+       ${LEDGER_FROM}
+       WHERE e.business_id = $1::uuid
+         AND e.date >= (CURRENT_DATE - INTERVAL '4 years')
        GROUP BY bucket`,
       [businessId]
     );
