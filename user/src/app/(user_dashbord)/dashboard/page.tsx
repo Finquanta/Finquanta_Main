@@ -9,6 +9,7 @@ import BookkeepingCard from '@/components/user_dashboard/bookkeeping/Bookkeeping
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
 import TourGuide from '@/components/user_dashboard/tour/TourGuide';
 import ReferralIdChip from '@/components/user_dashboard/ReferralIdChip';
+import { InboxItem, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/api/notifications';
 import { LedgerTransaction } from '@/lib/api/accounting';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
@@ -45,10 +46,6 @@ const LANGUAGES = [
   { code: 'ru', label: 'Русский' },
 ];
 
-const NOTIFICATION_DEFS = [
-  { id: 1, titleKey: 'welcomeTitle', bodyKey: 'welcomeBody', timestamp: Date.now(), read: false },
-  { id: 3, titleKey: 'betaTitle', bodyKey: 'betaBody', timestamp: Date.now(), read: true },
-];
 
 export default function DashboardPage() {
   const { language, setLanguage, t } = useLanguage();
@@ -69,8 +66,13 @@ export default function DashboardPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATION_DEFS);
+  // Real notifications, pushed from the admin panel.
+  const [notifications, setNotifications] = useState<InboxItem[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getNotifications().then(setNotifications).catch(() => setNotifications([]));
+  }, []);
 
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [verifyResent, setVerifyResent] = useState(false);
@@ -415,12 +417,20 @@ export default function DashboardPage() {
     buttonBg: isDark ? 'bg-gray-700 text-white border-gray-600' : 'bg-gray-100 text-gray-900 border-gray-300',
   };
 
+  /**
+   * Read state lives on the server, so it follows the user across devices.
+   * The UI updates immediately and the request goes out behind it — a failed
+   * mark-as-read isn't worth blocking on or shouting about.
+   */
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    markAllNotificationsRead().catch(() => {});
   };
 
-  const dismissNotification = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  /** Clicking a notification marks it read. It stays in the inbox. */
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
+    markNotificationRead(id).catch(() => {});
   };
 
   const handleLogout = () => {
@@ -603,28 +613,23 @@ export default function DashboardPage() {
                       notifications.map(n => (
                         <div
                           key={n.id}
-                          className={`flex items-start gap-3 px-4 py-3 border-b transition-colors ${colors.notifItem} ${
+                          onClick={() => dismissNotification(n.id)}
+                          className={`flex items-start gap-3 px-4 py-3 border-b transition-colors cursor-pointer ${colors.notifItem} ${
                             !n.read ? (isDark ? 'bg-gray-700/50' : 'bg-blue-50') : ''
                           }`}
                         >
                           <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read ? 'bg-blue-500' : 'bg-transparent'}`} />
                           <div className="flex-1 min-w-0">
                             <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {t('notifications', n.titleKey)}
+                              {n.title}
                             </p>
-                            <p className={`text-xs mt-0.5 ${colors.text}`}>
-                              {t('notifications', n.bodyKey)}
+                            <p className={`text-xs mt-0.5 whitespace-pre-wrap ${colors.text}`}>
+                              {n.body}
                             </p>
                             <p className={`text-[10px] mt-1 ${colors.subtext}`}>
-                              {new Date(n.timestamp).toLocaleString()}
+                              {new Date(n.createdAt).toLocaleString()}
                             </p>
                           </div>
-                          <button
-                            onClick={() => dismissNotification(n.id)}
-                            className={`flex-shrink-0 ${colors.text} hover:text-red-400 transition-colors`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
                         </div>
                       ))
                     )}

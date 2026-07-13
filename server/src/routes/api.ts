@@ -35,6 +35,8 @@ import { activityRoutes } from '../modules/activity/activity.routes';
 import { healthRoutes } from '../modules/health/health.routes';
 import { referralsRoutes } from '../modules/referrals/referrals.routes';
 import { ReferralsRepository } from '../modules/referrals/referrals.repository';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
+import { NotificationsRepository } from '../modules/notifications/notifications.repository';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
@@ -261,6 +263,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure referrals schema');
   }
   await fastify.register(referralsRoutes, { database });
+
+  // Admin-authored notifications, delivered to users' inboxes.
+  try {
+    await new NotificationsRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure notifications schema');
+  }
+  await fastify.register(notificationsRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the
