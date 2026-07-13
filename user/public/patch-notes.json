@@ -1,6 +1,174 @@
 {
-  "generatedAt": "2026-06-28T23:56:20.575Z",
+  "generatedAt": "2026-07-13T06:19:09.353Z",
   "commits": [
+    {
+      "hash": "5cce126",
+      "author": "gio",
+      "date": "2026-07-13T01:33:12-04:00",
+      "subject": "refactor(sidebar): clean it up -- Settings tab, Legal moved into Settings, Log Out under Send Feedback"
+    },
+    {
+      "hash": "9f1a6af",
+      "author": "gio",
+      "date": "2026-07-13T01:13:17-04:00",
+      "subject": "feat(notifications): admin tab to push notifications to users' inboxes, with scheduling"
+    },
+    {
+      "hash": "f43bf95",
+      "author": "gio",
+      "date": "2026-07-13T00:36:07-04:00",
+      "subject": "feat(referrals): Section 13 -- referral program, user + admin"
+    },
+    {
+      "hash": "846d984",
+      "author": "gio",
+      "date": "2026-07-13T00:13:09-04:00",
+      "subject": "fix(activity): phantom invoice events on the timeline, and the missing Activity tab"
+    },
+    {
+      "hash": "58c6d56",
+      "author": "gio",
+      "date": "2026-07-12T23:23:18-04:00",
+      "subject": "feat(tour): Section 10 -- guided tour that actually walks the dashboard"
+    },
+    {
+      "hash": "1f10543",
+      "author": "gio",
+      "date": "2026-07-12T21:28:01-04:00",
+      "subject": "feat(finna): Section 12 -- wire Finna to the user's actual finances"
+    },
+    {
+      "hash": "3b8793a",
+      "author": "gio",
+      "date": "2026-07-12T20:05:59-04:00",
+      "subject": "feat(health): Section 11 -- Financial Health Score + the four core ratios"
+    },
+    {
+      "hash": "20233dd",
+      "author": "gio",
+      "date": "2026-07-12T16:44:21-04:00",
+      "subject": "feat(onboarding): Section 9 -- business profile questions at signup + auto-created goal"
+    },
+    {
+      "hash": "9068ccc",
+      "author": "gio",
+      "date": "2026-07-12T15:23:09-04:00",
+      "subject": "fix(invoices): deleting an invoice erases it from the books entirely -- no reversing entry"
+    },
+    {
+      "hash": "9a87f55",
+      "author": "gio",
+      "date": "2026-07-12T13:43:10-04:00",
+      "subject": "fix(invoices): a paid invoice can now be voided — reverses the revenue AND the cash it recorded; delete cancels first so nothing is stranded in the ledger (fixes the 'cancel it first' dead-end)"
+    },
+    {
+      "hash": "8dcb3d6",
+      "author": "gio",
+      "date": "2026-07-12T09:12:45-04:00",
+      "subject": "feat(bookkeeping): keep the familiar table layout, now ledger-backed — Cash Basis/Accrual toggle, optional Accountant view; invoice rows deletable (cancel + recycle bin); typed entries stay editable with receipts"
+    },
+    {
+      "hash": "8688872",
+      "author": "gio",
+      "date": "2026-07-12T08:52:24-04:00",
+      "subject": "feat(activity): Section 7 — Financial Activity Timeline; append-only history of every financial event, derived from the ledger + invoice lifecycle; grouped by day with filters"
+    },
+    {
+      "hash": "ea5f557",
+      "author": "gio",
+      "date": "2026-07-12T08:40:13-04:00",
+      "subject": "feat(automation): Section 8 — ledger is now the single source of truth for the dashboard; bookkeeping auto-mirrors into the ledger (idempotent backfill + resync); summary and revenue chart read the ledger so invoices, AR and loans finally appear"
+    },
+    {
+      "hash": "acd9a42",
+      "author": "gio",
+      "date": "2026-07-12T08:27:11-04:00",
+      "subject": "feat(settings): shared dashboard sidebar on profile-settings; Business Details (invoice header) section in Business Profile with logo upload"
+    },
+    {
+      "hash": "b1bafe4",
+      "author": "gio",
+      "date": "2026-07-12T05:24:23-04:00",
+      "subject": "fix(invoices): cancel SQL type-cast bug; add shared dashboard sidebar to Customers/Invoices; invoice edit page; edit+delete on list with recycle bin (soft delete/restore/permanent); business logo upload (PNG/JPEG)"
+    },
+    {
+      "hash": "b09e1b6",
+      "author": "gio",
+      "date": "2026-07-12T04:43:27-04:00",
+      "subject": "feat(invoices): invoice UI — Square-style template with 'Powered by [Finquanta.ai logo]' footer, builder, list, business details editor, print/PDF, email, Mark As Sent/Paid; Title Case headers"
+    },
+    {
+      "hash": "1fbeebe",
+      "author": "gio",
+      "date": "2026-07-12T03:36:31-04:00",
+      "subject": "feat(debt): rename accrual + loan options to account-effect labels with plain-English descriptions; 'Debt Type' selector moved below annual interest rate"
+    },
+    {
+      "hash": "dfb16ef",
+      "author": "gio",
+      "date": "2026-07-12T03:21:55-04:00",
+      "subject": "feat(debt): loans payable + receivable with annual_rate/remaining_balance; payments split principal vs interest (Interest Expense / Interest Income); relabel accrual terms to Accounts Receivable/Payable; Debt section in entry modal with live split preview"
+    },
+    {
+      "hash": "bdfeeb7",
+      "author": "gio",
+      "date": "2026-07-12T02:50:20-04:00",
+      "subject": "feat: invoices backend + AR automation; Add data opens bookkeeping modal with cash/accrual switch (receipts on both cashflow + expense entries); business address/phone/website; website as optional onboarding question"
+    },
+    {
+      "hash": "9253fe3",
+      "author": "gio",
+      "date": "2026-07-11T23:48:28-04:00",
+      "subject": "refactor(dashboard): drop Accounting tab — cash vs accrual is reporting, not a module; Add data + Create invoice buttons above the summary cards"
+    },
+    {
+      "hash": "5406ec2",
+      "author": "gio",
+      "date": "2026-07-11T23:40:04-04:00",
+      "subject": "feat(customers): customer database (Section 6) — CRUD, billing address, search; invoices will bill against these"
+    },
+    {
+      "hash": "0b93e75",
+      "author": "gio",
+      "date": "2026-07-11T23:31:38-04:00",
+      "subject": "feat(accounting): encode cash-basis vs accrual split — bookkeeping = cash flow + expenses, accounting = AR/AP/loans; ledger cash/accrual toggle"
+    },
+    {
+      "hash": "aa9e30b",
+      "author": "gio",
+      "date": "2026-07-11T23:24:30-04:00",
+      "subject": "feat(accounting): double-entry ledger engine — chart of accounts, balanced journal entries, 8 workflows (Sections 2+3); Accounting page"
+    },
+    {
+      "hash": "96dd064",
+      "author": "gio",
+      "date": "2026-07-11T23:16:43-04:00",
+      "subject": "feat: site-wide maintenance notice (site remains fully usable; single ENABLED flag to remove)"
+    },
+    {
+      "hash": "14e7a68",
+      "author": "gio",
+      "date": "2026-06-29T09:01:35-04:00",
+      "subject": "fix(dashboard): workspace switcher dropdown renders in a portal (fixed, top z-index) so it sits above content on mobile"
+    },
+    {
+      "hash": "bd81eac",
+      "author": "gio",
+      "date": "2026-06-29T00:44:15-04:00",
+      "subject": "feat(dashboard): unverified users get an 'verify your email' reminder in notifications (with resend); expose emailVerified on /v1/me"
+    },
+    {
+      "hash": "3ddd903",
+      "author": "gio",
+      "date": "2026-06-28T22:35:36-04:00",
+      "subject": "feat(dashboard): revenue metric toggle moved next to title, title+total reflect metric; bump dashboard v1.2.0 / admin v1.3.0"
+    },
+    {
+      "hash": "4a448ad",
+      "author": "gio",
+      "date": "2026-06-28T22:23:03-04:00",
+      "subject": "feat(admin): owners/admins can toggle a user's verification status; patch notes keep full product history (merge)"
+    },
     {
       "hash": "ab3cc88",
       "author": "gio",

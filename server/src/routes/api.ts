@@ -37,6 +37,7 @@ import { referralsRoutes } from '../modules/referrals/referrals.routes';
 import { ReferralsRepository } from '../modules/referrals/referrals.repository';
 import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 import { NotificationsRepository } from '../modules/notifications/notifications.repository';
+import { siteRoutes } from '../modules/site/site.routes';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
@@ -271,6 +272,9 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure notifications schema');
   }
   await fastify.register(notificationsRoutes, { database });
+
+  // Site-wide settings (the maintenance banner) — admin-toggleable, no redeploy.
+  await fastify.register(siteRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the

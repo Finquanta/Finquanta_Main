@@ -7,6 +7,7 @@ import {
   Audience, SentNotification, deleteNotification, getSentNotifications, sendNotification,
 } from "@/lib/api/notifications";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
+import { Maintenance, getMaintenance, setMaintenance } from "@/lib/api/site";
 
 const AUDIENCES: { value: Audience; label: string; hint: string }[] = [
   { value: "all", label: "Everyone", hint: "Every user with an account" },
@@ -36,12 +37,41 @@ export default function AdminNotificationsPage() {
   /** Empty = send immediately. Otherwise a local datetime to hold it until. */
   const [scheduledFor, setScheduledFor] = useState("");
 
+  /** The site-wide maintenance banner. */
+  const [maint, setMaint] = useState<Maintenance>({ enabled: false, message: "" });
+  const [maintBusy, setMaintBusy] = useState(false);
+
   const load = () => {
     setLoading(true);
     getSentNotifications()
       .then(setSent)
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load notifications."))
       .finally(() => setLoading(false));
+    getMaintenance().then(setMaint).catch(() => {});
+  };
+
+  const toggleMaintenance = async () => {
+    const next = !maint.enabled;
+    // Putting it up tells every visitor the product is broken. Worth a beat.
+    if (next && !window.confirm("Show the maintenance banner to everyone, including logged-out visitors?")) {
+      return;
+    }
+    setMaintBusy(true);
+    try {
+      setMaint(await setMaintenance({ enabled: next, message: maint.message }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update the banner.");
+    } finally {
+      setMaintBusy(false);
+    }
+  };
+
+  /** Saving the wording on blur — no separate Save button to forget to press. */
+  const saveMaintenanceMessage = async () => {
+    if (!maint.message.trim()) return;
+    try {
+      await setMaintenance(maint);
+    } catch { /* the toggle is the thing that matters; wording can be retried */ }
   };
 
   useEffect(() => { setDark(readAdminDark()); }, []);
@@ -142,6 +172,54 @@ export default function AdminNotificationsPage() {
             Push a message straight to users&apos; notification inbox. People who sign up after you send it
             won&apos;t receive it.
           </p>
+
+          {/* Maintenance banner — a site-wide message, so it lives with the other
+              broadcasts rather than in a tab of its own. */}
+          <div style={{
+            background: c.card, border: `1px solid ${maint.enabled ? "#f59e0b" : c.border}`,
+            borderRadius: 12, padding: 16, marginBottom: 24,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  Maintenance banner
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+                    color: maint.enabled ? "#f59e0b" : c.muted,
+                    background: maint.enabled ? "rgba(245,158,11,0.12)" : "transparent",
+                    border: maint.enabled ? "none" : `1px solid ${c.border}`,
+                  }}>
+                    {maint.enabled ? "LIVE ON THE SITE" : "OFF"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>
+                  A yellow bar across the top of every page, for everyone — signed in or not.
+                </div>
+              </div>
+              <button
+                onClick={toggleMaintenance}
+                disabled={maintBusy}
+                style={{
+                  background: maint.enabled ? "#ef4444" : "#f59e0b", color: "#fff", border: "none",
+                  borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700,
+                  cursor: maintBusy ? "default" : "pointer", opacity: maintBusy ? 0.6 : 1, flexShrink: 0,
+                }}
+              >
+                {maintBusy ? "Saving…" : maint.enabled ? "Take it down" : "Put it up"}
+              </button>
+            </div>
+
+            <textarea
+              value={maint.message}
+              onChange={(e) => setMaint({ ...maint, message: e.target.value })}
+              onBlur={saveMaintenanceMessage}
+              placeholder="What the banner says"
+              style={{ ...field, minHeight: 58, resize: "vertical", marginTop: 12 }}
+            />
+            <p style={{ fontSize: 11, color: c.muted, margin: "5px 0 0" }}>
+              Changing the wording un-dismisses it, so people who hid the old notice still see the new one.
+            </p>
+          </div>
 
           {/* Compose */}
           <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 18, marginBottom: 24 }}>

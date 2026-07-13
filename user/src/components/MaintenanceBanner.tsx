@@ -1,32 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getMaintenance } from "@/lib/api/site";
 
 /**
- * Site-wide "under maintenance" notice. The app stays fully usable — this only
- * sets expectations while we build the new financial modules.
+ * Site-wide maintenance notice, controlled from the admin panel.
  *
- * To take it down later, flip ENABLED to false (single line, nothing else to undo).
+ * This used to be a hardcoded `const ENABLED = true`, which meant putting the
+ * notice up (or taking it down) needed a code change and a deploy — the exact
+ * wrong shape for something you want to flip the moment something breaks. It now
+ * reads a flag an admin owns.
+ *
+ * If the lookup fails, nothing renders. A settings call must never be able to
+ * take the marketing site down with it.
  */
-const ENABLED = true;
 const DISMISS_KEY = "maintenanceNoticeDismissedV1";
 
 export default function MaintenanceBanner() {
-  const [show, setShow] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ENABLED) return;
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(DISMISS_KEY) === "1") return;
-    setShow(true);
+
+    let alive = true;
+    getMaintenance()
+      .then((m) => {
+        if (!alive || !m.enabled) return;
+        // The dismissal is per message: if an admin changes the notice, someone
+        // who dismissed the last one still sees the new one.
+        const dismissed = localStorage.getItem(DISMISS_KEY);
+        if (dismissed === m.message) return;
+        setMessage(m.message);
+      })
+      .catch(() => { /* no banner rather than a broken page */ });
+
+    return () => { alive = false; };
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, "1");
-    setShow(false);
+    if (message) localStorage.setItem(DISMISS_KEY, message);
+    setMessage(null);
   };
 
-  if (!show) return null;
+  if (!message) return null;
 
   return (
     <div
@@ -49,10 +65,7 @@ export default function MaintenanceBanner() {
         textAlign: "center",
       }}
     >
-      <span>
-        <strong>🚧 Finquanta is under active maintenance.</strong>{" "}
-        We&apos;re building new bookkeeping, accounting and invoicing features. The site is still fully usable in the meantime — your data is safe.
-      </span>
+      <span>{message}</span>
       <button
         onClick={dismiss}
         style={{
