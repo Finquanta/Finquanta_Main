@@ -10,6 +10,7 @@ import { Loader2Icon, MailIcon, LockIcon, CheckIcon, UserIcon, EyeIcon, EyeOffIc
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { captureReferralCode, clearReferralCode, storedReferralCode } from "@/lib/api/referrals";
+import { PASSWORD_RULES, SYMBOL_EXAMPLES, SYMBOL_RE, firstPasswordProblem, passwordIsValid } from "@/lib/password-rules";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -49,9 +50,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   /** Set when they arrived on someone's referral link — shown as a confirmation. */
   const [referredBy, setReferredBy] = useState<string | undefined>(undefined);
 
+  /** A form-level error that STAYS on screen, unlike the 5s toast. */
+  const [formError, setFormError] = useState<string | null>(null);
+
   const age = dateOfBirth ? ageFrom(dateOfBirth) : NaN;
   const ageValid = !isNaN(age) && age >= MIN_AGE;
   const allAccepted = acceptedTerms && acceptedPrivacy && acceptedRisk;
+  const passwordOk = passwordIsValid(password);
 
   // Pre-fill the email when arriving from the homepage "Sign Up" box (?email=),
   // and remember a referral code if they arrived on someone's link (?ref=).
@@ -85,25 +90,35 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     setPasswordMismatch(password !== value);
   };
 
+  /** Show it inline AND as a toast — the toast alone is missable on a phone. */
+  const fail = (message: string) => {
+    setFormError(message);
+    ui.toast("error", message, 6000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!emailValid || !password || !firstName || password !== confirmPassword) return;
 
-    if (password.length < 8) {
-      ui.toast("error", "Password must be at least 8 characters", 4000);
+    // The server enforces upper/lower/digit/special too. Check the same rules
+    // here so nobody gets bounced by a requirement the form never mentioned.
+    const problem = firstPasswordProblem(password);
+    if (problem) {
+      fail(`Your password needs: ${problem.toLowerCase()}.`);
       return;
     }
 
     if (!dateOfBirth || isNaN(age)) {
-      ui.toast("error", "Please enter your date of birth", 4000);
+      fail("Please enter your date of birth");
       return;
     }
     if (!ageValid) {
-      ui.toast("error", `You must be at least ${MIN_AGE} years old to create an account`, 5000);
+      fail(`You must be at least ${MIN_AGE} years old to create an account`);
       return;
     }
     if (!allAccepted) {
-      ui.toast("error", "Please accept the Terms, Privacy Policy, and Risk Disclosure", 5000);
+      fail("Please accept the Terms, Privacy Policy, and Risk Disclosure");
       return;
     }
 
@@ -150,12 +165,17 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         router.push('/onboarding');
       } else {
         const apiData = await res.json().catch(() => ({}));
-        const errorMessage = apiData?.detail || apiData?.message || "Registration failed. Please try again.";
-        ui.toast("error", errorMessage, 5000);
+        // `detail` carries the real reason; `error` is the generic wrapper. Read
+        // both — reading only detail/message meant some failures showed nothing
+        // useful at all.
+        const errorMessage =
+          apiData?.detail || apiData?.message || apiData?.error ||
+          "Registration failed. Please try again.";
+        fail(errorMessage);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Network error. Please try again.";
-      ui.toast("error", errorMessage, 5000);
+      fail(errorMessage);
       console.error('Registration error:', error);
     } finally {
       setIsLoading(false);
@@ -164,7 +184,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
 
-  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && password.length >= 8 && ageValid && allAccepted;
+  // passwordOk mirrors the server's rules. It used to be `password.length >= 8`,
+  // which let the button enable for passwords the server would reject.
+  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && passwordOk && ageValid && allAccepted;
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
@@ -243,7 +265,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 if (confirmPassword) setPasswordMismatch(confirmPassword !== e.target.value);
               }}
               className="pl-10 pr-10 py-2 bg-white text-black border border-gray-300"
-              placeholder="Password (min 8 characters)"
+              placeholder="Password"
               autoCapitalize="none"
               autoComplete="new-password"
               disabled={isLoading}
@@ -260,6 +282,39 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
           </div>
+
+          {/* The rules the server actually enforces, shown as you type. Without
+              this people picked a sensible-looking password, the button enabled,
+              and signup failed for a reason they never saw. */}
+          {password.length > 0 && !passwordOk && (
+            <div className="-mt-1">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+                {PASSWORD_RULES.map((rule) => {
+                  const met = rule.test(password);
+                  return (
+                    <li
+                      key={rule.label}
+                      className={cn("flex items-center gap-1.5 text-xs", met ? "text-green-600" : "text-gray-500")}
+                    >
+                      <span className={cn("flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold shrink-0",
+                        met ? "bg-green-500 text-white" : "border border-gray-300")}>
+                        {met ? "✓" : ""}
+                      </span>
+                      {rule.label}
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* Spell out what counts, but only once that's the bit they're
+                  missing — "add a symbol" shouldn't be a guessing game. */}
+              {!SYMBOL_RE.test(password) && (
+                <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
+                  Any of these count: <span className="font-mono text-gray-700">{SYMBOL_EXAMPLES}</span>
+                  <br />Letters, numbers and spaces don&apos;t.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -325,6 +380,16 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               <span>I acknowledge the <a href="/ai-risk-disclosure" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Risk Disclosure</a></span>
             </label>
           </div>
+
+          {/* Sits next to the button and stays put. The toast is fixed to the
+              top-right corner and clears after a few seconds — behind an iPhone
+              keyboard that may as well be invisible, which is how three people
+              hit a failing signup and saw nothing at all. */}
+          {formError && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
 
           <Button
             type="submit"

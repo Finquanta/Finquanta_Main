@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-13T06:19:09.353Z",
+  "generatedAt": "2026-07-16T17:21:55.394Z",
   "commits": [
+    {
+      "hash": "265eb93",
+      "author": "gio",
+      "date": "2026-07-13T02:23:19-04:00",
+      "subject": "feat(site): maintenance banner is now an admin toggle, and defaults to off"
+    },
     {
       "hash": "5cce126",
       "author": "gio",

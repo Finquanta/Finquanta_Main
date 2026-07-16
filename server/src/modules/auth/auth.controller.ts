@@ -1,6 +1,21 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService, RegisterData, LoginData, RefreshTokenData } from './auth.service';
 
+/**
+ * Registration failures the CALLER can fix, as thrown by AuthService.register.
+ * Matched on the thrown message because the service throws plain Errors; if
+ * those messages change, change these with them.
+ */
+const USER_FIXABLE = [
+  'Password must',
+  'Email already exists',
+  'You must be at least',
+  'valid date of birth',
+  'You must accept',
+];
+
+const isUserFixable = (msg: string) => USER_FIXABLE.some((m) => msg.includes(m));
+
 export class AuthController {
   constructor(private authService: AuthService) {}
 
@@ -27,6 +42,16 @@ export class AuthController {
       return reply.status(201).send(result);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+
+      // Things the user can fix (weak password, duplicate email, too young) are
+      // 400s, not 500s. They were all reported as "Internal server error", which
+      // is both wrong and alarming — nothing is broken when someone picks a
+      // password without a special character.
+      if (isUserFixable(msg)) {
+        console.warn('REGISTER REJECTED:', msg);
+        return reply.status(400).send({ error: msg, detail: msg });
+      }
+
       console.error('REGISTER ERROR:', msg);
       return reply.status(500).send({
         error: 'Internal server error',

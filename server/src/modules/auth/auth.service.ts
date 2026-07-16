@@ -295,8 +295,17 @@ export class AuthService {
       throw new Error('Password must contain at least one lowercase letter, one uppercase letter, and one number');
     }
 
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      throw new Error('Password must contain at least one special character');
+    // Any character that isn't a letter, a digit, or a space counts.
+    //
+    // This used to be an explicit list — [!@#$%^&*(),.?":{}|<>] — which quietly
+    // rejected hyphens, underscores, plus, equals, brackets and quotes. Someone
+    // choosing "My-Password1" was told to add a special character when they
+    // already had one. Widening is strictly more permissive, so no existing
+    // password stops working.
+    //
+    // Mirrored in user/src/lib/password-rules.ts — change both together.
+    if (!/[^A-Za-z0-9\s]/.test(password)) {
+      throw new Error('Password must contain at least one symbol, like ! ? @ # - _');
     }
   }
 }
