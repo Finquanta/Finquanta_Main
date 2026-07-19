@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { createTransaction, updateTransaction, uploadReceipt, Recurrence } from '@/lib/api/transactions';
+import { CURRENCIES, Currency, FxRate, getFxRate } from '@/lib/api/fx';
 import { WorkflowType, WORKFLOW_META, workflowsInGroup, runWorkflow } from '@/lib/api/accounting';
 import { Loan, LoanType, listLoans, createLoan, recordLoanPayment, previewSplit } from '@/lib/api/loans';
 import { useLanguage } from '@/hooks/context/LanguageContext';
@@ -14,6 +15,9 @@ export interface BookkeepingEditing {
   dateOfInvoice: string;
   recurrence: Recurrence;
   hasReceipt: boolean;
+  /** If the entry was made in a foreign currency, so an edit can preserve it. */
+  currency?: string;
+  originalAmount?: number | null;
 }
 
 interface BookkeepingModalProps {
@@ -91,6 +95,16 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   const [loanId, setLoanId] = useState('');
   const [annualRate, setAnnualRate] = useState('');
 
+  // Currency (cash entries only in v1). The amount field holds the currency the
+  // user is entering in; when it's not USD we fetch the rate and derive the USD
+  // that actually hits the books.
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [usdAmount, setUsdAmount] = useState('');   // the USD that gets stored; editable
+  const [usdEdited, setUsdEdited] = useState(false); // user overrode the auto value
+  const [rate, setRate] = useState<FxRate | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateError, setRateError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
@@ -101,17 +115,53 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
     setDebtAction('loan_received');
     setLoanId('');
     setAnnualRate('');
+
+    const editingCurrency = (editing?.currency as Currency) ?? 'USD';
+    setCurrency(editingCurrency);
+    setRate(null);
+    setRateError(null);
+    setUsdEdited(false);
+    // On edit, the stored USD amount is editing.invoiceAmount; when foreign, the
+    // amount field should show the ORIGINAL (e.g. €100), not the USD.
+    setUsdAmount(editingCurrency !== 'USD' ? editing?.invoiceAmount ?? '' : '');
+
     setForm(editing
       ? {
           invoiceName: editing.invoiceName,
           invoiceDescription: editing.invoiceDescription,
-          invoiceAmount: editing.invoiceAmount,
+          invoiceAmount:
+            editingCurrency !== 'USD' && editing.originalAmount != null
+              ? String(editing.originalAmount)
+              : editing.invoiceAmount,
           invoiceType: editing.invoiceType,
           dateOfInvoice: editing.dateOfInvoice,
           recurrence: editing.recurrence ?? 'once',
         }
       : { ...emptyForm, dateOfInvoice: new Date().toISOString().slice(0, 10) });
   }, [isOpen, editing]);
+
+  // Fetch the exchange rate whenever a foreign amount/date is in play, and fill
+  // the USD unless the user has typed their own. Cash entries only.
+  useEffect(() => {
+    if (!isOpen || basis !== 'cash' || currency === 'USD') {
+      setRate(null); setRateError(null);
+      return;
+    }
+    const amt = Number(form.invoiceAmount);
+    if (!form.dateOfInvoice || !(amt > 0)) return;
+
+    let alive = true;
+    setRateLoading(true); setRateError(null);
+    getFxRate(currency, 'USD', form.dateOfInvoice)
+      .then((r) => {
+        if (!alive) return;
+        setRate(r);
+        if (!usdEdited) setUsdAmount((amt * r.rate).toFixed(2));
+      })
+      .catch((e) => { if (alive) setRateError(e instanceof Error ? e.message : 'Could not get the rate.'); })
+      .finally(() => { if (alive) setRateLoading(false); });
+    return () => { alive = false; };
+  }, [isOpen, basis, currency, form.invoiceAmount, form.dateOfInvoice, usdEdited]);
 
   // Load the loans you can pay against when a payment action is chosen.
   useEffect(() => {
@@ -161,13 +211,26 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           date: form.dateOfInvoice,
         });
       } else {
+        // The books are kept in USD. For a foreign entry, `amount` is the USD
+        // value (auto-converted or overridden), and we keep the original so the
+        // row can show what actually moved.
+        const foreign = currency !== 'USD';
+        const usd = foreign ? Number(usdAmount) : amount;
+        if (foreign && !(usd > 0)) {
+          setSaving(false);
+          return setError('Enter the USD amount, or wait for the exchange rate.');
+        }
+
         const payload = {
           type: (form.invoiceType === 'Cashflow' ? 'income' : 'expense') as 'income' | 'expense',
           category: form.invoiceName.trim(),
           description: form.invoiceDescription.trim() || undefined,
-          amount,
+          amount: usd,
           date: form.dateOfInvoice,
           recurrence: form.recurrence,
+          ...(foreign
+            ? { currency, originalAmount: amount, exchangeRate: rate?.rate }
+            : {}),
         };
         if (editing) {
           await Promise.all([
@@ -262,8 +325,48 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         <label className="block text-sm font-semibold mb-1">
           {basis === 'debt' && isPaymentAction(debtAction) ? 'Payment Amount' : t('dashboard', 'invoiceAmountLabel')}
         </label>
-        <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" placeholder={t('dashboard', 'enterValue')} type="number"
-          value={form.invoiceAmount} onChange={(e) => setForm({ ...form, invoiceAmount: e.target.value })} />
+        <div className="flex gap-2 mb-1">
+          <input className="flex-1 bg-[#2a2a3e] rounded-lg px-4 py-2 text-sm outline-none" placeholder={t('dashboard', 'enterValue')} type="number"
+            value={form.invoiceAmount} onChange={(e) => setForm({ ...form, invoiceAmount: e.target.value })} />
+          {/* Currency picker — cash entries only in v1. Books stay in USD. */}
+          {basis === 'cash' && (
+            <select
+              className="bg-[#2a2a3e] rounded-lg px-3 py-2 text-sm outline-none"
+              value={currency}
+              onChange={(e) => { setCurrency(e.target.value as Currency); setUsdEdited(false); }}
+            >
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+        </div>
+
+        {/* Foreign entry: show the USD that will actually be recorded, editable. */}
+        {basis === 'cash' && currency !== 'USD' && (
+          <div className="mb-4 rounded-lg bg-[#22223a] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-gray-300">Recorded in your books (USD)</label>
+              {rateLoading
+                ? <span className="text-[11px] text-gray-500">fetching rate…</span>
+                : rate && <span className="text-[11px] text-gray-500">rate {rate.rate.toFixed(4)} · {rate.effectiveDate}</span>}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-sm text-gray-400">$</span>
+              <input
+                className="flex-1 bg-[#2a2a3e] rounded-lg px-3 py-1.5 text-sm outline-none"
+                type="number" placeholder="0.00"
+                value={usdAmount}
+                onChange={(e) => { setUsdAmount(e.target.value); setUsdEdited(true); }}
+              />
+              {usdEdited && rate && (
+                <button type="button" onClick={() => { setUsdEdited(false); }}
+                  className="text-[11px] text-blue-400 hover:underline px-1">reset</button>
+              )}
+            </div>
+            {rateError
+              ? <p className="text-[11px] text-amber-400 mt-1">{rateError} You can type the USD amount manually.</p>
+              : <p className="text-[11px] text-gray-500 mt-1">Auto-converted at the rate on {form.dateOfInvoice || 'the entry date'}. Edit if your bank used a different rate.</p>}
+          </div>
+        )}
 
         {/* Interest rate when creating a loan */}
         {basis === 'debt' && !isPaymentAction(debtAction) && (

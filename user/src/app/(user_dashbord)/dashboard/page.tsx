@@ -229,11 +229,13 @@ export default function DashboardPage() {
       id: tx.transactionId,
       invoiceName: tx.category ?? tx.description,
       invoiceDescription: '',
-      invoiceAmount: String(Math.abs(tx.signedAmount)),
+      invoiceAmount: String(Math.abs(tx.signedAmount)), // USD stored
       invoiceType: tx.direction === 'in' ? 'Cashflow' : 'Expense',
       dateOfInvoice: tx.date ?? '',
       recurrence: (tx.recurrence as Recurrence) ?? 'once',
       hasReceipt: tx.hasReceipt,
+      currency: tx.currency ?? undefined,
+      originalAmount: tx.originalAmount ?? undefined,
     });
     setBookkeepingModalOpen(true);
   };

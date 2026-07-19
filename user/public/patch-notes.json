@@ -1,6 +1,24 @@
 {
-  "generatedAt": "2026-07-16T17:21:55.394Z",
+  "generatedAt": "2026-07-19T03:12:51.641Z",
   "commits": [
+    {
+      "hash": "14cc391",
+      "author": "gio",
+      "date": "2026-07-18T22:51:14-04:00",
+      "subject": "fix(ledger): editing only the name of a bookkeeping entry didn't save"
+    },
+    {
+      "hash": "3a1132f",
+      "author": "gio",
+      "date": "2026-07-16T14:33:15-04:00",
+      "subject": "fix(server): Render deploy failed — TS5090 on tsconfig paths"
+    },
+    {
+      "hash": "fa636b6",
+      "author": "gio",
+      "date": "2026-07-16T13:34:31-04:00",
+      "subject": "fix(auth): signup silently failed for anyone whose password lacked a symbol"
+    },
     {
       "hash": "265eb93",
       "author": "gio",

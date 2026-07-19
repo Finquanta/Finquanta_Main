@@ -5,11 +5,18 @@ export type Recurrence = 'once' | 'monthly' | 'yearly';
 export interface TransactionInput {
   type: 'income' | 'expense';
   category: string;
+  /** ALWAYS in USD (the base currency the books are kept in). */
   amount: number;
   date: string; // YYYY-MM-DD
   description?: string;
   invoice?: string;
   recurrence?: Recurrence;
+  /** The currency the money actually moved in, if not USD. */
+  currency?: string;
+  /** The amount in that currency, before conversion to USD. */
+  originalAmount?: number;
+  /** The rate used to convert originalAmount → the USD amount above. */
+  exchangeRate?: number;
 }
 
 export interface Transaction {
@@ -22,10 +29,21 @@ export interface Transaction {
   invoice?: string;
 }
 
-// The backend stores recurrence inside the transaction's metadata JSONB.
+// Recurrence and currency both live in the transaction's metadata JSONB — the
+// `amount` column stays pure USD so the ledger never sees a foreign figure.
 function toPayload(data: Partial<TransactionInput>) {
-  const { recurrence, ...rest } = data;
-  return recurrence ? { ...rest, metadata: { recurrence } } : rest;
+  const { recurrence, currency, originalAmount, exchangeRate, ...rest } = data;
+
+  const metadata: Record<string, unknown> = {};
+  if (recurrence) metadata.recurrence = recurrence;
+  // Only record the currency block when it's genuinely foreign.
+  if (currency && currency !== 'USD') {
+    metadata.currency = currency;
+    if (originalAmount !== undefined) metadata.originalAmount = originalAmount;
+    if (exchangeRate !== undefined) metadata.exchangeRate = exchangeRate;
+  }
+
+  return Object.keys(metadata).length > 0 ? { ...rest, metadata } : rest;
 }
 
 export async function createTransaction(data: TransactionInput): Promise<Transaction> {

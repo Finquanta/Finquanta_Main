@@ -121,6 +121,10 @@ export interface LedgerTransaction {
   category: string | null;
   hasReceipt: boolean;
   recurrence: string | null;
+  /** Foreign currency the entry was made in (null when USD). */
+  currency: string | null;
+  /** The amount in that currency, before it was converted to the USD above. */
+  originalAmount: number | null;
   lines: JournalLine[];
 }
 

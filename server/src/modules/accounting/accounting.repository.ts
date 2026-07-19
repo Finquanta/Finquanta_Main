@@ -347,6 +347,10 @@ export class AccountingRepository {
     category: string | null;
     hasReceipt: boolean;
     recurrence: string | null;
+    /** The currency the user entered in (e.g. 'EUR'); null/USD = base currency. */
+    currency: string | null;
+    /** The amount in that currency, before conversion to USD. */
+    originalAmount: number | null;
     lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }>;
   }>> {
     await this.ensureAccounts(businessId);
@@ -441,6 +445,9 @@ export class AccountingRepository {
         category: r.category ?? null,
         hasReceipt: !!r.has_receipt,
         recurrence: typeof meta?.recurrence === 'string' ? meta.recurrence : null,
+        // Only a non-USD original is worth surfacing; the amount above is USD.
+        currency: typeof meta?.currency === 'string' && meta.currency !== 'USD' ? meta.currency : null,
+        originalAmount: typeof meta?.originalAmount === 'number' ? meta.originalAmount : null,
         lines: linesBy.get(r.id) ?? [],
       };
     });

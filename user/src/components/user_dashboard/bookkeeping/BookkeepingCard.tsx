@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   AccountingBasis, LedgerTransaction, listLedgerTransactions,
 } from "@/lib/api/accounting";
+import { formatMoney } from "@/lib/api/fx";
 
 /**
  * The Bookkeeping table — the familiar layout, now backed by the ledger so it
@@ -160,6 +161,12 @@ export default function BookkeepingCard({
                     </td>
                     <td className="py-3">
                       {tx.signedAmount < 0 ? "-" : "+"}${Math.abs(tx.signedAmount).toFixed(2)}
+                      {/* Entered in a foreign currency — show what actually moved. */}
+                      {tx.currency && tx.originalAmount != null && (
+                        <span className={`block text-[10px] ${sub}`} title="Original amount, converted to USD for your books">
+                          {formatMoney(tx.originalAmount, tx.currency)}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-3">
