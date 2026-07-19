@@ -157,18 +157,32 @@ export default function DashboardPage() {
       .catch(() => setDashboardData(null));
   }, [computeRange]);
 
+  /**
+   * After saving a bookkeeping entry (new or edited), refresh EVERYTHING that
+   * reads the ledger — the summary cards (refresh) AND the Bookkeeping table and
+   * Health Score card, which key off bookkeepingRefresh. Without the bump, those
+   * two only updated on a full page reload.
+   */
+  const refreshAfterBookkeeping = useCallback(() => {
+    setBookkeepingRefresh((n) => n + 1);
+    return refresh();
+  }, [refresh]);
+
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Refresh when Finna changes data, or when the active business (workspace) switches.
+  // Refresh when Finna changes data, or when the active business (workspace)
+  // switches. Switching workspaces has to refresh the BOOKS too, not just the
+  // summary cards — otherwise the Bookkeeping table and Health Score card kept
+  // showing the previous workspace until a full page reload.
   useEffect(() => {
-    const handler = () => { refresh(); loadReminders(); };
+    const handler = () => { refreshAfterBookkeeping(); loadReminders(); };
     window.addEventListener('finna:dataChanged', handler);
     window.addEventListener('finna:businessChanged', handler);
     return () => {
       window.removeEventListener('finna:dataChanged', handler);
       window.removeEventListener('finna:businessChanged', handler);
     };
-  }, [refresh, loadReminders]);
+  }, [refreshAfterBookkeeping, loadReminders]);
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
@@ -954,7 +968,7 @@ export default function DashboardPage() {
         isOpen={bookkeepingModalOpen}
         editing={bookkeepingEditing}
         onClose={() => setBookkeepingModalOpen(false)}
-        onSaved={refresh}
+        onSaved={refreshAfterBookkeeping}
       />
       <GoalModal
         isOpen={goalModalOpen}

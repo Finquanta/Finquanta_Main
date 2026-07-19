@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-19T03:50:58.024Z",
+  "generatedAt": "2026-07-19T04:22:55.324Z",
   "commits": [
+    {
+      "hash": "7f149a5",
+      "author": "gio",
+      "date": "2026-07-18T23:53:07-04:00",
+      "subject": "fix(bookkeeping): the description you type now shows on the entry (and edits stick)"
+    },
     {
       "hash": "88773fa",
       "author": "gio",
