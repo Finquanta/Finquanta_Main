@@ -248,6 +248,10 @@ export class AccountingRepository {
          AND t.id = e.source_id
          AND (
            e.date <> t.date
+           -- The description is derived from the transaction's category, so a
+           -- rename must re-post too. Without this, editing only the name of an
+           -- entry left the old name on the books and the change looked lost.
+           OR e.description IS DISTINCT FROM COALESCE(NULLIF(t.category, ''), 'Bookkeeping entry')
            OR NOT EXISTS (
              SELECT 1 FROM journal_lines l
              JOIN accounts a ON a.id = l.account_id
