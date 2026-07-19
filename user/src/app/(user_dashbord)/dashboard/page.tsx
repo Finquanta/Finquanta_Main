@@ -228,7 +228,7 @@ export default function DashboardPage() {
     setBookkeepingEditing({
       id: tx.transactionId,
       invoiceName: tx.category ?? tx.description,
-      invoiceDescription: '',
+      invoiceDescription: tx.note ?? '', // was hardcoded '', which wiped the note on edit
       invoiceAmount: String(Math.abs(tx.signedAmount)), // USD stored
       invoiceType: tx.direction === 'in' ? 'Cashflow' : 'Expense',
       dateOfInvoice: tx.date ?? '',

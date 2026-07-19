@@ -158,6 +158,8 @@ export default function BookkeepingCard({
                           <ExternalLink className="h-3 w-3" />
                         </Link>
                       )}
+                      {/* The note the user typed, if any — distinct from the name. */}
+                      {tx.note && <span className={`block text-[11px] ${sub}`}>{tx.note}</span>}
                     </td>
                     <td className="py-3">
                       {tx.signedAmount < 0 ? "-" : "+"}${Math.abs(tx.signedAmount).toFixed(2)}

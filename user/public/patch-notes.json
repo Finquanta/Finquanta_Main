@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-19T03:12:51.641Z",
+  "generatedAt": "2026-07-19T03:50:58.024Z",
   "commits": [
+    {
+      "hash": "88773fa",
+      "author": "gio",
+      "date": "2026-07-18T23:17:47-04:00",
+      "subject": "feat(currency): record cash entries in EUR, books stay in USD"
+    },
     {
       "hash": "14cc391",
       "author": "gio",

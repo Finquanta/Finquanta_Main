@@ -119,6 +119,8 @@ export interface LedgerTransaction {
   /** Present only for entries you typed yourself — those stay editable. */
   transactionId: string | null;
   category: string | null;
+  /** The free-text note typed on the entry, shown under its name. */
+  note: string | null;
   hasReceipt: boolean;
   recurrence: string | null;
   /** Foreign currency the entry was made in (null when USD). */

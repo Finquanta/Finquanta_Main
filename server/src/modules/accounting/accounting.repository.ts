@@ -345,6 +345,8 @@ export class AccountingRepository {
     cashMoved: boolean;
     transactionId: string | null;
     category: string | null;
+    /** The free-text note the user typed (financial_transactions.description). */
+    note: string | null;
     hasReceipt: boolean;
     recurrence: string | null;
     /** The currency the user entered in (e.g. 'EUR'); null/USD = base currency. */
@@ -375,7 +377,7 @@ export class AccountingRepository {
                    JOIN accounts a ON a.id = l.account_id
                    WHERE l.entry_id = e.id AND a.code = 'AP'), 0) AS ap_delta,
          COALESCE((SELECT SUM(l.debit) FROM journal_lines l WHERE l.entry_id = e.id), 0) AS gross,
-         t.id AS tx_id, t.category, t.metadata,
+         t.id AS tx_id, t.category, t.description AS tx_note, t.metadata,
          EXISTS (SELECT 1 FROM transaction_receipts r WHERE r.transaction_id = t.id) AS has_receipt
        FROM journal_entries e
        LEFT JOIN financial_transactions t
@@ -443,6 +445,7 @@ export class AccountingRepository {
         cashMoved: cash !== 0,
         transactionId: r.tx_id ?? null,
         category: r.category ?? null,
+        note: r.tx_note ?? null,
         hasReceipt: !!r.has_receipt,
         recurrence: typeof meta?.recurrence === 'string' ? meta.recurrence : null,
         // Only a non-USD original is worth surfacing; the amount above is USD.
