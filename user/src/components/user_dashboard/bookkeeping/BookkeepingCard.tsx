@@ -7,6 +7,7 @@ import {
   AccountingBasis, LedgerTransaction, listLedgerTransactions,
 } from "@/lib/api/accounting";
 import { formatMoney } from "@/lib/api/fx";
+import { getGroups, createGroup } from "@/lib/api/groups";
 
 /**
  * The Bookkeeping table — the familiar layout, now backed by the ledger so it
@@ -57,9 +58,17 @@ function typeLabel(tx: LedgerTransaction): string {
 }
 
 const isInvoiceRow = (tx: LedgerTransaction) => tx.sourceType.startsWith("invoice");
+const isLoanRow = (tx: LedgerTransaction) => tx.sourceType.startsWith("loan");
+const isLoanPaymentRow = (tx: LedgerTransaction) =>
+  tx.sourceType === "loan_payment" || tx.sourceType === "loan_repayment_received";
+/** Accrual / manual entries: posted straight to the ledger, no source record. */
+const isDirectRow = (tx: LedgerTransaction) =>
+  !tx.transactionId && !isInvoiceRow(tx) && !isLoanRow(tx);
+/** Rows we can assign a group to, edit and delete right here. */
+const isManageableRow = (tx: LedgerTransaction) => isLoanRow(tx) || isDirectRow(tx);
 
 export default function BookkeepingCard({
-  isDark, refreshKey, colors, t, onEdit, onDelete, onDeleteInvoice, onViewReceipt,
+  isDark, refreshKey, colors, t, onEdit, onDelete, onDeleteInvoice, onAssignGroup, onDeleteLedger, onEditLedger, onViewReceipt,
 }: {
   isDark: boolean;
   refreshKey?: number;
@@ -69,6 +78,12 @@ export default function BookkeepingCard({
   onDelete: (tx: LedgerTransaction) => void;
   /** Erases the invoice from the books entirely and bins the document. */
   onDeleteInvoice: (tx: LedgerTransaction) => void;
+  /** Assign/clear the group on a loan or accrual row (no source doc to edit). */
+  onAssignGroup: (tx: LedgerTransaction, groupId: string | null) => void;
+  /** Delete a loan (whole) or an accrual/manual entry. */
+  onDeleteLedger: (tx: LedgerTransaction) => void;
+  /** Edit a loan or accrual row (opens the modal pre-filled; re-posts on save). */
+  onEditLedger: (tx: LedgerTransaction) => void;
   onViewReceipt: (transactionId: string) => void;
 }) {
   const [basis, setBasis] = useState<AccountingBasis>("cash");
@@ -76,6 +91,13 @@ export default function BookkeepingCard({
   const [rows, setRows] = useState<LedgerTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // id → {name,color} so a row's groupId can render as a readable chip.
+  const [groupMap, setGroupMap] = useState<Record<string, { name: string; color: string }>>({});
+  // Selected group ids to filter by (plus 'none' for Unassigned). Empty = all.
+  const [groupFilter, setGroupFilter] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -87,11 +109,40 @@ export default function BookkeepingCard({
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  const loadGroups = useCallback(() => {
+    getGroups()
+      .then((gs) => setGroupMap(Object.fromEntries(gs.map((g) => [g.id, { name: g.name, color: g.color }]))))
+      .catch(() => setGroupMap({}));
+  }, []);
+  useEffect(() => { loadGroups(); }, [loadGroups, refreshKey]);
+
+  const toggleGroupFilter = (key: string) =>
+    setGroupFilter((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const createGroupInline = async () => {
+    const nm = newGroupName.trim();
+    if (!nm) return;
+    try {
+      const g = await createGroup({ name: nm });
+      setGroupMap((m) => ({ ...m, [g.id]: { name: g.name, color: g.color } }));
+      setNewGroupName("");
+      setCreatingGroup(false);
+    } catch { /* surfaced elsewhere; keep the panel usable */ }
+  };
+
   const sub = isDark ? "text-gray-400" : "text-gray-500";
   const chip = (on: boolean) =>
     `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
       on ? "bg-blue-500 text-white" : isDark ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
     }`;
+
+  // Filter the visible rows by the chosen groups (any of them). Empty = all.
+  const groupEntries = Object.entries(groupMap);
+  const visibleRows = groupFilter.length === 0
+    ? rows
+    : rows.filter((r) =>
+        (r.groupId && groupFilter.includes(r.groupId)) || (!r.groupId && groupFilter.includes("none")));
+  const filterLabel = groupFilter.length === 0 ? "All groups" : `${groupFilter.length} selected`;
 
   return (
     <div>
@@ -101,10 +152,60 @@ export default function BookkeepingCard({
           <button onClick={() => setBasis("cash")} className={chip(basis === "cash")}>Cash Basis</button>
           <button onClick={() => setBasis("accrual")} className={chip(basis === "accrual")}>Accrual</button>
         </div>
-        <label className={`flex items-center gap-1.5 text-xs cursor-pointer ${sub}`}>
-          <input type="checkbox" checked={accountantView} onChange={(e) => setAccountantView(e.target.checked)} />
-          Accountant view
-        </label>
+        <div className="flex items-center gap-3">
+          {/* Group filter — a multi-select popover, with inline group creation. */}
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`text-xs rounded-lg px-2.5 py-1 border ${isDark ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600" : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"}`}
+              title="Filter by group"
+            >
+              {filterLabel} ▾
+            </button>
+            {filterOpen && (
+              <>
+                {/* click-away backdrop */}
+                <div className="fixed inset-0 z-10" onClick={() => { setFilterOpen(false); setCreatingGroup(false); }} />
+                <div className={`absolute right-0 mt-1 z-20 w-52 rounded-lg border shadow-lg p-1.5 ${isDark ? "bg-[#1e1e2e] border-gray-700" : "bg-white border-gray-200"}`}>
+                  {groupFilter.length > 0 && (
+                    <button onClick={() => setGroupFilter([])} className="w-full text-left text-[11px] text-blue-500 hover:underline px-2 py-1">Clear filter</button>
+                  )}
+                  <div className="max-h-56 overflow-y-auto">
+                    {groupEntries.map(([id, g]) => (
+                      <label key={id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${isDark ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-100 text-gray-700"}`}>
+                        <input type="checkbox" checked={groupFilter.includes(id)} onChange={() => toggleGroupFilter(id)} />
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                        <span className="truncate">{g.name}</span>
+                      </label>
+                    ))}
+                    <label className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-gray-600"}`}>
+                      <input type="checkbox" checked={groupFilter.includes("none")} onChange={() => toggleGroupFilter("none")} />
+                      <span className="italic">Unassigned</span>
+                    </label>
+                  </div>
+                  {/* Inline create */}
+                  <div className={`mt-1 pt-1.5 border-t ${isDark ? "border-gray-700" : "border-gray-100"}`}>
+                    {creatingGroup ? (
+                      <div className="flex gap-1 px-1">
+                        <input autoFocus value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") createGroupInline(); if (e.key === "Escape") setCreatingGroup(false); }}
+                          placeholder="Group name"
+                          className={`flex-1 text-xs rounded px-2 py-1 border outline-none ${isDark ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-800"}`} />
+                        <button onClick={createGroupInline} disabled={!newGroupName.trim()} className="text-xs font-semibold text-blue-500 px-1 disabled:opacity-40">Add</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setCreatingGroup(true)} className="w-full text-left text-[11px] font-medium text-blue-500 hover:underline px-2 py-1">+ New group</button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <label className={`flex items-center gap-1.5 text-xs cursor-pointer ${sub}`}>
+            <input type="checkbox" checked={accountantView} onChange={(e) => setAccountantView(e.target.checked)} />
+            Accountant view
+          </label>
+        </div>
       </div>
       <p className={`text-xs mb-3 ${sub}`}>
         {basis === "cash"
@@ -127,10 +228,12 @@ export default function BookkeepingCard({
         <tbody className={`divide-y ${colors.tableRow}`}>
           {loading ? (
             <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>Loading…</td></tr>
-          ) : rows.length === 0 ? (
-            <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>{t("dashboard", "noTransactions")}</td></tr>
+          ) : visibleRows.length === 0 ? (
+            <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>
+              {rows.length === 0 ? t("dashboard", "noTransactions") : "Nothing matches that group filter."}
+            </td></tr>
           ) : (
-            rows.map((tx) => {
+            visibleRows.map((tx) => {
               const editable = !!tx.transactionId;
               const owedOnly = !tx.cashMoved;
               return (
@@ -160,6 +263,16 @@ export default function BookkeepingCard({
                       )}
                       {/* The note the user typed, if any — distinct from the name. */}
                       {tx.note && <span className={`block text-[11px] ${sub}`}>{tx.note}</span>}
+                      {/* Business Group chip, if assigned. */}
+                      {tx.groupId && groupMap[tx.groupId] && (
+                        <span
+                          className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+                          style={{ color: groupMap[tx.groupId].color, backgroundColor: `${groupMap[tx.groupId].color}1a` }}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupMap[tx.groupId].color }} />
+                          {groupMap[tx.groupId].name}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3">
                       {tx.signedAmount < 0 ? "-" : "+"}${Math.abs(tx.signedAmount).toFixed(2)}
@@ -190,8 +303,28 @@ export default function BookkeepingCard({
                           <button onClick={() => onDeleteInvoice(tx)} className="text-red-500 hover:text-red-700" title="Cancel and delete this invoice">
                             <Trash2 className="h-4 w-4" />
                           </button>
+                        ) : isManageableRow(tx) ? (
+                          <>
+                            <select
+                              value={tx.groupId ?? ""}
+                              onChange={(e) => onAssignGroup(tx, e.target.value || null)}
+                              className={`rounded px-1.5 py-0.5 text-[11px] max-w-[120px] border outline-none ${isDark ? "bg-[#2a2a3e] border-gray-600 text-gray-100" : "bg-white border-gray-300 text-gray-700"}`}
+                              title="Assign a group"
+                            >
+                              <option value="">No group</option>
+                              {Object.entries(groupMap).map(([id, g]) => (
+                                <option key={id} value={id}>{g.name}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => onEditLedger(tx)} className="text-blue-500 hover:text-blue-700" title={isLoanPaymentRow(tx) ? "Edit this payment" : isLoanRow(tx) ? "Edit this loan" : "Edit this entry"}>
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => onDeleteLedger(tx)} className="text-red-500 hover:text-red-700" title={isLoanPaymentRow(tx) ? "Reverse this payment" : isLoanRow(tx) ? "Delete this loan and its payments" : "Delete this entry"}>
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
                         ) : (
-                          <span className={`text-[10px] ${sub}`} title="Comes from a loan — change it at the source">auto</span>
+                          <span className={`text-[10px] ${sub}`} title="Part of a loan — manage it from the loan's principal row">auto</span>
                         )}
                       </div>
                     </td>

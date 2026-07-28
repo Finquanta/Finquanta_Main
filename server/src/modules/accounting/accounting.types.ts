@@ -71,6 +71,12 @@ export interface CreateEntryInput {
   sourceId?: string | null;
   createdBy?: string | null;
   date?: string | null; // 'YYYY-MM-DD'; defaults to today
+  /**
+   * Business Group for entries that have no external source record to hang it on
+   * (accrual workflows, manual entries). Bookkeeping/invoices resolve their
+   * group from the source record instead, so they leave this null.
+   */
+  groupId?: string | null;
   lines: JournalLineInput[];
 }
 

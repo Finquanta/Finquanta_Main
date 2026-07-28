@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-19T04:22:55.324Z",
+  "generatedAt": "2026-07-27T20:07:09.573Z",
   "commits": [
+    {
+      "hash": "f12813f",
+      "author": "gio",
+      "date": "2026-07-19T00:25:25-04:00",
+      "subject": "fix(dashboard): books now update live after an edit and on workspace switch"
+    },
     {
       "hash": "7f149a5",
       "author": "gio",

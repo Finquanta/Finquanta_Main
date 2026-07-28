@@ -72,7 +72,7 @@ export async function accountingRoutes(fastify: FastifyInstance, options: { data
    */
   fastify.post('/v1/accounting/workflows', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const body = (request.body as { type?: string; amount?: number; interest?: number; description?: string; date?: string }) || {};
+      const body = (request.body as { type?: string; amount?: number; interest?: number; description?: string; date?: string; groupId?: string | null }) || {};
       if (!isWorkflowType(body.type)) {
         return reply.status(400).send({ success: false, error: `Unknown workflow. Expected one of: ${WORKFLOW_TYPES.join(', ')}` });
       }
@@ -87,6 +87,7 @@ export async function accountingRoutes(fastify: FastifyInstance, options: { data
         sourceType: body.type,
         createdBy: request.user!.id,
         date: body.date ?? null,
+        groupId: body.groupId ?? null,
         lines: built.lines,
       });
       return reply.status(201).send({ success: true, data: { id } });
@@ -94,6 +95,19 @@ export async function accountingRoutes(fastify: FastifyInstance, options: { data
       const msg = error instanceof Error ? error.message : 'Could not record entry';
       request.log.error(error);
       return reply.status(400).send({ success: false, error: msg });
+    }
+  }) as any);
+
+  /** Delete an accrual/manual ledger entry (loan/bookkeeping/invoice entries are refused). */
+  fastify.delete('/v1/accounting/entries/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const removed = await repo.deleteDirectEntry(request.businessId!, id);
+      if (!removed) return reply.status(404).send({ success: false, error: 'Entry not found, or not one you can delete here' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }) as any);
 

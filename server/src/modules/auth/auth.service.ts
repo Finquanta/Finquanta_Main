@@ -22,6 +22,15 @@ export interface RegisterData {
 
 const MIN_AGE_YEARS = 16;
 
+/** A verification failure carrying a machine-readable reason for the UI. */
+export type VerificationErrorReason = 'invalid' | 'expired';
+export class VerificationError extends Error {
+  constructor(public reason: VerificationErrorReason, message: string) {
+    super(message);
+    this.name = 'VerificationError';
+  }
+}
+
 /** Whole years between a 'YYYY-MM-DD' date of birth and now. NaN if invalid. */
 function ageInYears(dob: string): number {
   const d = new Date(dob);
@@ -161,20 +170,51 @@ export class AuthService {
     await sendEmail({ to: email, subject: 'Confirm your Finquanta email', html });
   }
 
-  /** Confirm an email using a token from the emailed link. */
-  async verifyEmail(token: string): Promise<void> {
-    if (!token) throw new Error('Invalid or expired verification link');
+  /**
+   * Confirm an email using a token from the emailed link.
+   *
+   * Idempotent by design (see findByVerificationTokenHash): a link that was
+   * already used — by the user, a refresh, or an email link-scanner that
+   * pre-fetched it — resolves to 'already' rather than an error. Only a token we
+   * can't find at all (never issued, or replaced by a newer resend) or one that
+   * lapsed before it was ever confirmed is treated as a failure.
+   */
+  async verifyEmail(token: string): Promise<'verified' | 'already'> {
+    if (!token) throw new VerificationError('invalid', 'This verification link is invalid.');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await this.userRepository.findByValidVerificationTokenHash(tokenHash);
-    if (!user) throw new Error('Invalid or expired verification link');
-    await this.userRepository.markEmailVerified(user.id);
+    const row = await this.userRepository.findByVerificationTokenHash(tokenHash);
+    if (!row) {
+      throw new VerificationError(
+        'invalid',
+        'This link is invalid or has been replaced by a newer verification email.'
+      );
+    }
+    if (row.verified) return 'already';
+    if (row.expired) {
+      throw new VerificationError('expired', 'This verification link has expired. Request a new one below.');
+    }
+    await this.userRepository.markEmailVerified(row.id);
+    return 'verified';
   }
 
-  /** Re-send a verification email if the account exists and isn't verified yet. */
-  async resendVerification(email: string): Promise<void> {
+  /**
+   * Re-send a verification email. Returns a status so the UI can be honest:
+   * an already-verified account is told to just log in (rather than waiting for
+   * an email that never comes), while unknown emails and freshly-sent ones are
+   * reported the same way so we don't leak which addresses are unverified.
+   * Throttled to one send per minute to prevent resend spam.
+   */
+  async resendVerification(email: string): Promise<'sent' | 'already_verified' | 'unknown'> {
     const u = await this.userRepository.findForVerification(email);
-    if (!u || u.verified) return;
+    if (!u) return 'unknown';
+    if (u.verified) return 'already_verified';
+    // Cooldown: the token's expiry is (issued + 24h), so recover the issue time.
+    if (u.tokenExpiresAt) {
+      const issuedAt = u.tokenExpiresAt.getTime() - 24 * 60 * 60 * 1000;
+      if (Date.now() - issuedAt < 60 * 1000) return 'sent';
+    }
     await this.sendVerificationEmail(u.id, u.email);
+    return 'sent';
   }
 
   async login(loginData: LoginData): Promise<AuthResponse> {

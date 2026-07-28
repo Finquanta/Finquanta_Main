@@ -21,12 +21,14 @@ export interface DashboardRepositoryPort {
     totalIncome: string;
     totalExpenses: string;
     netIncome: string;
+    cashFlow: string;
     transactionCount: number;
   }>;
   getPreviousSummary(businessId: string, startDate: string, endDate: string): Promise<{
     totalIncome: string;
     totalExpenses: string;
     netIncome: string;
+    cashFlow: string;
     transactionCount: number;
   }>;
   getWeeklyTrend(businessId: string, startDate: string, endDate: string): Promise<WeeklyData[]>;
@@ -53,9 +55,11 @@ export class DashboardService {
     const income = toNumber(summary.totalIncome);
     const expenses = toNumber(summary.totalExpenses);
     const balance = toNumber(summary.netIncome);
+    const cashFlow = toNumber(summary.cashFlow);
     const previousIncome = toNumber(previous.totalIncome);
     const previousExpenses = toNumber(previous.totalExpenses);
     const previousBalance = toNumber(previous.netIncome);
+    const previousCashFlow = toNumber(previous.cashFlow);
     const year = startDate.slice(0, 4);
 
     return {
@@ -70,9 +74,9 @@ export class DashboardService {
         },
         {
           title: 'Cashflow',
-          amount: formatCurrency(income),
-          change: formatPercentChange(income, previousIncome),
-          changeType: changeType(income, previousIncome),
+          amount: formatCurrency(cashFlow),
+          change: formatPercentChange(cashFlow, previousCashFlow),
+          changeType: changeType(cashFlow, previousCashFlow),
           period: 'This month',
           description: 'This month cashflow has changed by'
         },

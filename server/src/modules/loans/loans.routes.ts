@@ -53,7 +53,7 @@ export async function loanRoutes(fastify: FastifyInstance, options: { database: 
   /** Create a loan. 'payable' = borrowed (cash in). 'receivable' = lent out (cash out). */
   fastify.post('/v1/loans', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const body = (request.body as { name?: string; type?: string; amount?: number; annualRate?: number; date?: string }) || {};
+      const body = (request.body as { name?: string; type?: string; amount?: number; annualRate?: number; date?: string; groupId?: string | null }) || {};
       if (!body.name?.trim()) return reply.status(400).send({ success: false, error: 'Give the loan a name' });
       if (!isType(body.type)) return reply.status(400).send({ success: false, error: "Loan type must be 'payable' or 'receivable'" });
 
@@ -79,7 +79,10 @@ export async function loanRoutes(fastify: FastifyInstance, options: { database: 
 
       const loan = await repo.create(request.businessId!, request.user!.id, {
         name: body.name, type: body.type, principal: amount, annualRate, startDate: body.date ?? null, entryId,
+        groupId: body.groupId ?? null,
       });
+      // Trace the ledger entry back to the loan so the row can be managed from it.
+      await repo.linkReceivedEntry(entryId, loan.id);
       return reply.status(201).send({ success: true, data: loan });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Could not create loan';
@@ -145,6 +148,32 @@ export async function loanRoutes(fastify: FastifyInstance, options: { database: 
       const msg = error instanceof Error ? error.message : 'Could not record payment';
       request.log.error(error);
       return reply.status(400).send({ success: false, error: msg });
+    }
+  }) as any);
+
+  /** Reverse a single loan payment, identified by its ledger entry id. */
+  fastify.delete('/v1/loans/payments/:entryId', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { entryId } = request.params as { entryId: string };
+      const removed = await repo.deletePaymentByEntry(request.businessId!, entryId);
+      if (!removed) return reply.status(404).send({ success: false, error: 'Payment not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  /** Delete a loan and every ledger entry + payment it created. */
+  fastify.delete('/v1/loans/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const removed = await repo.deleteWithLedger(request.businessId!, id);
+      if (!removed) return reply.status(404).send({ success: false, error: 'Loan not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }) as any);
 }

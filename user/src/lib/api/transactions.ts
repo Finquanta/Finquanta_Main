@@ -17,6 +17,8 @@ export interface TransactionInput {
   originalAmount?: number;
   /** The rate used to convert originalAmount → the USD amount above. */
   exchangeRate?: number;
+  /** Business Group (cost/profit center) this entry belongs to, if any. */
+  groupId?: string | null;
 }
 
 export interface Transaction {
@@ -32,7 +34,7 @@ export interface Transaction {
 // Recurrence and currency both live in the transaction's metadata JSONB — the
 // `amount` column stays pure USD so the ledger never sees a foreign figure.
 function toPayload(data: Partial<TransactionInput>) {
-  const { recurrence, currency, originalAmount, exchangeRate, ...rest } = data;
+  const { recurrence, currency, originalAmount, exchangeRate, groupId, ...rest } = data;
 
   const metadata: Record<string, unknown> = {};
   if (recurrence) metadata.recurrence = recurrence;
@@ -42,6 +44,9 @@ function toPayload(data: Partial<TransactionInput>) {
     if (originalAmount !== undefined) metadata.originalAmount = originalAmount;
     if (exchangeRate !== undefined) metadata.exchangeRate = exchangeRate;
   }
+  // groupId is sent whenever the field is present so clearing it on an edit
+  // (null) actually removes the group, rather than being silently dropped.
+  if (groupId !== undefined) metadata.groupId = groupId ?? null;
 
   return Object.keys(metadata).length > 0 ? { ...rest, metadata } : rest;
 }

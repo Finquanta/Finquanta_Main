@@ -16,6 +16,7 @@ const NAV = [
   { href: "/invoices", label: "Invoices" },
   { href: "/customers", label: "Customers" },
   { href: "/activity", label: "Activity" },
+  { href: "/groups", label: "Groups" },
   { href: "/referrals", label: "Refer a Business" },
   { href: "/profile-settings", label: "Settings" },
 ];

@@ -87,6 +87,10 @@ export class AccountingRepository {
         credit NUMERIC(14,2) NOT NULL DEFAULT 0
       );
     `);
+    // Business Group for entries created directly in the ledger (accrual
+    // workflows, manual). Bookkeeping/invoices resolve their group from the
+    // source record instead, so this stays null for them.
+    await this.database.query(`ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS group_id UUID`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_entries_business ON journal_entries(business_id, date DESC)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON journal_lines(entry_id)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON journal_lines(account_id)`);
@@ -142,10 +146,10 @@ export class AccountingRepository {
 
     return this.database.transaction(async (client) => {
       const entry = await client.query(
-        `INSERT INTO journal_entries (business_id, date, description, source_type, source_id, created_by)
-         VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6)
+        `INSERT INTO journal_entries (business_id, date, description, source_type, source_id, created_by, group_id)
+         VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7::uuid)
          RETURNING id`,
-        [input.businessId, input.date ?? null, input.description, input.sourceType, input.sourceId ?? null, input.createdBy ?? null]
+        [input.businessId, input.date ?? null, input.description, input.sourceType, input.sourceId ?? null, input.createdBy ?? null, input.groupId ?? null]
       );
       const entryId = entry.rows[0].id as string;
 
@@ -163,6 +167,23 @@ export class AccountingRepository {
 
       return entryId;
     });
+  }
+
+  /**
+   * Delete a directly-posted ledger entry (accrual workflow or manual). Its
+   * lines cascade. Guarded to those source types only — bookkeeping, invoice
+   * and loan entries are owned by their own records and must be removed there,
+   * never orphaned from here.
+   */
+  async deleteDirectEntry(businessId: string, entryId: string): Promise<boolean> {
+    const r = await this.database.query(
+      `DELETE FROM journal_entries
+       WHERE business_id = $1::uuid AND id = $2::uuid
+         AND source_type NOT IN ('bookkeeping','invoice','invoice_payment','invoice_cancelled',
+                                 'loan_received','loan_issued','loan_payment','loan_repayment_received')`,
+      [businessId, entryId]
+    );
+    return (r.rowCount ?? 0) > 0;
   }
 
   /**
@@ -280,7 +301,7 @@ export class AccountingRepository {
     startDate: string,
     endDate: string,
     basis: 'cash' | 'accrual' = 'accrual'
-  ): Promise<{ totalIncome: string; totalExpenses: string; netIncome: string; transactionCount: number }> {
+  ): Promise<{ totalIncome: string; totalExpenses: string; netIncome: string; cashFlow: string; transactionCount: number }> {
     await this.ensureAccounts(businessId);
 
     const cashOnly = basis === 'cash'
@@ -295,6 +316,10 @@ export class AccountingRepository {
       `SELECT
          COALESCE(SUM(CASE WHEN a.type = 'revenue' THEN l.credit - l.debit ELSE 0 END), 0) AS income,
          COALESCE(SUM(CASE WHEN a.type = 'expense' THEN l.debit - l.credit ELSE 0 END), 0) AS expenses,
+         -- True cash flow: net movement of the CASH account (in − out) over the
+         -- period. Counts everything that actually moved cash — sales, expenses,
+         -- invoice payments, and loan proceeds/repayments (financing) alike.
+         COALESCE(SUM(CASE WHEN a.code = 'CASH' THEN l.debit - l.credit ELSE 0 END), 0) AS cash_flow,
          COUNT(DISTINCT e.id) AS entries
        FROM journal_entries e
        JOIN journal_lines l ON l.entry_id = e.id
@@ -312,6 +337,7 @@ export class AccountingRepository {
       totalIncome: income.toFixed(2),
       totalExpenses: expenses.toFixed(2),
       netIncome: money(income - expenses).toFixed(2),
+      cashFlow: money(Number.parseFloat(r.cash_flow ?? '0')).toFixed(2),
       transactionCount: Number.parseInt(r.entries ?? '0', 10),
     };
   }
@@ -353,6 +379,8 @@ export class AccountingRepository {
     currency: string | null;
     /** The amount in that currency, before conversion to USD. */
     originalAmount: number | null;
+    /** Business Group (cost/profit center) this entry is assigned to, if any. */
+    groupId: string | null;
     lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }>;
   }>> {
     await this.ensureAccounts(businessId);
@@ -378,10 +406,17 @@ export class AccountingRepository {
                    WHERE l.entry_id = e.id AND a.code = 'AP'), 0) AS ap_delta,
          COALESCE((SELECT SUM(l.debit) FROM journal_lines l WHERE l.entry_id = e.id), 0) AS gross,
          t.id AS tx_id, t.category, t.description AS tx_note, t.metadata,
+         i.group_id AS invoice_group_id,
+         ln.group_id AS loan_group_id,
+         e.group_id AS entry_group_id,
          EXISTS (SELECT 1 FROM transaction_receipts r WHERE r.transaction_id = t.id) AS has_receipt
        FROM journal_entries e
        LEFT JOIN financial_transactions t
               ON e.source_type = 'bookkeeping' AND t.id = e.source_id
+       LEFT JOIN invoices i
+              ON e.source_type IN ('invoice','invoice_payment','invoice_cancelled') AND i.id = e.source_id
+       LEFT JOIN loans ln
+              ON e.source_type IN ('loan_received','loan_issued','loan_payment','loan_repayment_received') AND ln.id = e.source_id
        WHERE e.business_id = $1::uuid ${cashOnly}
        ORDER BY e.date DESC, e.created_at DESC
        LIMIT $2`,
@@ -451,6 +486,12 @@ export class AccountingRepository {
         // Only a non-USD original is worth surfacing; the amount above is USD.
         currency: typeof meta?.currency === 'string' && meta.currency !== 'USD' ? meta.currency : null,
         originalAmount: typeof meta?.originalAmount === 'number' ? meta.originalAmount : null,
+        // Group is resolved from wherever it lives for that row's kind:
+        // bookkeeping metadata, invoice column, the entry's own group (accrual,
+        // or a loan payment grouped on its own), then the loan's group (a loan
+        // principal row and un-grouped payments inherit it).
+        groupId: (typeof meta?.groupId === 'string' ? meta.groupId : null)
+          ?? r.invoice_group_id ?? r.entry_group_id ?? r.loan_group_id ?? null,
         lines: linesBy.get(r.id) ?? [],
       };
     });

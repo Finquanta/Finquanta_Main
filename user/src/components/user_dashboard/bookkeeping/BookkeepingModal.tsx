@@ -2,9 +2,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createTransaction, updateTransaction, uploadReceipt, Recurrence } from '@/lib/api/transactions';
 import { CURRENCIES, Currency, FxRate, getFxRate } from '@/lib/api/fx';
-import { WorkflowType, WORKFLOW_META, workflowsInGroup, runWorkflow } from '@/lib/api/accounting';
-import { Loan, LoanType, listLoans, createLoan, recordLoanPayment, previewSplit } from '@/lib/api/loans';
+import { Group, getGroups, createGroup } from '@/lib/api/groups';
+import { WorkflowType, WORKFLOW_META, workflowsInGroup, runWorkflow, deleteEntry } from '@/lib/api/accounting';
+import { Loan, LoanType, listLoans, createLoan, recordLoanPayment, previewSplit, deleteLoan, deleteLoanPayment } from '@/lib/api/loans';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+
+/** The four debt actions — both directions of a loan. */
+export type DebtAction = 'loan_received' | 'loan_payment' | 'loan_issued' | 'loan_repayment_received';
 
 export interface BookkeepingEditing {
   id: string;
@@ -18,6 +22,17 @@ export interface BookkeepingEditing {
   /** If the entry was made in a foreign currency, so an edit can preserve it. */
   currency?: string;
   originalAmount?: number | null;
+  /** Business Group this entry is assigned to, so an edit can preserve it. */
+  groupId?: string | null;
+  /**
+   * Set when editing a LEDGER entry (accrual or loan) rather than a cash entry.
+   * These have no source document, so an edit re-posts them: delete the old,
+   * create the new. Absent for ordinary cash-entry edits.
+   */
+  ledger?:
+    | { kind: 'accrual'; entryId: string; accrualType: WorkflowType }
+    | { kind: 'loan'; loanId: string; debtAction: DebtAction; annualRate: number; hasPayments: boolean }
+    | { kind: 'loanPayment'; paymentEntryId: string; loanId: string; debtAction: DebtAction };
 }
 
 interface BookkeepingModalProps {
@@ -34,8 +49,6 @@ type Basis = 'cash' | 'accrual' | 'debt';
 /** Accrual options: receivables and payables (loans live under Debt). */
 const ACCRUAL_TYPES = workflowsInGroup('accrual');
 
-/** The four debt actions — both directions of a loan. */
-type DebtAction = 'loan_received' | 'loan_payment' | 'loan_issued' | 'loan_repayment_received';
 const DEBT_ACTIONS: { value: DebtAction; label: string; hint: string }[] = [
   {
     value: 'loan_received',
@@ -105,6 +118,13 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   const [rateLoading, setRateLoading] = useState(false);
   const [rateError, setRateError] = useState<string | null>(null);
 
+  // Business Group (cost/profit center) — cash entries only in v1.
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState<string>('');
+  const [addingGroup, setAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [savingGroup, setSavingGroup] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
@@ -121,6 +141,22 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
     setRate(null);
     setRateError(null);
     setUsdEdited(false);
+    setGroupId(editing?.groupId ?? '');
+    setAddingGroup(false);
+    setNewGroupName('');
+    // Editing a ledger entry pins the basis and its type (the switch is hidden).
+    if (editing?.ledger?.kind === 'accrual') {
+      setBasis('accrual');
+      setAccrualType(editing.ledger.accrualType);
+    } else if (editing?.ledger?.kind === 'loan') {
+      setBasis('debt');
+      setDebtAction(editing.ledger.debtAction);
+      setAnnualRate(String(editing.ledger.annualRate ?? ''));
+    } else if (editing?.ledger?.kind === 'loanPayment') {
+      setBasis('debt');
+      setDebtAction(editing.ledger.debtAction);
+    }
+    getGroups().then(setGroups).catch(() => setGroups([]));
     // On edit, the stored USD amount is editing.invoiceAmount; when foreign, the
     // amount field should show the ORIGINAL (e.g. €100), not the USD.
     setUsdAmount(editingCurrency !== 'USD' ? editing?.invoiceAmount ?? '' : '');
@@ -166,10 +202,13 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   // Load the loans you can pay against when a payment action is chosen.
   useEffect(() => {
     if (!isOpen || basis !== 'debt' || !isPaymentAction(debtAction)) return;
+    // When editing a payment, keep it pointed at its own loan; otherwise default
+    // to the first loan of that type.
+    const editingLoanId = editing?.ledger?.kind === 'loanPayment' ? editing.ledger.loanId : null;
     listLoans(loanTypeFor(debtAction))
-      .then((ls) => { setLoans(ls); setLoanId(ls[0]?.id ?? ''); })
+      .then((ls) => { setLoans(ls); setLoanId(editingLoanId ?? ls[0]?.id ?? ''); })
       .catch(() => setLoans([]));
-  }, [isOpen, basis, debtAction]);
+  }, [isOpen, basis, debtAction, editing]);
 
   if (!isOpen) return null;
 
@@ -179,6 +218,24 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   const split = selectedLoan && amountNum > 0
     ? previewSplit(amountNum, selectedLoan.remainingBalance, selectedLoan.annualRate)
     : null;
+
+  /** Create a group without leaving the modal, and select it. */
+  const addGroupInline = async () => {
+    const nm = newGroupName.trim();
+    if (!nm) return;
+    setSavingGroup(true);
+    try {
+      const g = await createGroup({ name: nm });
+      setGroups((prev) => [...prev, g]);
+      setGroupId(g.id);
+      setAddingGroup(false);
+      setNewGroupName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create that group.');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -192,23 +249,41 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
       if (basis === 'debt') {
         if (isPaymentAction(debtAction)) {
           if (!loanId) throw new Error('Pick which loan this payment is for.');
+          // Editing a payment = re-post it: reverse the old one first (which
+          // restores the loan balance), then record the new payment.
+          if (editing?.ledger?.kind === 'loanPayment') {
+            await deleteLoanPayment(editing.ledger.paymentEntryId);
+          }
           await recordLoanPayment(loanId, { amount, date: form.dateOfInvoice });
         } else {
           if (!form.invoiceName.trim()) throw new Error('Give the loan a name.');
+          // Editing a loan = re-post it: drop the old loan (and its payments) first.
+          if (editing?.ledger?.kind === 'loan') {
+            if (editing.ledger.hasPayments && !window.confirm(
+              'This loan has recorded payments. Saving replaces the loan, which deletes those payments. Continue?'
+            )) { setSaving(false); return; }
+            await deleteLoan(editing.ledger.loanId);
+          }
           await createLoan({
             name: form.invoiceName.trim(),
             type: loanTypeFor(debtAction),
             amount,
             annualRate: Number(annualRate) || 0,
             date: form.dateOfInvoice,
+            groupId: groupId || null,
           });
         }
       } else if (basis === 'accrual') {
+        // Editing an accrual entry = re-post it: delete the old entry first.
+        if (editing?.ledger?.kind === 'accrual') {
+          await deleteEntry(editing.ledger.entryId);
+        }
         await runWorkflow({
           type: accrualType,
           amount,
           description: form.invoiceName.trim() + (form.invoiceDescription.trim() ? ` — ${form.invoiceDescription.trim()}` : ''),
           date: form.dateOfInvoice,
+          groupId: groupId || null,
         });
       } else {
         // The books are kept in USD. For a foreign entry, `amount` is the USD
@@ -228,6 +303,8 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           amount: usd,
           date: form.dateOfInvoice,
           recurrence: form.recurrence,
+          // Always send groupId (null when none) so clearing it on an edit sticks.
+          groupId: groupId || null,
           ...(foreign
             ? { currency, originalAmount: amount, exchangeRate: rate?.rate }
             : {}),
@@ -322,6 +399,40 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           </>
         )}
 
+        {/* Business Group (cost/profit center). Shown for cash, accrual and
+            new loans; a loan PAYMENT inherits the loan's group automatically. */}
+        {!(basis === 'debt' && isPaymentAction(debtAction)) && (
+          <>
+            <label className="block text-sm font-semibold mb-1">Group <span className="text-gray-400 font-normal">(optional)</span></label>
+            {addingGroup ? (
+              <div className="flex gap-2 mb-4">
+                <input
+                  autoFocus
+                  className="flex-1 bg-[#2a2a3e] rounded-lg px-4 py-2 text-sm outline-none"
+                  placeholder="e.g. Marketing"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroupInline(); } }}
+                />
+                <button type="button" onClick={addGroupInline} disabled={savingGroup || !newGroupName.trim()}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold px-4 rounded-lg">Add</button>
+                <button type="button" onClick={() => { setAddingGroup(false); setNewGroupName(''); }}
+                  className="text-sm text-gray-400 px-2">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex gap-2 mb-4">
+                <select className="flex-1 bg-[#2a2a3e] rounded-lg px-4 py-2 text-sm outline-none"
+                  value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                  <option value="">No group</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <button type="button" onClick={() => setAddingGroup(true)}
+                  className="text-sm font-semibold px-3 rounded-lg border border-gray-600 text-gray-200 whitespace-nowrap hover:bg-gray-700">+ New</button>
+              </div>
+            )}
+          </>
+        )}
+
         <label className="block text-sm font-semibold mb-1">
           {basis === 'debt' && isPaymentAction(debtAction) ? 'Payment Amount' : t('dashboard', 'invoiceAmountLabel')}
         </label>
@@ -377,8 +488,9 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           </>
         )}
 
-        {/* Debt Type — sits below the interest rate */}
-        {basis === 'debt' && (
+        {/* Debt Type — sits below the interest rate. Hidden when editing a loan,
+            which is pinned to its existing direction. */}
+        {basis === 'debt' && !editing?.ledger && (
           <>
             <label className="block text-sm font-semibold mb-2">Debt Type</label>
             <div className="flex flex-col gap-2 mb-2">

@@ -37,8 +37,16 @@ export const listLoanPayments = (loanId: string) =>
   apiFetch<LoanPayment[]>(`/v1/loans/${loanId}/payments`);
 
 export const createLoan = (data: {
-  name: string; type: LoanType; amount: number; annualRate: number; date?: string;
+  name: string; type: LoanType; amount: number; annualRate: number; date?: string; groupId?: string | null;
 }) => apiFetch<Loan>('/v1/loans', { method: 'POST', body: JSON.stringify(data) });
+
+/** Delete a loan and every ledger entry + payment it created. */
+export const deleteLoan = (loanId: string) =>
+  apiFetch<void>(`/v1/loans/${loanId}`, { method: 'DELETE' });
+
+/** Reverse a single loan payment, identified by its ledger entry id. */
+export const deleteLoanPayment = (entryId: string) =>
+  apiFetch<void>(`/v1/loans/payments/${entryId}`, { method: 'DELETE' });
 
 /** The principal/interest split is computed server-side from the loan's rate + balance. */
 export const recordLoanPayment = (loanId: string, data: { amount: number; date?: string }) =>

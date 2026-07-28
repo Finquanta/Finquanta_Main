@@ -33,6 +33,7 @@ export interface Invoice {
   paidAt: string | null;
   arEntryId: string | null;
   paymentEntryId: string | null;
+  groupId: string | null;
   items: InvoiceItem[];
 }
 
@@ -46,6 +47,7 @@ export interface InvoiceInput {
   notes?: string | null;
   taxRate?: number;
   items?: InvoiceItem[];
+  groupId?: string | null;
 }
 
 export const STATUS_COLORS: Record<InvoiceStatus, string> = {

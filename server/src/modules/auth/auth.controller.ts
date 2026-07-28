@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { AuthService, RegisterData, LoginData, RefreshTokenData } from './auth.service';
+import { AuthService, RegisterData, LoginData, RefreshTokenData, VerificationError } from './auth.service';
 
 /**
  * Registration failures the CALLER can fix, as thrown by AuthService.register.
@@ -118,24 +118,30 @@ export class AuthController {
   async verifyEmail(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { token } = (request.body as { token?: string }) || {};
-      if (!token) return reply.status(400).send({ error: 'Missing verification token' });
-      await this.authService.verifyEmail(token);
-      return reply.status(200).send({ success: true });
+      if (!token) return reply.status(400).send({ error: 'Missing verification token', reason: 'invalid' });
+      const status = await this.authService.verifyEmail(token);
+      // 'verified' = we just confirmed it; 'already' = a prior hit (user, refresh,
+      // or an email link-scanner) confirmed it — both are a success to the user.
+      return reply.status(200).send({ success: true, status });
     } catch (error) {
+      const reason = error instanceof VerificationError ? error.reason : 'invalid';
       const msg = error instanceof Error ? error.message : 'Could not verify email';
-      return reply.status(400).send({ error: msg });
+      return reply.status(400).send({ error: msg, reason });
     }
   }
 
   async resendVerification(request: FastifyRequest, reply: FastifyReply) {
     const { email } = (request.body as { email?: string }) || {};
+    let status: 'sent' | 'already_verified' | 'unknown' = 'sent';
     try {
-      if (email) await this.authService.resendVerification(email);
+      if (email) status = await this.authService.resendVerification(email);
     } catch (error) {
       console.error('RESEND VERIFICATION ERROR:', error instanceof Error ? error.message : String(error));
     }
-    // Same response regardless, so we never reveal which emails are registered.
-    return reply.status(200).send({ success: true });
+    // We surface 'already_verified' so a confirmed user is told to just log in
+    // instead of waiting on an email that will never come. 'unknown' is reported
+    // as 'sent' so we don't reveal which addresses are registered-but-unverified.
+    return reply.status(200).send({ success: true, status: status === 'unknown' ? 'sent' : status });
   }
 
   async refreshToken(request: FastifyRequest, reply: FastifyReply) {

@@ -18,6 +18,8 @@ export interface Loan {
   remainingBalance: number;
   startDate: string | null;
   createdAt: string | null;
+  /** Business Group this loan belongs to (its interest is attributed here). */
+  groupId: string | null;
 }
 
 export interface LoanPayment {
@@ -90,21 +92,93 @@ export class LoansRepository {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    // Business Group a loan is assigned to; its interest expense/income is
+    // attributed here in the groups report.
+    await this.database.query(`ALTER TABLE loans ADD COLUMN IF NOT EXISTS group_id UUID`);
+    // Backfill: link each loan's "received/issued" journal entry back to the
+    // loan, so the ledger row can be traced to (and managed from) the loan.
+    // Newer loans set this at creation; this catches ones made before that.
+    await this.database.query(
+      `UPDATE journal_entries je SET source_id = l.id
+       FROM loans l WHERE je.id = l.entry_id AND je.source_id IS NULL`
+    );
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_loans_business ON loans(business_id, type)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id, date DESC)`);
   }
 
   async create(businessId: string, createdBy: string, data: {
-    name: string; type: LoanType; principal: number; annualRate: number; startDate?: string | null; entryId?: string | null;
+    name: string; type: LoanType; principal: number; annualRate: number; startDate?: string | null; entryId?: string | null; groupId?: string | null;
   }): Promise<Loan> {
     const result = await this.database.query(
-      `INSERT INTO loans (business_id, name, type, principal, annual_rate, remaining_balance, start_date, entry_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$4, COALESCE($6::date, CURRENT_DATE), $7, $8)
+      `INSERT INTO loans (business_id, name, type, principal, annual_rate, remaining_balance, start_date, entry_id, created_by, group_id)
+       VALUES ($1,$2,$3,$4,$5,$4, COALESCE($6::date, CURRENT_DATE), $7, $8, $9::uuid)
        RETURNING *`,
       [businessId, data.name.trim(), data.type, money(data.principal), Number(data.annualRate) || 0,
-       data.startDate ?? null, data.entryId ?? null, createdBy]
+       data.startDate ?? null, data.entryId ?? null, createdBy, data.groupId ?? null]
     );
     return this.map(result.rows[0]);
+  }
+
+  /** Move a loan into a group (or out, when groupId is null). */
+  async setGroup(businessId: string, id: string, groupId: string | null): Promise<boolean> {
+    const r = await this.database.query(
+      `UPDATE loans SET group_id = $3::uuid WHERE business_id = $1::uuid AND id = $2::uuid`,
+      [businessId, id, groupId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Reverse a single loan payment, identified by its ledger entry: delete the
+   * payment entry (lines cascade) and the payment row, then recompute the loan's
+   * remaining balance from whatever payments are left (order-independent).
+   */
+  async deletePaymentByEntry(businessId: string, entryId: string): Promise<boolean> {
+    return this.database.transaction(async (client) => {
+      const found = await client.query(
+        `SELECT lp.id AS payment_id, lp.loan_id
+         FROM loan_payments lp JOIN loans l ON l.id = lp.loan_id
+         WHERE l.business_id = $1::uuid AND lp.entry_id = $2::uuid`,
+        [businessId, entryId]
+      );
+      if (!found.rows[0]) return false;
+      const { payment_id, loan_id } = found.rows[0];
+      await client.query(`DELETE FROM journal_entries WHERE business_id = $1::uuid AND id = $2::uuid`, [businessId, entryId]);
+      await client.query(`DELETE FROM loan_payments WHERE id = $1::uuid`, [payment_id]);
+      await client.query(
+        `UPDATE loans SET remaining_balance = principal - COALESCE(
+           (SELECT SUM(principal) FROM loan_payments WHERE loan_id = $1::uuid), 0)
+         WHERE id = $1::uuid`,
+        [loan_id]
+      );
+      return true;
+    });
+  }
+
+  /** Point a loan's "received/issued" ledger entry back at the loan. */
+  async linkReceivedEntry(entryId: string, loanId: string): Promise<void> {
+    await this.database.query(`UPDATE journal_entries SET source_id = $2::uuid WHERE id = $1::uuid`, [entryId, loanId]);
+  }
+
+  /**
+   * Delete a loan and everything it posted: the received/issued entry, every
+   * payment entry, and the payment rows (which cascade with the loan). Atomic,
+   * so a loan never half-vanishes leaving orphaned ledger entries.
+   */
+  async deleteWithLedger(businessId: string, id: string): Promise<boolean> {
+    return this.database.transaction(async (client) => {
+      const loan = await client.query(`SELECT entry_id FROM loans WHERE business_id = $1::uuid AND id = $2::uuid`, [businessId, id]);
+      if (!loan.rows[0]) return false;
+      const pays = await client.query(`SELECT entry_id FROM loan_payments WHERE loan_id = $1::uuid`, [id]);
+      const entryIds = [loan.rows[0].entry_id, ...pays.rows.map((r: any) => r.entry_id)].filter(Boolean);
+      if (entryIds.length) {
+        // journal_lines cascade with their entry.
+        await client.query(`DELETE FROM journal_entries WHERE business_id = $1::uuid AND id = ANY($2::uuid[])`, [businessId, entryIds]);
+      }
+      // loan_payments cascade via their FK to loans.
+      await client.query(`DELETE FROM loans WHERE business_id = $1::uuid AND id = $2::uuid`, [businessId, id]);
+      return true;
+    });
   }
 
   async list(businessId: string, type?: LoanType): Promise<Loan[]> {
@@ -176,6 +250,7 @@ export class LoansRepository {
       remainingBalance: Number.parseFloat(r.remaining_balance ?? '0'),
       startDate: day(r.start_date),
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+      groupId: r.group_id ?? null,
     };
   }
 }

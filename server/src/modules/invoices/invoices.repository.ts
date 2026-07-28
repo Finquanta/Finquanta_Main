@@ -33,6 +33,7 @@ export interface Invoice {
   paidAt: string | null;
   arEntryId: string | null;
   paymentEntryId: string | null;
+  groupId: string | null;
   items: InvoiceItem[];
 }
 
@@ -46,6 +47,8 @@ export interface InvoiceInput {
   notes?: string | null;
   taxRate?: number;
   items?: InvoiceItem[];
+  /** Business Group (cost/profit center) this invoice belongs to, if any. */
+  groupId?: string | null;
 }
 
 const money = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
@@ -109,6 +112,8 @@ export class InvoicesRepository {
     `);
     // Soft delete — deleted invoices go to the recycle bin, not the void.
     await this.database.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE`);
+    // Business Groups (cost/profit centers) — organizational metadata only.
+    await this.database.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS group_id UUID`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_invoices_business ON invoices(business_id, issue_date DESC)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id, position)`);
   }
@@ -161,14 +166,14 @@ export class InvoicesRepository {
     const id = await this.database.transaction(async (client) => {
       const res = await client.query(
         `INSERT INTO invoices (business_id, customer_id, number, status, issue_date, due_date,
-           message, details, payment_terms, notes, tax_rate, subtotal, tax, total, created_by)
-         VALUES ($1,$2,$3,'draft', COALESCE($4::date, CURRENT_DATE), $5, $6,$7,$8,$9,$10,$11,$12,$13,$14)
+           message, details, payment_terms, notes, tax_rate, subtotal, tax, total, created_by, group_id)
+         VALUES ($1,$2,$3,'draft', COALESCE($4::date, CURRENT_DATE), $5, $6,$7,$8,$9,$10,$11,$12,$13,$14,$15::uuid)
          RETURNING id`,
         [
           businessId, data.customerId ?? null, number,
           data.issueDate ?? null, data.dueDate ?? null,
           data.message ?? null, data.details ?? null, data.paymentTerms ?? null, data.notes ?? null,
-          taxRate, subtotal, tax, total, createdBy,
+          taxRate, subtotal, tax, total, createdBy, data.groupId ?? null,
         ]
       );
       const invoiceId = res.rows[0].id as string;
@@ -195,7 +200,8 @@ export class InvoicesRepository {
            issue_date = COALESCE($4::date, issue_date),
            due_date = $5,
            message = $6, details = $7, payment_terms = $8, notes = $9,
-           tax_rate = $10, subtotal = $11, tax = $12, total = $13, updated_at = NOW()
+           tax_rate = $10, subtotal = $11, tax = $12, total = $13, updated_at = NOW(),
+           group_id = $14::uuid
          WHERE business_id = $1 AND id = $2`,
         [
           businessId, id,
@@ -207,6 +213,7 @@ export class InvoicesRepository {
           data.paymentTerms !== undefined ? data.paymentTerms : existing.paymentTerms,
           data.notes !== undefined ? data.notes : existing.notes,
           taxRate, subtotal, tax, total,
+          data.groupId !== undefined ? data.groupId : existing.groupId,
         ]
       );
       if (data.items) await this.replaceItems(client, id, data.items);
@@ -364,6 +371,7 @@ export class InvoicesRepository {
       paidAt: iso(r.paid_at),
       arEntryId: r.ar_entry_id ?? null,
       paymentEntryId: r.payment_entry_id ?? null,
+      groupId: r.group_id ?? null,
       items: itemRows.map((it: any) => ({
         id: it.id,
         name: it.name,

@@ -40,6 +40,8 @@ import { NotificationsRepository } from '../modules/notifications/notifications.
 import { siteRoutes } from '../modules/site/site.routes';
 import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
+import { groupsRoutes } from '../modules/groups/groups.routes';
+import { GroupsRepository } from '../modules/groups/groups.repository';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
@@ -285,6 +287,15 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure fx schema');
   }
   await fastify.register(fxRoutes, { database });
+
+  // Business Groups (cost & profit centers). Organizational metadata only —
+  // never touches the ledger.
+  try {
+    await new GroupsRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure groups schema');
+  }
+  await fastify.register(groupsRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the

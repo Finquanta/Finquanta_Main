@@ -1,3 +1,6 @@
+# Local analysis/tooling output
+graphify-out/
+
 # OS and Editor files
 .DS_Store
 .DS_Store?

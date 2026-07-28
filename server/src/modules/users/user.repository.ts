@@ -29,33 +29,59 @@ export class UserRepository {
     );
   }
 
-  /** Find a user by a still-valid verification token hash (null if expired/used). */
-  async findByValidVerificationTokenHash(tokenHash: string): Promise<{ id: string; email: string } | null> {
+  /**
+   * Find a user by verification token hash, reporting whether they're already
+   * verified and whether the token has expired — but WITHOUT filtering either
+   * out. Verification must be idempotent: email link-scanners (Outlook Safe
+   * Links, Gmail, corporate filters) pre-fetch the link and can trip the confirm
+   * before the human clicks. If we cleared or hid the token on first use, the
+   * real click would then fail as "expired". Keeping the row lets a repeat hit
+   * resolve to "already verified" instead.
+   */
+  async findByVerificationTokenHash(
+    tokenHash: string
+  ): Promise<{ id: string; email: string; verified: boolean; expired: boolean } | null> {
     const result = await this.database.query(
-      `SELECT id, email FROM users
-       WHERE email_verification_token_hash = $1 AND email_verification_expires_at IS NOT NULL AND email_verification_expires_at > NOW()`,
+      `SELECT id, email, email_verified,
+              (email_verification_expires_at IS NULL OR email_verification_expires_at <= NOW()) AS expired
+       FROM users
+       WHERE email_verification_token_hash = $1`,
       [tokenHash]
     );
     const r = result.rows[0];
-    return r ? { id: r.id, email: r.email } : null;
+    return r ? { id: r.id, email: r.email, verified: !!r.email_verified, expired: !!r.expired } : null;
   }
 
-  /** Mark a user's email as verified and clear the token (single-use). */
+  /**
+   * Mark a user's email as verified. The token is intentionally NOT cleared so a
+   * second hit on the same link (a scanner then the human, a refresh, a back
+   * button) still resolves to the user and returns "already verified" rather
+   * than a confusing "expired". The token simply lapses on its own expiry.
+   */
   async markEmailVerified(userId: string): Promise<void> {
     await this.database.query(
-      `UPDATE users SET email_verified = true, email_verification_token_hash = NULL, email_verification_expires_at = NULL, updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = $1`,
       [userId]
     );
   }
 
   /** Lightweight lookup used by the resend-verification flow. */
-  async findForVerification(email: string): Promise<{ id: string; email: string; verified: boolean } | null> {
+  async findForVerification(
+    email: string
+  ): Promise<{ id: string; email: string; verified: boolean; tokenExpiresAt: Date | null } | null> {
     const result = await this.database.query(
-      `SELECT id, email, email_verified FROM users WHERE email = $1`,
+      `SELECT id, email, email_verified, email_verification_expires_at FROM users WHERE email = $1`,
       [email]
     );
     const r = result.rows[0];
-    return r ? { id: r.id, email: r.email, verified: !!r.email_verified } : null;
+    return r
+      ? {
+          id: r.id,
+          email: r.email,
+          verified: !!r.email_verified,
+          tokenExpiresAt: r.email_verification_expires_at ? new Date(r.email_verification_expires_at) : null,
+        }
+      : null;
   }
 
   /** Store a hashed, expiring password-reset token for a user. */

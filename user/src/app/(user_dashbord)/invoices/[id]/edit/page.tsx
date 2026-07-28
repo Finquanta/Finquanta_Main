@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { Invoice, InvoiceItem, getInvoice, updateInvoice, money } from "@/lib/api/invoices";
 import { Customer, listCustomers, createCustomer } from "@/lib/api/customers";
+import { Group, getGroups } from "@/lib/api/groups";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 const blankItem = (): InvoiceItem => ({ name: "", description: "", quantity: 1, unitPrice: 0, amount: 0 });
@@ -31,17 +32,21 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const [notes, setNotes] = useState("");
   const [taxRate, setTaxRate] = useState("0");
   const [items, setItems] = useState<InvoiceItem[]>([blankItem()]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getInvoice(id), listCustomers()])
-      .then(([inv, cs]) => {
+    Promise.all([getInvoice(id), listCustomers(), getGroups()])
+      .then(([inv, cs, gs]) => {
         setInvoice(inv);
         setCustomers(cs);
+        setGroups(gs);
         setCustomerId(inv.customerId ?? "");
+        setGroupId(inv.groupId ?? "");
         setIssueDate(inv.issueDate ?? "");
         setDueDate(inv.dueDate ?? "");
         setMessage(inv.message ?? "");
@@ -85,6 +90,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
     try {
       await updateInvoice(id, {
         customerId: customerId || null,
+        groupId: groupId || null,
         issueDate: issueDate || null,
         dueDate: dueDate || null,
         message: message.trim() || null,
@@ -159,6 +165,16 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                 className={`text-sm font-semibold px-3 rounded-lg border whitespace-nowrap ${isDark ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
                 + New
               </button>
+            </div>
+          )}
+          {/* Business Group (cost/profit center) — optional. */}
+          {groups.length > 0 && (
+            <div className="mt-3">
+              <label className={`block text-xs mb-1 ${sub}`}>Group (optional)</label>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={field}>
+                <option value="">No group</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
             </div>
           )}
         </div>

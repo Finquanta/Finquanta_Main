@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { InvoiceItem, createInvoice, money } from "@/lib/api/invoices";
 import { Customer, listCustomers, createCustomer } from "@/lib/api/customers";
+import { Group, getGroups } from "@/lib/api/groups";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
 const blankItem = (): InvoiceItem => ({ name: "", description: "", quantity: 1, unitPrice: 0, amount: 0 });
@@ -36,12 +37,15 @@ export default function NewInvoicePage() {
   const [notes, setNotes] = useState("");
   const [taxRate, setTaxRate] = useState("0");
   const [items, setItems] = useState<InvoiceItem[]>([blankItem()]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     listCustomers().then(setCustomers).catch(() => setCustomers([]));
+    getGroups().then(setGroups).catch(() => setGroups([]));
   }, []);
 
   // Totals mirror the server's arithmetic exactly.
@@ -75,6 +79,7 @@ export default function NewInvoicePage() {
     try {
       const inv = await createInvoice({
         customerId: customerId || null,
+        groupId: groupId || null,
         issueDate, dueDate,
         message: message.trim() || null,
         details: details.trim() || null,
@@ -133,6 +138,16 @@ export default function NewInvoicePage() {
                 className={`text-sm font-semibold px-3 rounded-lg border whitespace-nowrap ${isDark ? "border-gray-600 text-gray-200" : "border-gray-300 text-gray-700"}`}>
                 + New
               </button>
+            </div>
+          )}
+          {/* Business Group (cost/profit center) — optional. */}
+          {groups.length > 0 && (
+            <div className="mt-3">
+              <label className={`block text-xs mb-1 ${sub}`}>Group (optional)</label>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={field}>
+                <option value="">No group</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
             </div>
           )}
         </div>

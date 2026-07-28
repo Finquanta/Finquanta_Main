@@ -4,13 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
-import BookkeepingModal, { BookkeepingEditing } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
+import BookkeepingModal, { BookkeepingEditing, DebtAction } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
 import TourGuide from '@/components/user_dashboard/tour/TourGuide';
 import ReferralIdChip from '@/components/user_dashboard/ReferralIdChip';
 import { InboxItem, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/api/notifications';
-import { LedgerTransaction } from '@/lib/api/accounting';
+import { LedgerTransaction, deleteEntry, WorkflowType } from '@/lib/api/accounting';
+import { deleteLoan, deleteLoanPayment, listLoans, listLoanPayments } from '@/lib/api/loans';
+import { assignToGroup } from '@/lib/api/groups';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
 import { useLanguage } from '@/hooks/context/LanguageContext';
@@ -250,6 +252,7 @@ export default function DashboardPage() {
       hasReceipt: tx.hasReceipt,
       currency: tx.currency ?? undefined,
       originalAmount: tx.originalAmount ?? undefined,
+      groupId: tx.groupId ?? undefined,
     });
     setBookkeepingModalOpen(true);
   };
@@ -285,6 +288,124 @@ export default function DashboardPage() {
       refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not delete that invoice.');
+    }
+  };
+
+  /**
+   * Loan and accrual rows have no source document to edit — they're posted
+   * straight to the ledger. So we manage them in place: assign a group, or
+   * delete (edit = delete + re-add). A loan is deleted whole (principal +
+   * every payment); an accrual entry is deleted on its own.
+   */
+  const assignLedgerGroup = async (tx: LedgerTransaction, groupId: string | null) => {
+    // A loan's PRINCIPAL row groups the whole loan (loans.group_id); a payment
+    // or accrual row groups its own ledger entry — a payment then overrides the
+    // loan's group for that payment, else it inherits it.
+    const isLoanPrincipal = tx.sourceType === 'loan_received' || tx.sourceType === 'loan_issued';
+    const id = isLoanPrincipal ? tx.sourceId : tx.id;
+    if (!id) return;
+    try {
+      await assignToGroup(isLoanPrincipal ? 'loan' : 'accrual', id, groupId);
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not change that group.');
+    }
+  };
+
+  /**
+   * Edit a loan or accrual row: open the modal pre-filled in the right basis.
+   * Saving re-posts the entry (delete + create) — handled in the modal. Loans
+   * need their rate/name/payments, which the ledger row doesn't carry, so we
+   * fetch them first.
+   */
+  const editLedgerEntry = async (tx: LedgerTransaction) => {
+    try {
+      if (tx.sourceType === 'loan_payment' || tx.sourceType === 'loan_repayment_received') {
+        if (!tx.sourceId) return;
+        // Edit a payment: open in payment mode, re-post on save (reverse + record).
+        setBookkeepingEditing({
+          id: tx.id,
+          invoiceName: '',
+          invoiceDescription: '',
+          invoiceAmount: String(Math.abs(tx.signedAmount)),
+          invoiceType: 'Cashflow',
+          dateOfInvoice: tx.date ?? '',
+          recurrence: 'once',
+          hasReceipt: false,
+          groupId: tx.groupId ?? undefined,
+          ledger: { kind: 'loanPayment', paymentEntryId: tx.id, loanId: tx.sourceId, debtAction: tx.sourceType as DebtAction },
+        });
+        setBookkeepingModalOpen(true);
+        return;
+      }
+      if (tx.sourceType.startsWith('loan')) {
+        if (!tx.sourceId) return;
+        const [loans, payments] = await Promise.all([listLoans(), listLoanPayments(tx.sourceId)]);
+        const loan = loans.find((l) => l.id === tx.sourceId);
+        if (!loan) return alert('Could not find that loan to edit.');
+        setBookkeepingEditing({
+          id: tx.id,
+          invoiceName: loan.name,
+          invoiceDescription: '',
+          invoiceAmount: String(loan.principal),
+          invoiceType: 'Cashflow',
+          dateOfInvoice: loan.startDate ?? tx.date ?? '',
+          recurrence: 'once',
+          hasReceipt: false,
+          groupId: tx.groupId ?? undefined,
+          ledger: {
+            kind: 'loan',
+            loanId: loan.id,
+            debtAction: tx.sourceType as DebtAction,
+            annualRate: loan.annualRate,
+            hasPayments: payments.length > 0,
+          },
+        });
+      } else {
+        setBookkeepingEditing({
+          id: tx.id,
+          invoiceName: tx.description,
+          invoiceDescription: '',
+          invoiceAmount: String(Math.abs(tx.signedAmount)),
+          invoiceType: 'Cashflow',
+          dateOfInvoice: tx.date ?? '',
+          recurrence: 'once',
+          hasReceipt: false,
+          groupId: tx.groupId ?? undefined,
+          ledger: { kind: 'accrual', entryId: tx.id, accrualType: tx.sourceType as WorkflowType },
+        });
+      }
+      setBookkeepingModalOpen(true);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not open that entry for editing.');
+    }
+  };
+
+  const deleteLedgerEntry = async (tx: LedgerTransaction) => {
+    const isLoanPayment = tx.sourceType === 'loan_payment' || tx.sourceType === 'loan_repayment_received';
+    const isLoanPrincipal = tx.sourceType === 'loan_received' || tx.sourceType === 'loan_issued';
+    const ok = window.confirm(
+      isLoanPayment
+        ? 'Reverse this payment? The loan balance will be restored.'
+        : isLoanPrincipal
+          ? 'Delete this loan and every payment recorded against it? This cannot be undone.'
+          : `Delete “${tx.description}”? This cannot be undone.`
+    );
+    if (!ok) return;
+    try {
+      if (isLoanPayment) {
+        await deleteLoanPayment(tx.id);
+      } else if (isLoanPrincipal) {
+        if (!tx.sourceId) return;
+        await deleteLoan(tx.sourceId);
+      } else {
+        await deleteEntry(tx.id);
+      }
+      setBookkeepingRefresh((n) => n + 1);
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete that entry.');
     }
   };
 
@@ -481,6 +602,9 @@ export default function DashboardPage() {
           </Link>
           <Link href="/activity" data-tour="activity" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             Activity
+          </Link>
+          <Link href="/groups" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            Groups
           </Link>
           <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             Refer a Business
@@ -804,6 +928,9 @@ export default function DashboardPage() {
                 onEdit={editLedgerRow}
                 onDelete={deleteLedgerRow}
                 onDeleteInvoice={deleteInvoiceRow}
+                onAssignGroup={assignLedgerGroup}
+                onDeleteLedger={deleteLedgerEntry}
+                onEditLedger={editLedgerEntry}
                 onViewReceipt={viewReceipt}
               />
             </div>

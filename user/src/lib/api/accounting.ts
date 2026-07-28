@@ -127,6 +127,8 @@ export interface LedgerTransaction {
   currency: string | null;
   /** The amount in that currency, before it was converted to the USD above. */
   originalAmount: number | null;
+  /** Business Group (cost/profit center) this entry is assigned to, if any. */
+  groupId: string | null;
   lines: JournalLine[];
 }
 
@@ -162,9 +164,16 @@ export async function runWorkflow(data: {
   interest?: number;
   description?: string;
   date?: string;
+  /** Business Group to attribute this accrual entry to. */
+  groupId?: string | null;
 }): Promise<{ id: string }> {
   return apiFetch<{ id: string }>('/v1/accounting/workflows', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+/** Delete an accrual/manual ledger entry (loan/bookkeeping/invoice entries are refused server-side). */
+export async function deleteEntry(entryId: string): Promise<void> {
+  await apiFetch<{ success: boolean }>(`/v1/accounting/entries/${entryId}`, { method: 'DELETE' });
 }
