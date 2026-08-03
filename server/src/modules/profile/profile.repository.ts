@@ -41,6 +41,22 @@ export class ProfileRepository {
     this.users = new UserRepository(database);
   }
 
+  /** For the delete-account password confirmation — never exposed in an API response. */
+  async getPasswordHash(userId: string): Promise<string | null> {
+    const user = await this.users.findById(userId);
+    return user?.passwordHash ?? null;
+  }
+
+  /**
+   * Permanently deletes the user. `businesses.owner_id` and everything under a
+   * business (invoices, ledger, groups, ...) cascade on delete, so this wipes
+   * their entire business's financial history too — irreversible by design,
+   * matching how delete already works elsewhere in this app.
+   */
+  async deleteAccount(userId: string): Promise<boolean> {
+    return this.users.delete(userId);
+  }
+
   async getMe(userId: string): Promise<CurrentUserResponse> {
     const user = await this.users.findById(userId);
     if (!user) {

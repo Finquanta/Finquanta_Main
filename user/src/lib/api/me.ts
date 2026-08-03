@@ -22,6 +22,18 @@ export async function updateName(data: { firstName?: string; lastName?: string }
 }
 
 /**
+ * Permanently deletes the account and, via cascade, the entire business it
+ * owns (invoices, ledger, everything). Requires the current password.
+ * Irreversible — there is no undo.
+ */
+export async function deleteAccount(password: string): Promise<void> {
+  await apiFetch<{ success: boolean }>('/v1/me', {
+    method: 'DELETE',
+    body: JSON.stringify({ password }),
+  });
+}
+
+/**
  * Derive a stable, human-friendly Finquanta account ID from the user's UUID.
  * e.g. "3f9a2c..." -> "FQ-3F9A2C"
  */

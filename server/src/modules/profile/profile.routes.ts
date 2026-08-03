@@ -20,6 +20,7 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
   fastify.get('/v1/me/business', { preHandler: [authenticate] }, controller.getBusiness.bind(controller) as any);
   fastify.put('/v1/me/business', { preHandler: [authenticate] }, controller.updateBusiness.bind(controller) as any);
   fastify.patch('/v1/me/settings', { preHandler: [authenticate] }, controller.updateSettings.bind(controller) as any);
+  fastify.delete('/v1/me', { preHandler: [authenticate] }, controller.deleteAccount.bind(controller) as any);
 
   /**
    * Upload a business logo (PNG/JPEG) for the invoice header.

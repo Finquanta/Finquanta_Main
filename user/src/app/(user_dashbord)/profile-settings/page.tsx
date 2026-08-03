@@ -11,6 +11,7 @@ import { Sun, Moon } from 'lucide-react';
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
+import { deleteAccount } from '@/lib/api/me';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -60,6 +61,30 @@ export default function ProfileSettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => { getBusinessProfile().then(setBiz).catch(() => {}); }, []);
+
+  // Delete account — irreversible, so it's gated behind re-entering the
+  // password plus a native confirm() as a second, harder-to-misclick step.
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword.trim() || deleteSubmitting) return;
+    const sure = window.confirm(
+      'This permanently deletes your account AND your business’s entire financial history — invoices, bookkeeping, everything. This cannot be undone. Continue?'
+    );
+    if (!sure) return;
+    setDeleteError(null);
+    setDeleteSubmitting(true);
+    try {
+      await deleteAccount(deletePassword.trim());
+      logoutAndRedirect('/login');
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Could not delete your account.');
+      setDeleteSubmitting(false);
+    }
+  };
 
   const setBizField = (key: keyof BusinessProfile, value: string) => setBiz((p) => ({ ...p, [key]: value }));
 
@@ -118,12 +143,43 @@ export default function ProfileSettingsPage() {
             </button>
           ))}
         </nav>
-        <div className="mt-auto">
-          <button className={`text-sm px-3 py-2 hover:underline ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>{t('settings', 'deleteAccount')}</button>
-          <p className={`text-xs mt-1 px-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{t('settings', 'deleteAccountWarning')}</p>
-          <button className={`mt-2 mx-3 text-white text-xs px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}>
-            {t('settings', 'deleteAccountNow')}
-          </button>
+        <div className="mt-auto px-3">
+          {deletingAccount ? (
+            <div className="mt-2 space-y-2">
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmDeleteAccount(); }}
+                placeholder="Confirm your password"
+                autoFocus
+                className={`w-full border rounded-lg px-3 py-2 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'}`}
+              />
+              {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={confirmDeleteAccount}
+                  disabled={deleteSubmitting || !deletePassword.trim()}
+                  className={`flex-1 text-white text-xs px-4 py-2 rounded-lg disabled:opacity-60 ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
+                >
+                  {deleteSubmitting ? 'Deleting…' : 'Confirm delete'}
+                </button>
+                <button
+                  onClick={() => { setDeletingAccount(false); setDeletePassword(''); setDeleteError(null); }}
+                  className={`text-xs px-3 py-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDeletingAccount(true)}
+              className={`mt-2 w-full text-white text-xs px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
+            >
+              {t('settings', 'deleteAccountNow')}
+            </button>
+          )}
         </div>
       </div>
  
@@ -144,9 +200,6 @@ export default function ProfileSettingsPage() {
               <div className="ml-auto flex gap-2">
                 <button className={`text-white text-sm px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}>
                   {t('settings', 'changePhotoProfile')}
-                </button>
-                <button className={`text-sm px-4 py-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-900 hover:bg-gray-50'}`}>
-                  {t('settings', 'delete')}
                 </button>
               </div>
             </div>

@@ -53,6 +53,20 @@ export class ProfileController {
     }
   }
 
+  /** Permanently deletes the account. Requires the current password again. */
+  async deleteAccount(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      const { password } = (request.body as { password?: string }) || {};
+      if (!password) return reply.status(400).send({ success: false, error: 'Missing required field: password' });
+      await this.service.deleteAccount(request.user!.id, password);
+      return reply.send({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not delete account';
+      const status = msg === 'Incorrect password' ? 401 : msg === 'User not found' ? 404 : 400;
+      return reply.status(status).send({ success: false, error: msg });
+    }
+  }
+
   private handleError(error: unknown, reply: FastifyReply) {
     if (error instanceof Error && (error.message.includes('Invalid') || error.message.includes('not found'))) {
       return reply.status(error.message.includes('not found') ? 404 : 400).send({

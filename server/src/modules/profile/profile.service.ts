@@ -1,6 +1,7 @@
 import { Database } from '../../infrastructure/database';
 import { BusinessProfile, CurrentUserResponse, UserProfile, UserSettingsPayload } from './profile.types';
 import { ensureGoalForPrimaryGoal } from './onboarding-goal';
+import { PasswordManager } from '../auth/password';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
@@ -9,14 +10,33 @@ export interface ProfileRepositoryPort {
   updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }>;
   getBusiness(userId: string): Promise<BusinessProfile>;
   upsertBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile>;
+  getPasswordHash(userId: string): Promise<string | null>;
+  deleteAccount(userId: string): Promise<boolean>;
 }
 
 export class ProfileService {
+  private passwordManager = new PasswordManager();
+
   /**
    * `database` is optional so existing tests can construct the service with a
    * repository alone; without it, the auto-created goal is simply skipped.
    */
   constructor(private repository: ProfileRepositoryPort, private database?: Database) {}
+
+  /**
+   * Permanently deletes the account. Requires the current password again —
+   * otherwise a hijacked, already-open session could destroy the account (and,
+   * via cascade, the whole business's financial history) with no further proof
+   * of identity.
+   */
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    if (!password) throw new Error('Missing password');
+    const passwordHash = await this.repository.getPasswordHash(userId);
+    if (!passwordHash) throw new Error('User not found');
+    const valid = await this.passwordManager.verify(password, passwordHash);
+    if (!valid) throw new Error('Incorrect password');
+    await this.repository.deleteAccount(userId);
+  }
 
   async getMe(userId: string): Promise<CurrentUserResponse> {
     return this.repository.getMe(userId);
