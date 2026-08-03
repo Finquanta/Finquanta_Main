@@ -24,8 +24,14 @@ export async function verifyTurnstile(token: string | undefined | null, remoteIp
     if (remoteIp) body.set('remoteip', remoteIp);
 
     const res = await fetch(SITEVERIFY_ENDPOINT, { method: 'POST', body });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { success?: boolean };
+    if (!res.ok) {
+      console.error('[turnstile] siteverify HTTP error:', res.status);
+      return false;
+    }
+    const data = (await res.json()) as { success?: boolean; 'error-codes'?: string[] };
+    if (data.success !== true) {
+      console.error('[turnstile] siteverify rejected token:', data['error-codes']);
+    }
     return data.success === true;
   } catch (error) {
     console.error('[turnstile] verification request failed:', error instanceof Error ? error.message : error);
