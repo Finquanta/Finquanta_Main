@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { serverApiUrl } from "@/lib/api/client";
 
 /**
  * App-wide domain types
@@ -317,6 +318,18 @@ export const useAppState = create<AppState & AppActions>()(
       logout: () => {
         // Clear persisted tokens
         if (typeof window !== 'undefined') {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            // Best-effort, fire-and-forget: revoke it server-side so a stolen
+            // refresh token can't outlive this logout. `keepalive` lets the
+            // request finish even as the app navigates away right after.
+            fetch(serverApiUrl('/v1/auth/logout'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+              keepalive: true,
+            }).catch(() => {});
+          }
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');

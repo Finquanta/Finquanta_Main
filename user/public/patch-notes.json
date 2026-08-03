@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-27T20:07:09.573Z",
+  "generatedAt": "2026-08-02T22:04:27.009Z",
   "commits": [
+    {
+      "hash": "80db2e1",
+      "author": "gio",
+      "date": "2026-07-28T00:28:52-04:00",
+      "subject": "feat: business groups, accrual/debt grouping, verification fix, true cash flow"
+    },
     {
       "hash": "f12813f",
       "author": "gio",

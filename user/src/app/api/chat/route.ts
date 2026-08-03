@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { FINNA_TOOLS, FinnaAuth, PendingAction, runTool } from "@/lib/finna/tools";
+import { serverApiUrl } from "@/lib/api/client";
 
 // Finna runs on Claude. Locked to the lower-cost Haiku model to conserve
 // credits — intentionally hardcoded (not overridable via ANTHROPIC_MODEL).
@@ -39,8 +40,46 @@ Rules:
 const LANDING_SYSTEM =
   "You are Finna, Finquanta's assistant. Answer questions about Finquanta, an AI fintech platform that automates bookkeeping and financial operations for small businesses. Be friendly and concise. You have no access to any user's financial data.";
 
+/**
+ * Daily cost cap, checked before every Anthropic call. This route has no auth
+ * gate of its own (the landing-page assistant must work for signed-out
+ * visitors too), so without a cap anyone can script requests against it and
+ * run up spend for free. The backend keys the cap to the user when a valid
+ * token is present, else to the caller's IP (see ai-usage.routes.ts).
+ *
+ * Fails OPEN on a backend hiccup — a cap check failing shouldn't take down the
+ * one thing Finna is actually for, and this is a cost guard, not a security
+ * boundary.
+ */
+async function checkAiUsageAllowed(token: string | null, clientIp: string | null): Promise<boolean> {
+  try {
+    const res = await fetch(serverApiUrl("/v1/ai/usage/check"), {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+      },
+    });
+    if (!res.ok) return true;
+    const json = await res.json().catch(() => null);
+    return json?.data?.allowed !== false;
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { messages, isDashboard, language, token, businessId } = await req.json();
+
+  // The real client IP, forwarded so the backend's per-IP cap (used when
+  // there's no token) doesn't collapse every anonymous visitor onto this
+  // server's own address.
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  if (!(await checkAiUsageAllowed(token ?? null, clientIp))) {
+    return NextResponse.json({
+      content: "Finna's hit today's usage limit for this account. It resets tomorrow — thanks for your patience!",
+    });
+  }
 
   // Construct the client lazily (not at module scope): the Anthropic SDK throws
   // if ANTHROPIC_API_KEY is missing, which would crash the build/import.

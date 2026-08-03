@@ -11,6 +11,7 @@ import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { captureReferralCode, clearReferralCode, storedReferralCode } from "@/lib/api/referrals";
 import { PASSWORD_RULES, SYMBOL_EXAMPLES, SYMBOL_RE, firstPasswordProblem, passwordIsValid } from "@/lib/password-rules";
+import { Turnstile } from "@/components/auth/Turnstile";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -49,6 +50,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [acceptedRisk, setAcceptedRisk] = useState<boolean>(false);
   /** Set when they arrived on someone's referral link — shown as a confirmation. */
   const [referredBy, setReferredBy] = useState<string | undefined>(undefined);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   /** A form-level error that STAYS on screen, unlike the 5s toast. */
   const [formError, setFormError] = useState<string | null>(null);
@@ -100,6 +102,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     e.preventDefault();
     setFormError(null);
     if (!emailValid || !password || !firstName || password !== confirmPassword) return;
+    if (!turnstileToken) {
+      fail("Please complete the verification check.");
+      return;
+    }
 
     // The server enforces upper/lower/digit/special too. Check the same rules
     // here so nobody gets bounced by a requirement the form never mentioned.
@@ -136,6 +142,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           // Whoever's link they arrived on, if any. The server ignores it if the
           // code is unknown, so a stale link can never block signup.
           referralCode: storedReferralCode(),
+          turnstileToken,
         }),
       });
 
@@ -186,7 +193,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 
   // passwordOk mirrors the server's rules. It used to be `password.length >= 8`,
   // which let the button enable for passwords the server would reject.
-  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && passwordOk && ageValid && allAccepted;
+  const canSubmit = emailValid && password && firstName && confirmPassword && !passwordMismatch && passwordOk && ageValid && allAccepted && !!turnstileToken;
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
@@ -390,6 +397,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               {formError}
             </p>
           )}
+
+          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
 
           <Button
             type="submit"

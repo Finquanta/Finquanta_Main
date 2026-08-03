@@ -19,6 +19,61 @@ export class UserRepository {
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token_hash TEXT`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ`);
+    // Two-factor auth (TOTP). The secret has to be usable to compute a live
+    // code, so — unlike passwords — it's stored as-is rather than hashed;
+    // backup codes ARE effectively one-time passwords, so those are hashed.
+    // totp_secret holds a PENDING secret during enrollment until totp_enabled
+    // flips true on a successful verify.
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_backup_codes TEXT[]`);
+  }
+
+  /** Start (or restart) enrollment: stash the new secret, not yet enabled. */
+  async setPendingTotpSecret(userId: string, secret: string): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET totp_secret = $2, totp_enabled = false, totp_backup_codes = NULL, updated_at = NOW() WHERE id = $1`,
+      [userId, secret]
+    );
+  }
+
+  /** The stored secret + enrollment state, for verifying an enrollment or a login challenge. */
+  async getTotp(userId: string): Promise<{ secret: string | null; enabled: boolean; backupCodeHashes: string[] } | null> {
+    const r = await this.database.query(
+      `SELECT totp_secret, totp_enabled, totp_backup_codes FROM users WHERE id = $1`,
+      [userId]
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    return {
+      secret: row.totp_secret ?? null,
+      enabled: !!row.totp_enabled,
+      backupCodeHashes: row.totp_backup_codes ?? [],
+    };
+  }
+
+  /** Complete enrollment: mark enabled and store the (hashed) backup codes. */
+  async enableTotp(userId: string, backupCodeHashes: string[]): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET totp_enabled = true, totp_backup_codes = $2, updated_at = NOW() WHERE id = $1`,
+      [userId, backupCodeHashes]
+    );
+  }
+
+  /** Turn 2FA off entirely — clears the secret and any remaining backup codes. */
+  async disableTotp(userId: string): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET totp_enabled = false, totp_secret = NULL, totp_backup_codes = NULL, updated_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+  }
+
+  /** Burn one backup code (single-use) after it's been matched by the caller. */
+  async consumeBackupCode(userId: string, codeHash: string): Promise<void> {
+    await this.database.query(
+      `UPDATE users SET totp_backup_codes = array_remove(totp_backup_codes, $2), updated_at = NOW() WHERE id = $1`,
+      [userId, codeHash]
+    );
   }
 
   /** Store a hashed, expiring email-verification token for a user. */

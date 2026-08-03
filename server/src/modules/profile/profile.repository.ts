@@ -49,7 +49,7 @@ export class ProfileRepository {
 
     const profileResult = await this.database.query('SELECT * FROM user_profiles WHERE user_id = $1', [userId]);
     const settingsResult = await this.database.query('SELECT * FROM user_settings WHERE user_id = $1', [userId]);
-    const verifiedResult = await this.database.query('SELECT email_verified FROM users WHERE id = $1', [userId]);
+    const verifiedResult = await this.database.query('SELECT email_verified, totp_enabled FROM users WHERE id = $1', [userId]);
 
     return {
       id: user.id,
@@ -58,6 +58,7 @@ export class ProfileRepository {
       lastName: user.lastName,
       role: user.role,
       emailVerified: !!verifiedResult.rows[0]?.email_verified,
+      twoFactorEnabled: !!verifiedResult.rows[0]?.totp_enabled,
       profile: profileResult.rows[0] ? this.mapProfile(profileResult.rows[0]) : {},
       settings: settingsResult.rows[0] ? this.mapSettings(settingsResult.rows[0]) : defaultSettings
     };

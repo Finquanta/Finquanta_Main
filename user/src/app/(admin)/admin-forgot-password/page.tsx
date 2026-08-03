@@ -1,22 +1,24 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Turnstile } from "@/components/auth/Turnstile";
 
 export default function AdminForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !turnstileToken) return;
     setLoading(true);
     try {
       await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
     } catch {
       /* Always show the same confirmation regardless of outcome. */
@@ -62,10 +64,13 @@ export default function AdminForgotPasswordPage() {
                   placeholder="hello@finquanta.com"
                   style={{ width: "100%", padding: "8px 12px", border: "0.5px solid #e5e7eb", borderRadius: 7, fontSize: 13, outline: "none", background: "#f9fafb", boxSizing: "border-box" }} />
               </div>
-              <button type="submit" disabled={loading || !email} style={{
+              <div style={{ marginBottom: 14 }}>
+                <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
+              </div>
+              <button type="submit" disabled={loading || !email || !turnstileToken} style={{
                 width: "100%", background: "#22c55e", color: "#fff", border: "none",
                 borderRadius: 7, padding: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                opacity: !email || loading ? 0.7 : 1
+                opacity: !email || loading || !turnstileToken ? 0.7 : 1
               }}>
                 {loading ? "Sending..." : "Send Reset Link"}
               </button>

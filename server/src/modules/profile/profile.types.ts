@@ -61,6 +61,7 @@ export interface CurrentUserResponse {
   lastName: string;
   role: string;
   emailVerified: boolean;
+  twoFactorEnabled: boolean;
   profile: UserProfile;
   settings: UserSettingsPayload;
 }

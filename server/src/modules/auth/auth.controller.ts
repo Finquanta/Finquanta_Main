@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService, RegisterData, LoginData, RefreshTokenData, VerificationError } from './auth.service';
+import { verifyTurnstile } from '../../infrastructure/turnstile';
+import { AuthenticatedRequest } from '../shared/authenticate';
 
 /**
  * Registration failures the CALLER can fix, as thrown by AuthService.register.
@@ -12,6 +14,7 @@ const USER_FIXABLE = [
   'You must be at least',
   'valid date of birth',
   'You must accept',
+  'appeared in a known data breach',
 ];
 
 const isUserFixable = (msg: string) => USER_FIXABLE.some((m) => msg.includes(m));
@@ -19,8 +22,24 @@ const isUserFixable = (msg: string) => USER_FIXABLE.some((m) => msg.includes(m))
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**
+   * Verify the Turnstile token this request carried. Checked here — the ONE
+   * place that's actually enforced — rather than trusting the frontend widget,
+   * since the backend is reachable directly and the Next.js layer is bypassable.
+   */
+  private async checkCaptcha(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
+    const { turnstileToken } = (request.body as { turnstileToken?: string }) || {};
+    const ok = await verifyTurnstile(turnstileToken, request.ip);
+    if (!ok) {
+      reply.status(400).send({ error: 'Captcha verification failed. Please try again.' });
+    }
+    return ok;
+  }
+
   async register(request: FastifyRequest, reply: FastifyReply) {
     try {
+      if (!(await this.checkCaptcha(request, reply))) return;
+
       const userData = request.body as RegisterData;
 
       // Basic validation
@@ -62,6 +81,8 @@ export class AuthController {
 
   async login(request: FastifyRequest, reply: FastifyReply) {
     try {
+      if (!(await this.checkCaptcha(request, reply))) return;
+
       const loginData = request.body as LoginData;
 
       // Basic validation
@@ -87,6 +108,8 @@ export class AuthController {
   }
 
   async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
+    if (!(await this.checkCaptcha(request, reply))) return;
+
     const { email } = (request.body as { email?: string }) || {};
     try {
       if (email) {
@@ -168,5 +191,63 @@ export class AuthController {
         error: 'Internal server error'
       });
     }
+  }
+
+  /** Second step of login for a 2FA-enabled account: challenge token + code -> a real session. */
+  async twoFactorLoginVerify(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { challengeToken, code } = (request.body as { challengeToken?: string; code?: string }) || {};
+      if (!challengeToken || !code) {
+        return reply.status(400).send({ error: 'Missing required fields: challengeToken, code' });
+      }
+      const result = await this.authService.verifyTwoFactorLogin(challengeToken, code);
+      return reply.status(200).send(result);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not verify two-factor code';
+      return reply.status(401).send({ error: msg });
+    }
+  }
+
+  /** Start (or restart) 2FA enrollment for the signed-in user. */
+  async twoFactorSetup(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      const result = await this.authService.startTwoFactorEnrollment(request.user!.id);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      return reply.status(500).send({ success: false, error: 'Could not start two-factor setup' });
+    }
+  }
+
+  /** Complete 2FA enrollment: a correct code proves the QR was actually scanned. */
+  async twoFactorConfirm(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      const { code } = (request.body as { code?: string }) || {};
+      if (!code) return reply.status(400).send({ success: false, error: 'Missing required field: code' });
+      const backupCodes = await this.authService.confirmTwoFactorEnrollment(request.user!.id, code);
+      return reply.status(200).send({ success: true, data: { backupCodes } });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not confirm two-factor setup';
+      return reply.status(400).send({ success: false, error: msg });
+    }
+  }
+
+  /** Turn 2FA off — requires the current password again. */
+  async twoFactorDisable(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      const { password } = (request.body as { password?: string }) || {};
+      if (!password) return reply.status(400).send({ success: false, error: 'Missing required field: password' });
+      await this.authService.disableTwoFactor(request.user!.id, password);
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not disable two-factor authentication';
+      return reply.status(400).send({ success: false, error: msg });
+    }
+  }
+
+  /** Revoke the presented refresh token so it can't outlive this logout. Always succeeds. */
+  async logout(request: FastifyRequest, reply: FastifyReply) {
+    const { refreshToken } = (request.body as { refreshToken?: string }) || {};
+    await this.authService.logout(refreshToken);
+    return reply.status(200).send({ success: true });
   }
 }

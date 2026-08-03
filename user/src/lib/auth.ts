@@ -1,3 +1,5 @@
+import { serverApiUrl } from './api/client';
+
 /**
  * Auth/session helpers.
  *
@@ -27,6 +29,20 @@ export function clearSession(): void {
  * so nothing can re-persist the token after we've cleared it.
  */
 export function logoutAndRedirect(destination = '/login'): void {
+  if (typeof window !== 'undefined') {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      // Best-effort, fire-and-forget: revoke it server-side so a stolen refresh
+      // token can't outlive this logout. `keepalive` lets the request finish
+      // even as the page navigates away right after.
+      fetch(serverApiUrl('/v1/auth/logout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  }
   clearSession();
   if (typeof window !== 'undefined') window.location.href = destination;
 }

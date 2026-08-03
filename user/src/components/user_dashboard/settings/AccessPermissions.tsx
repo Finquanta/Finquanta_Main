@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { SecuritySettings, SessionInfo, ApiKey } from './types';
 import { Shield, Key, Monitor, Smartphone, Mail, Plus, Trash2, Download, Copy, Check, X } from 'lucide-react';
-import Switch from './Switch';
+import TwoFactorSettings from './TwoFactorSettings';
 
 interface AccessPermissionsProps {
   settings: SecuritySettings;
@@ -80,58 +80,7 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
 
       <div className="space-y-8">
         {/* Two-Factor Authentication */}
-        <div className="bg-gray-50 p-6 rounded-lg">
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#150578]" />
-            Two-Factor Authentication
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-[#1b263b]">Enable 2FA</p>
-                <p className="text-sm text-[#778da9]">
-                  Add an extra layer of security to your account
-                </p>
-              </div>
-              <Switch
-                checked={settings.twoFactorEnabled}
-                onChange={(enabled) => {
-                  onSettingsChange({
-                    ...settings,
-                    twoFactorEnabled: enabled
-                  });
-                }}
-              />
-            </div>
-            {settings.twoFactorEnabled && (
-              <div className="pl-4 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-[#1b263b] mb-2">Authentication Method</p>
-                  <div className="flex gap-4">
-                    {['app', 'sms', 'email'].map((method) => (
-                      <label key={method} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="2fa-method"
-                          value={method}
-                          checked={settings.twoFactorMethod === method}
-                          onChange={() => {
-                            onSettingsChange({
-                              ...settings,
-                              twoFactorMethod: method as 'app' | 'sms' | 'email'
-                            });
-                          }}
-                          className="text-[#150578]"
-                        />
-                        <span className="text-sm capitalize">{method}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <TwoFactorSettings />
 
         {/* Active Sessions */}
         <div>

@@ -4,7 +4,10 @@ import { UserRepository } from '../users/user.repository';
 import { UserRole } from '../users/types';
 import { JWTManager, JWTPayload } from './jwt';
 import { PasswordManager } from './password';
+import { RefreshTokenRepository } from './refresh-token.repository';
+import { TwoFactorService } from './twofa.service';
 import { sendEmail } from '../../infrastructure/email';
+import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
 
 export interface RegisterData {
@@ -63,15 +66,25 @@ export interface RefreshTokenData {
   refreshToken: string;
 }
 
+/** Returned instead of AuthResponse when the account has 2FA enabled — the caller must call verifyTwoFactorLogin next. */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  challengeToken: string;
+}
+
 export class AuthService {
   private userRepository: UserRepository;
   private jwtManager: JWTManager;
   private passwordManager: PasswordManager;
+  private refreshTokenRepository: RefreshTokenRepository;
+  private twoFactorService: TwoFactorService;
 
   constructor(private database: Database) {
     this.userRepository = new UserRepository(database);
     this.jwtManager = new JWTManager();
     this.passwordManager = new PasswordManager();
+    this.refreshTokenRepository = new RefreshTokenRepository(database);
+    this.twoFactorService = new TwoFactorService(this.userRepository);
   }
 
   async register(userData: RegisterData): Promise<AuthResponse> {
@@ -96,7 +109,7 @@ export class AuthService {
     }
 
     // Validate password strength
-    this.validatePassword(userData.password);
+    await this.validatePassword(userData.password);
 
     // Hash password
     const passwordHash = await this.passwordManager.hash(userData.password);
@@ -132,8 +145,8 @@ export class AuthService {
       console.error('REFERRAL ATTRIBUTION ERROR:', error instanceof Error ? error.message : String(error));
     }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user);
+    // Generate tokens (drop the internal DB id — the client only gets the JWTs)
+    const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
 
     return {
       user: {
@@ -217,7 +230,7 @@ export class AuthService {
     return 'sent';
   }
 
-  async login(loginData: LoginData): Promise<AuthResponse> {
+  async login(loginData: LoginData): Promise<AuthResponse | TwoFactorChallenge> {
     // Find user by email
     const user = await this.userRepository.findByEmail(loginData.email);
     if (!user) {
@@ -235,8 +248,18 @@ export class AuthService {
       throw new Error('Your account has been suspended. Please contact support.');
     }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user);
+    // Password confirmed — if 2FA is on, stop here with a short-lived
+    // challenge instead of a real session. The caller must present a valid
+    // TOTP/backup code to verifyTwoFactorLogin() to actually get in.
+    if (await this.twoFactorService.isEnabled(user.id)) {
+      return {
+        twoFactorRequired: true,
+        challengeToken: this.jwtManager.generate2faChallengeToken(user.id),
+      };
+    }
+
+    // Generate tokens (drop the internal DB id — the client only gets the JWTs)
+    const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
 
     return {
       user: {
@@ -250,21 +273,106 @@ export class AuthService {
     };
   }
 
+  /** The second step of login for a 2FA-enabled account: exchange a challenge + code for a real session. */
+  async verifyTwoFactorLogin(challengeToken: string, code: string): Promise<AuthResponse> {
+    let userId: string;
+    try {
+      ({ userId } = this.jwtManager.verify2faChallengeToken(challengeToken));
+    } catch {
+      throw new Error('Your two-factor challenge has expired. Please log in again.');
+    }
+
+    const ok = await this.twoFactorService.verifyLoginCode(userId, code);
+    if (!ok) throw new Error('Incorrect code.');
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('Incorrect code.');
+
+    const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      },
+      ...tokens
+    };
+  }
+
+  /** Begin (or restart) 2FA enrollment for an already-authenticated user. */
+  async startTwoFactorEnrollment(userId: string): Promise<{ secret: string; qrDataUrl: string }> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('User not found');
+    return this.twoFactorService.startEnrollment(userId, user.email);
+  }
+
+  /** Finish enrollment: proves the user actually scanned the QR, then turns 2FA on and issues backup codes. */
+  async confirmTwoFactorEnrollment(userId: string, code: string): Promise<string[]> {
+    return this.twoFactorService.confirmEnrollment(userId, code);
+  }
+
+  /** Turn 2FA off. Requires the current password again — otherwise a hijacked, already-open session could disable it. */
+  async disableTwoFactor(userId: string, password: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('User not found');
+    const isPasswordValid = await this.passwordManager.verify(password, user.passwordHash);
+    if (!isPasswordValid) throw new Error('Incorrect password');
+    await this.twoFactorService.disable(userId);
+  }
+
+  /**
+   * Rotates a refresh token: the JWT's own signature/expiry is checked first
+   * (cheap, no DB hit for an obviously forged or expired token), then the
+   * stored record decides revocation. The old token is revoked as part of
+   * issuing the new pair, so a stolen-but-already-used refresh token stops
+   * working the moment its legitimate owner refreshes — reusing it throws the
+   * same generic error as any other invalid token.
+   *
+   * Tokens issued before this table existed have no stored record; those are
+   * grandfathered in (accepted once, then tracked from here on) rather than
+   * forcing every signed-in user to re-login the moment this ships.
+   */
   async refreshToken(refreshData: RefreshTokenData): Promise<{ accessToken: string; refreshToken: string }> {
     try {
-      // Verify refresh token
       const payload = this.jwtManager.verifyRefreshToken(refreshData.refreshToken);
+      const tokenHash = crypto.createHash('sha256').update(refreshData.refreshToken).digest('hex');
+      const stored = await this.refreshTokenRepository.findByHash(tokenHash);
+      if (stored && stored.revokedAt) {
+        throw new Error('Refresh token already used');
+      }
 
-      // Find user to ensure they still exist
       const user = await this.userRepository.findById(payload.userId);
       if (!user) {
         throw new Error('User not found');
       }
 
-      // Generate new tokens
-      return this.generateTokens(user);
+      const { refreshTokenId, ...tokens } = await this.generateTokens(user);
+      if (stored) {
+        await this.refreshTokenRepository.revoke(stored.id, refreshTokenId);
+      } else {
+        // Pre-dates this table (grandfathered): record it as already-revoked
+        // now that it's been used, so a leaked copy of this exact old token
+        // can't be replayed indefinitely — the next attempt will find it
+        // stored and revoked, same as any other reused token.
+        const oldId = await this.refreshTokenRepository.store(payload.userId, tokenHash, new Date((payload.exp ?? 0) * 1000 || Date.now()));
+        await this.refreshTokenRepository.revoke(oldId, refreshTokenId);
+      }
+      return tokens;
     } catch (error) {
       throw new Error('Invalid refresh token');
+    }
+  }
+
+  /** Revoke a single refresh token (this session only — other devices stay signed in). */
+  async logout(refreshToken: string | undefined | null): Promise<void> {
+    if (!refreshToken) return;
+    try {
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      await this.refreshTokenRepository.revokeByHash(tokenHash);
+    } catch (error) {
+      console.error('LOGOUT REVOKE ERROR:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -306,27 +414,37 @@ export class AuthService {
     const user = await this.userRepository.findByValidResetTokenHash(tokenHash);
     if (!user) throw new Error('Invalid or expired reset link');
 
-    this.validatePassword(newPassword);
+    await this.validatePassword(newPassword);
     const passwordHash = await this.passwordManager.hash(newPassword);
     await this.userRepository.setPassword(user.id, passwordHash);
   }
 
-  private async generateTokens(user: any): Promise<{ accessToken: string; refreshToken: string }> {
+  /** Issues a fresh access+refresh pair and records the refresh token's hash so it can later be rotated or revoked. */
+  private async generateTokens(user: any): Promise<{ accessToken: string; refreshToken: string; refreshTokenId: string }> {
     const payload: Omit<JWTPayload, 'iat' | 'exp' | 'iss' | 'aud'> = {
       userId: user.id,
       email: user.email
     };
 
     const accessToken = this.jwtManager.generateAccessToken(payload);
-    const refreshToken = this.jwtManager.generateRefreshToken(payload);
+    // A random jti guarantees this refresh token is unique even if issued in
+    // the same second as another one for this user (iat alone isn't enough —
+    // see JWTPayload.jti).
+    const refreshToken = this.jwtManager.generateRefreshToken({ ...payload, jti: crypto.randomUUID() });
+
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    // Mirrors JWTManager's refresh token expiry ('7d').
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const refreshTokenId = await this.refreshTokenRepository.store(user.id, tokenHash, expiresAt);
 
     return {
       accessToken,
-      refreshToken
+      refreshToken,
+      refreshTokenId
     };
   }
 
-  private validatePassword(password: string): void {
+  private async validatePassword(password: string): Promise<void> {
     if (password.length < 8) {
       throw new Error('Password must be at least 8 characters long');
     }
@@ -346,6 +464,12 @@ export class AuthService {
     // Mirrored in user/src/lib/password-rules.ts — change both together.
     if (!/[^A-Za-z0-9\s]/.test(password)) {
       throw new Error('Password must contain at least one symbol, like ! ? @ # - _');
+    }
+
+    // Checked last (needs a network round-trip) — no point calling out to HIBP
+    // for a password that already fails a free, local rule.
+    if (await isPasswordPwned(password)) {
+      throw new Error('This password has appeared in a known data breach. Please choose a different one.');
     }
   }
 }

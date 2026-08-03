@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, MailIcon, LockIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { Turnstile } from "@/components/auth/Turnstile";
+import { verifyTwoFactorLogin } from "@/lib/api/twofa";
  
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
  
@@ -25,6 +27,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [emailValid, setEmailValid] = useState<boolean>(false);
   const [forgotPassword, setForgotPassword] = useState<boolean>(false);
   const [resetSent, setResetSent] = useState<boolean>(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Set once login() reports the account has 2FA on — a second step (code
+  // entry) has to complete before we actually have a session.
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [verifyingTwoFactor, setVerifyingTwoFactor] = useState(false);
  
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,13 +56,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
  
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailValid) return;
+    if (!emailValid || !turnstileToken) return;
     setIsLoading(true);
     try {
       await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
     } catch {
       /* Always show the same confirmation — never reveal whether the email exists. */
@@ -63,43 +72,67 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
  
+  /** Shared by a direct login and a login that needed a 2FA code first. */
+  const completeLogin = (data: any) => {
+    auth.login({
+      token: data.accessToken,
+      refreshToken: data.refreshToken,
+      user: {
+        id: data.user.id,
+        name: `${data.user.firstName ?? ''} ${data.user.lastName ?? ''}`.trim() || data.user.email,
+        email: data.user.email,
+        role: data.user.role || 'user',
+        avatarUrl: data.user.avatarUrl,
+        createdAt: data.user.createdAt ? new Date(data.user.createdAt) : new Date(),
+        lastLoginAt: new Date(),
+        preferences: {
+          notifications: data.user.preferences?.notifications ?? true,
+          emailUpdates: data.user.preferences?.email_updates ?? true,
+          darkMode: data.user.preferences?.dark_mode ?? false,
+        }
+      }
+    });
+    ui.toast("success", `Welcome back, ${data.user.firstName || data.user.email}!`, 4000);
+    router.push('/dashboard');
+  };
+
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFactorChallenge || !twoFactorCode.trim() || verifyingTwoFactor) return;
+    setTwoFactorError(null);
+    setVerifyingTwoFactor(true);
+    try {
+      const data = await verifyTwoFactorLogin(twoFactorChallenge, twoFactorCode.trim());
+      completeLogin(data);
+    } catch (error) {
+      setTwoFactorError(error instanceof Error ? error.message : "Could not verify your code.");
+    } finally {
+      setVerifyingTwoFactor(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailValid || !password) return;
- 
+    if (!emailValid || !password || !turnstileToken) return;
+
     setIsLoading(true);
     ui.beginLoading();
     auth.setAuthLoading(true);
- 
+
     try {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
  
       if (res.ok) {
         const data = await res.json();
-        auth.login({
-          token: data.accessToken,
-          refreshToken: data.refreshToken,
-          user: {
-            id: data.user.id,
-            name: `${data.user.firstName ?? ''} ${data.user.lastName ?? ''}`.trim() || data.user.email,
-            email: data.user.email,
-            role: data.user.role || 'user',
-            avatarUrl: data.user.avatarUrl,
-            createdAt: data.user.createdAt ? new Date(data.user.createdAt) : new Date(),
-            lastLoginAt: new Date(),
-            preferences: {
-              notifications: data.user.preferences?.notifications ?? true,
-              emailUpdates: data.user.preferences?.email_updates ?? true,
-              darkMode: data.user.preferences?.dark_mode ?? false,
-            }
-          }
-        });
-        ui.toast("success", `Welcome back, ${data.user.firstName || data.user.email}!`, 4000);
-        router.push('/dashboard');
+        if (data.twoFactorRequired) {
+          setTwoFactorChallenge(data.challengeToken);
+        } else {
+          completeLogin(data);
+        }
       } else {
         const demoUsers = [
           { email: "demo@Finquantaai.com", password: "demopassword", id: "demo-1", name: "Demo User", role: "user" as const },
@@ -146,6 +179,49 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
  
+  // Second step of login: this account has 2FA on, so a code from the
+  // authenticator app (or a backup code) is needed before we have a session.
+  if (twoFactorChallenge) {
+    return (
+      <div className={cn("grid gap-6", className)} {...props}>
+        <div className="grid gap-1">
+          <h3 className="font-semibold text-lg text-black">Two-factor authentication</h3>
+          <p className="text-sm text-gray-600">Enter the 6-digit code from your authenticator app, or one of your backup codes.</p>
+        </div>
+        <form onSubmit={handleTwoFactorSubmit}>
+          <div className="grid gap-4">
+            <Input
+              type="text"
+              inputMode="numeric"
+              autoFocus
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value)}
+              className="py-2 bg-white text-black border border-gray-300 text-center tracking-widest text-lg"
+              placeholder="123456"
+              disabled={verifyingTwoFactor}
+            />
+            {twoFactorError && (
+              <p role="alert" className="text-sm text-red-600">{twoFactorError}</p>
+            )}
+            <Button
+              type="submit"
+              disabled={verifyingTwoFactor || !twoFactorCode.trim()}
+              className="bg-blue-500 hover:bg-blue-600 text-white">
+              {verifyingTwoFactor && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+              Verify
+            </Button>
+            <button
+              type="button"
+              onClick={() => { setTwoFactorChallenge(null); setTwoFactorCode(''); setTwoFactorError(null); }}
+              className="text-sm text-gray-600 hover:underline text-center">
+              Back to sign in
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   // Forgot password view
   if (forgotPassword) {
     return (
@@ -191,9 +267,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                     disabled={isLoading}
                   />
                 </div>
+                <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
                 <Button
                   type="submit"
-                  disabled={isLoading || !emailValid}
+                  disabled={isLoading || !emailValid || !turnstileToken}
                   className="bg-blue-500 hover:bg-blue-600 text-white">
                   {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                   {t("auth", "sendResetLink")}
@@ -275,9 +352,11 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             </button>
           </div>
  
+          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
+
           <Button
             type="submit"
-            disabled={isLoading || !emailValid || !password}
+            disabled={isLoading || !emailValid || !password || !turnstileToken}
             className={cn("bg-blue-500 hover:bg-blue-600 text-white", (!emailValid || !password || isLoading) ? "opacity-70" : "")}>
             {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
             {t("auth", "loginButton")}

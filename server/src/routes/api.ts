@@ -19,6 +19,7 @@ import { BusinessesRepository } from '../modules/businesses/businesses.repositor
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { AdminRepository } from '../modules/admin/admin.repository';
 import { UserRepository } from '../modules/users/user.repository';
+import { RefreshTokenRepository } from '../modules/auth/refresh-token.repository';
 import { blogRoutes } from '../modules/blog/blog.routes';
 import { BlogRepository } from '../modules/blog/blog.repository';
 import { newsletterRoutes } from '../modules/newsletter/newsletter.routes';
@@ -43,6 +44,8 @@ import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
 import { GroupsRepository } from '../modules/groups/groups.repository';
 import { ActivityRepository } from '../modules/activity/activity.repository';
+import { aiUsageRoutes } from '../modules/ai-usage/ai-usage.routes';
+import { AiUsageRepository } from '../modules/ai-usage/ai-usage.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // API information
@@ -150,6 +153,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     await new UserRepository(database).ensureSchema();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure users reset schema');
+  }
+
+  // Refresh-token rotation/revocation table.
+  try {
+    await new RefreshTokenRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure refresh_tokens schema');
   }
 
   // Register financial transaction routes
@@ -296,6 +306,15 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure groups schema');
   }
   await fastify.register(groupsRoutes, { database });
+
+  // AI (Finna/Claude) daily usage caps, so a single user or anonymous IP can't
+  // run up unbounded Anthropic spend.
+  try {
+    await new AiUsageRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure ai_usage schema');
+  }
+  await fastify.register(aiUsageRoutes, { database });
 
   // Ensure the users.status column exists, then promote configured emails to
   // their role at boot, then mount the admin-only routes. Env vars map to the
