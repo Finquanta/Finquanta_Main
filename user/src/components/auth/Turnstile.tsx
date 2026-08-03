@@ -13,7 +13,11 @@ import { useEffect, useId, useRef } from "react";
  * no setup.
  */
 const DEV_TEST_SITE_KEY = "1x00000000000000000000AA";
-const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+// render=explicit: we call window.turnstile.render() ourselves below. Without
+// this, Cloudflare's script ALSO auto-renders into any .cf-turnstile element
+// it finds (that class is its own auto-scan marker), racing our explicit
+// render into the same container and corrupting the widget.
+const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
 declare global {
   interface Window {
