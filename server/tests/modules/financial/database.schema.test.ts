@@ -1,6 +1,19 @@
 import { FinancialMockDatabase } from '../../mocks/financial.database.mock';
 
-describe('Financial Transaction Database Schema', () => {
+/**
+ * Skipped: these assertions introspect `information_schema`, which only a real
+ * Postgres can answer. Pointed at FinancialMockDatabase they return no rows and
+ * every case fails.
+ *
+ * Teaching the mock to answer information_schema would make them pass without
+ * testing anything — they would assert that the mock agrees with the mock, while
+ * the actual schema built by ensureSchema() went unchecked. That is worse than
+ * an honest skip, because it reads as coverage.
+ *
+ * To make these real, run them against a live database (ensureSchema() first,
+ * then introspect) behind a DATABASE_URL check.
+ */
+describe.skip('Financial Transaction Database Schema', () => {
   let db: FinancialMockDatabase;
 
   beforeAll(async () => {

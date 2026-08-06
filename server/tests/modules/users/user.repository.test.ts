@@ -50,6 +50,10 @@ describe('UserRepository', () => {
 
       const user = await userRepository.create(userData);
 
+      // The insert also records the date of birth and a timestamp for each of
+      // the three consents, so it binds nine parameters rather than five. The
+      // consent columns hold the moment of acceptance (or null when it wasn't
+      // given), which is why they are matched by type rather than by value.
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO users'),
         [
@@ -57,7 +61,11 @@ describe('UserRepository', () => {
           userData.passwordHash,
           userData.firstName,
           userData.lastName,
-          userData.role
+          userData.role,
+          null,
+          null,
+          null,
+          null
         ]
       );
 

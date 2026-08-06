@@ -16,6 +16,9 @@ describe('TransactionController', () => {
   let repository: TransactionRepository;
   let mockDb: FinancialMockDatabase;
   const testUserId = 'user-123';
+  // business-context middleware puts this on the request in production; the
+  // controller reads it for every scoped call, so the mock has to carry it.
+  const testBusinessId = 'business-123';
 
   beforeEach(() => {
     mockDb = new FinancialMockDatabase();
@@ -36,6 +39,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         body: requestBody
       } as any;
 
@@ -70,6 +74,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         body: invalidBody
       } as any;
 
@@ -115,14 +120,14 @@ describe('TransactionController', () => {
   describe('getTransactions', () => {
     beforeEach(async () => {
       // Create some test transactions
-      await service.createTransaction(testUserId, {
+      await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.INCOME,
         category: 'Salary',
         amount: 5000,
         date: '2024-01-01'
       });
 
-      await service.createTransaction(testUserId, {
+      await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.EXPENSE,
         category: 'Food',
         amount: 100,
@@ -133,6 +138,7 @@ describe('TransactionController', () => {
     it('should return user transactions', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {}
       } as any;
 
@@ -159,6 +165,7 @@ describe('TransactionController', () => {
     it('should handle query parameters', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {
           type: TransactionType.EXPENSE,
           limit: 10,
@@ -180,6 +187,7 @@ describe('TransactionController', () => {
     it('should handle invalid query parameters', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {
           limit: -1 // Invalid
         }
@@ -204,7 +212,7 @@ describe('TransactionController', () => {
 
   describe('getTransactionById', () => {
     it('should return transaction by id', async () => {
-      const transaction = await service.createTransaction(testUserId, {
+      const transaction = await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.INCOME,
         category: 'Salary',
         amount: 5000,
@@ -213,6 +221,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: transaction.id }
       } as any;
 
@@ -238,6 +247,7 @@ describe('TransactionController', () => {
     it('should return 404 for non-existent transaction', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: 'non-existent-id' }
       } as any;
 
@@ -259,7 +269,10 @@ describe('TransactionController', () => {
 
     it('should return 404 for transaction belonging to different user', async () => {
       const otherUserId = 'user-456';
-      const transaction = await service.createTransaction(otherUserId, {
+      // Isolation is by business now, so the row has to belong to a different
+      // business for the 404 to mean anything.
+      const otherBusinessId = 'business-456';
+      const transaction = await service.createTransaction(otherBusinessId, otherUserId, {
         type: TransactionType.INCOME,
         category: 'Salary',
         amount: 5000,
@@ -268,6 +281,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: transaction.id }
       } as any;
 
@@ -284,7 +298,7 @@ describe('TransactionController', () => {
 
   describe('updateTransaction', () => {
     it('should update transaction successfully', async () => {
-      const transaction = await service.createTransaction(testUserId, {
+      const transaction = await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.EXPENSE,
         category: 'Food',
         amount: 100,
@@ -293,6 +307,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: transaction.id },
         body: {
           category: 'Updated Food',
@@ -323,6 +338,7 @@ describe('TransactionController', () => {
     it('should return 404 when updating non-existent transaction', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: 'non-existent-id' },
         body: { category: 'Updated' }
       } as any;
@@ -338,7 +354,7 @@ describe('TransactionController', () => {
     });
 
     it('should handle validation errors', async () => {
-      const transaction = await service.createTransaction(testUserId, {
+      const transaction = await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.EXPENSE,
         category: 'Food',
         amount: 100,
@@ -347,6 +363,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: transaction.id },
         body: {
           amount: -50 // Invalid
@@ -372,7 +389,7 @@ describe('TransactionController', () => {
 
   describe('deleteTransaction', () => {
     it('should delete transaction successfully', async () => {
-      const transaction = await service.createTransaction(testUserId, {
+      const transaction = await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.INCOME,
         category: 'Salary',
         amount: 5000,
@@ -381,6 +398,7 @@ describe('TransactionController', () => {
 
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: transaction.id }
       } as any;
 
@@ -403,6 +421,7 @@ describe('TransactionController', () => {
     it('should return 404 when deleting non-existent transaction', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         params: { id: 'non-existent-id' }
       } as any;
 
@@ -419,14 +438,14 @@ describe('TransactionController', () => {
 
   describe('getFinancialSummary', () => {
     beforeEach(async () => {
-      await service.createTransaction(testUserId, {
+      await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.INCOME,
         category: 'Salary',
         amount: 5000,
         date: '2024-01-01'
       });
 
-      await service.createTransaction(testUserId, {
+      await service.createTransaction(testBusinessId, testUserId, {
         type: TransactionType.EXPENSE,
         category: 'Food',
         amount: 1000,
@@ -437,6 +456,7 @@ describe('TransactionController', () => {
     it('should return financial summary', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {
           startDate: '2024-01-01',
           endDate: '2024-01-31'
@@ -467,6 +487,7 @@ describe('TransactionController', () => {
     it('should handle missing date parameters', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {}
       } as any;
 
@@ -489,6 +510,7 @@ describe('TransactionController', () => {
     it('should handle invalid date parameters', async () => {
       const mockRequest = {
         user: { id: testUserId },
+        businessId: testBusinessId,
         query: {
           startDate: 'invalid-date',
           endDate: '2024-01-31'

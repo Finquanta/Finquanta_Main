@@ -1,6 +1,35 @@
 import { AuthService } from '../../../src/modules/auth/auth.service';
 import { MockDatabase } from '../../mocks/database.mock';
 
+// The breached-password check calls the HaveIBeenPwned range API over the
+// network. It fails open, so these tests pass offline and fail the moment the
+// machine has internet — 'Password123!' really is in the corpus. Stub it so the
+// suite is deterministic either way; the check itself is covered separately.
+jest.mock('../../../src/infrastructure/pwned', () => ({
+  isPasswordPwned: jest.fn().mockResolvedValue(false),
+}));
+
+
+/**
+ * Registration enforces a minimum age (16), so every fixture needs a date of
+ * birth. Computed rather than hardcoded so it can't quietly age across the
+ * limit as years pass.
+ */
+const adultDateOfBirth = new Date(
+  new Date().setFullYear(new Date().getFullYear() - 30)
+).toISOString().slice(0, 10);
+
+/**
+ * Registration also refuses to proceed unless all three legal agreements are
+ * accepted, so every fixture carries them.
+ */
+const signupRequirements = {
+  dateOfBirth: adultDateOfBirth,
+  acceptedTerms: true,
+  acceptedPrivacy: true,
+  acceptedRisk: true
+};
+
 describe('AuthService', () => {
   let authService: AuthService;
   let mockDatabase: MockDatabase;
@@ -15,7 +44,8 @@ describe('AuthService', () => {
       email: 'test@example.com',
       password: 'Password123!',
       firstName: 'John',
-      lastName: 'Doe'
+      lastName: 'Doe',
+      ...signupRequirements
     };
 
     it('should register a new user successfully', async () => {
@@ -55,7 +85,11 @@ describe('AuthService', () => {
         password: 'Password123' // Missing special character
       };
 
-      await expect(authService.register(invalidUserData)).rejects.toThrow('Password must contain at least one special character');
+      // Matched loosely on purpose. The rule was widened from an explicit
+      // punctuation list to "anything that isn't a letter, digit or space", and
+      // the message changed with it ("at least one symbol, like ! ? @ # - _").
+      // Asserting the old sentence tested the wording, not the behaviour.
+      await expect(authService.register(invalidUserData)).rejects.toThrow(/symbol|special character/);
     });
   });
 
@@ -64,7 +98,8 @@ describe('AuthService', () => {
       email: 'logintest@example.com',
       password: 'Password123!',
       firstName: 'Jane',
-      lastName: 'Smith'
+      lastName: 'Smith',
+      ...signupRequirements
     };
 
     beforeEach(async () => {
@@ -77,6 +112,15 @@ describe('AuthService', () => {
         email: validUserData.email,
         password: validUserData.password
       });
+
+      // login returns a TwoFactorChallenge instead of a session when the account
+      // has TOTP enabled, so the result is a union. This account doesn't, and
+      // narrowing here keeps the assertions honest: if login ever started
+      // demanding a second factor for a plain account, this would fail loudly
+      // rather than not compiling.
+      if ('twoFactorRequired' in result) {
+        throw new Error('expected a session, got a two-factor challenge');
+      }
 
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('accessToken');
@@ -105,7 +149,8 @@ describe('AuthService', () => {
       email: 'refreshtest@example.com',
       password: 'Password123!',
       firstName: 'Refresh',
-      lastName: 'User'
+      lastName: 'User',
+      ...signupRequirements
     };
 
     it('should refresh tokens with valid refresh token', async () => {

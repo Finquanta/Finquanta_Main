@@ -87,7 +87,7 @@ export class WebSocketManager extends EventEmitter {
     this.connections.delete(connectionId);
 
     // Close WebSocket if not already closed
-    if (connection.ws.readyState === ws.OPEN) {
+    if (connection.ws.readyState === WebSocket.OPEN) {
       connection.ws.close();
     }
 
@@ -123,7 +123,7 @@ export class WebSocketManager extends EventEmitter {
 
   sendToConnection(connectionId: string, message: WebSocketMessage): boolean {
     const connection = this.connections.get(connectionId);
-    if (!connection || connection.ws.readyState !== ws.OPEN) {
+    if (!connection || connection.ws.readyState !== WebSocket.OPEN) {
       return false;
     }
 

@@ -143,19 +143,23 @@ export class TransactionController {
         filters.invoice = query.invoice;
       }
 
-      // Parse pagination parameters
-      if (query.limit) {
-        const limit = parseInt(query.limit);
-        if (limit > 0) {
-          filters.limit = limit;
-        }
+      // Parse pagination parameters.
+      //
+      // A bad value is passed through rather than dropped. The service owns the
+      // rule ("Limit must be positive", "Limit cannot exceed 1000", "Offset
+      // cannot be negative") and the catch below already turns those into a 400.
+      // Silently discarding the value here made all of that unreachable, and the
+      // client got a 200 with default pagination and no hint that what they sent
+      // had been ignored. NaN is normalised to a value that fails the same rule,
+      // so `?limit=abc` is rejected rather than reaching SQL.
+      if (query.limit !== undefined) {
+        const limit = parseInt(query.limit, 10);
+        filters.limit = Number.isNaN(limit) ? -1 : limit;
       }
 
-      if (query.offset) {
-        const offset = parseInt(query.offset);
-        if (offset >= 0) {
-          filters.offset = offset;
-        }
+      if (query.offset !== undefined) {
+        const offset = parseInt(query.offset, 10);
+        filters.offset = Number.isNaN(offset) ? -1 : offset;
       }
 
       // Parse sorting parameters

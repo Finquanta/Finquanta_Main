@@ -1,8 +1,17 @@
 import { DashboardService } from '../../../src/modules/dashboard/dashboard.service';
+import { DashboardRepositoryPort } from '../../../src/modules/dashboard/dashboard.service';
 
 describe('DashboardService', () => {
   it('builds overview cards from financial aggregates', async () => {
-    const repository = {
+    // Typed as the port so a method added to the interface breaks this file
+    // rather than being silently absent. getOverview doesn't touch the goal
+    // mutations or the revenue series, but the object still has to satisfy the
+    // whole contract.
+    const repository: DashboardRepositoryPort = {
+      createGoal: jest.fn(),
+      updateGoal: jest.fn(),
+      deleteGoal: jest.fn(),
+      getRevenueSeries: jest.fn().mockResolvedValue([]),
       getSummary: jest.fn().mockResolvedValue({
         totalIncome: '10000.00',
         totalExpenses: '1980.56',
@@ -24,7 +33,8 @@ describe('DashboardService', () => {
     const service = new DashboardService(repository);
     const result = await service.getOverview('user-1', '2026-05-01', '2026-05-31');
 
-    expect(result.summaryCards[0]?.title).toBe('Current balance');
+    // The card was renamed 'Current balance' -> 'Balance'.
+    expect(result.summaryCards[0]?.title).toBe('Balance');
     expect(result.summaryCards[0]?.amount).toBe('$8,019.44');
     expect(result.totalSavingsData.weeklyData[0]?.day).toBe('Mo');
   });

@@ -59,16 +59,19 @@ export class FinancialMockDatabase extends MockDatabase {
     if (text.includes('INSERT INTO financial_transactions') && params) {
       const newTransaction: TransactionRow = {
         id: `txn-${this.nextTransactionId++}`,
-        user_id: params[0],
-        type: params[1] as TransactionType,
-        category: params[2],
-        subcategory: params[3],
-        amount: params[4],
-        description: params[5],
-        date: params[6],
-        invoice: params[7],
-        status: params[8] as TransactionStatus,
-        metadata: params[9] || {},
+        // business_id leads the INSERT now; user_id only records who entered it.
+        // Every other column shifted one place right when scoping was added.
+        business_id: params[0],
+        user_id: params[1],
+        type: params[2] as TransactionType,
+        category: params[3],
+        subcategory: params[4],
+        amount: params[5],
+        description: params[6],
+        date: params[7],
+        invoice: params[8],
+        status: params[9] as TransactionStatus,
+        metadata: params[10] || {},
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -79,12 +82,12 @@ export class FinancialMockDatabase extends MockDatabase {
     // Handle UPDATE
     if (text.includes('UPDATE financial_transactions') && params) {
       const idIndex = text.split('$').length - 2;
-      const userIdIndex = text.split('$').length - 1;
+      const businessIdIndex = text.split('$').length - 1;
       const id = params[idIndex - 1];
-      const userId = params[userIdIndex - 1];
+      const businessId = params[businessIdIndex - 1];
 
       const transactionIndex = this.transactions.findIndex(
-        t => t.id === id && t.user_id === userId
+        t => t.id === id && t.business_id === businessId
       );
 
       if (transactionIndex === -1) {
@@ -93,24 +96,25 @@ export class FinancialMockDatabase extends MockDatabase {
 
       const transaction = this.transactions[transactionIndex]!;
 
-      // Parse UPDATE SET clauses
-      if (text.includes('type =')) {
-        const typeIndex = 1;
-        transaction.type = params[typeIndex];
-      }
-      if (text.includes('category =')) {
-        const categoryIndex = text.includes('type =') ? 2 : 1;
-        transaction.category = params[categoryIndex];
-      }
-      if (text.includes('amount =')) {
-        let amountIndex = 1;
-        for (let i = 1; i < params.length - 2; i++) {
-          if (text.includes(`$${i}`) && text.includes('amount')) {
-            amountIndex = i;
-            break;
-          }
+      // Parse UPDATE SET clauses by reading each column's placeholder number
+      // out of the SQL. The previous version hardcoded positions (type at $1,
+      // category at $1 or $2) and scanned for amount, so it only ever handled
+      // three columns and mis-assigned them whenever the caller updated a
+      // different combination — updating category alongside amount wrote the
+      // amount into the category.
+      const setValue = (column: string): any => {
+        const m = text.match(new RegExp('\\b' + column + ' = \\$(\\d+)'));
+        return m ? params[Number(m[1]) - 1] : undefined;
+      };
+
+      for (const column of [
+        'type', 'category', 'subcategory', 'amount',
+        'description', 'date', 'invoice', 'status', 'metadata',
+      ]) {
+        const value = setValue(column);
+        if (value !== undefined) {
+          (transaction as any)[column] = value;
         }
-        transaction.amount = params[amountIndex];
       }
 
       transaction.updated_at = new Date().toISOString();
@@ -120,21 +124,26 @@ export class FinancialMockDatabase extends MockDatabase {
 
     // Handle DELETE
     if (text.includes('DELETE FROM financial_transactions') && params) {
-      const [id, userId] = params;
+      const [id, businessId] = params;
       const initialLength = this.transactions.length;
       this.transactions = this.transactions.filter(
-        t => !(t.id === id && t.user_id === userId)
+        t => !(t.id === id && t.business_id === businessId)
       );
       return { rows: [], rowCount: initialLength - this.transactions.length };
     }
 
-    // Handle COUNT query
-    if (text.includes('COUNT(*)') && text.includes('financial_transactions')) {
+    // Handle COUNT query.
+    //
+    // Must exclude the summary query, which selects COUNT(*) *and* SUM(...) in
+    // one statement. Matching on COUNT alone made this branch swallow it and
+    // return { count } with no total_income, so calculateSummary parsed
+    // undefined and every total came back NaN.
+    if (text.includes('COUNT(*)') && text.includes('financial_transactions') && !text.includes('SUM(')) {
       let filteredTransactions = [...this.transactions];
 
-      // Apply user filter
+      // Apply tenant filter (business_id = $1)
       if (params && params.length > 0) {
-        filteredTransactions = filteredTransactions.filter(t => t.user_id === params[0]);
+        filteredTransactions = filteredTransactions.filter(t => t.business_id === params[0]);
       }
 
       // Apply additional filters based on query
@@ -166,9 +175,9 @@ export class FinancialMockDatabase extends MockDatabase {
     if (text.includes('SUM(CASE WHEN type =') && text.includes('financial_transactions')) {
       let filteredTransactions = [...this.transactions];
 
-      // Apply user filter
+      // Apply tenant filter (business_id = $1)
       if (params && params.length > 0) {
-        filteredTransactions = filteredTransactions.filter(t => t.user_id === params[0]);
+        filteredTransactions = filteredTransactions.filter(t => t.business_id === params[0]);
       }
 
       // Apply date filters
@@ -202,44 +211,55 @@ export class FinancialMockDatabase extends MockDatabase {
     if (text.includes('SELECT') && text.includes('financial_transactions')) {
       let filteredTransactions = [...this.transactions];
 
-      // Apply filters based on WHERE clauses
-      if (text.includes('WHERE user_id =') && params) {
-        filteredTransactions = filteredTransactions.filter(t => t.user_id === params[0]);
+      // Two shapes reach here, and they order their parameters differently:
+      //   findById            -> WHERE id = $1 AND business_id = $2
+      //   getUserTransactions -> WHERE business_id = $1 [AND ...]
+      //
+      // This used to test for `WHERE user_id =`, which no query has said since
+      // transactions became business-scoped. The condition silently never
+      // matched, so NO tenant filter was applied and findById happily returned
+      // another business's row — the mock was asserting the opposite of the
+      // isolation the real query enforces.
+      if (text.includes('WHERE id = $1 AND business_id = $2') && params) {
+        const [id, businessId] = params;
+        filteredTransactions = filteredTransactions.filter(
+          t => t.id === id && t.business_id === businessId
+        );
+      } else if (text.includes('business_id = $1') && params) {
+        filteredTransactions = filteredTransactions.filter(t => t.business_id === params[0]);
       }
 
-      if (text.includes('AND id =') && params) {
-        const idIndex = params.findIndex(p => p && p.startsWith('txn-'));
-        if (idIndex !== -1) {
-          filteredTransactions = filteredTransactions.filter(t => t.id === params[idIndex]);
-        }
+      // Read the placeholder number straight out of the SQL rather than guessing
+      // which parameter belongs to which clause.
+      //
+      // The old heuristics searched the whole params array by shape — "a string
+      // that isn't a date and isn't income/expense" for category, for instance.
+      // That matched params[0], which is now the business id, so filtering by
+      // category compared every row against 'business-123' and returned nothing.
+      // The query already states the mapping; use it.
+      const paramFor = (clause: string): any => {
+        const m = text.match(new RegExp(clause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\$(\\d+)'));
+        return m ? params![Number(m[1]) - 1] : undefined;
+      };
+
+      const typeParam = paramFor('type =');
+      if (typeParam !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => t.type === typeParam);
       }
 
-      if (text.includes('type =') && params) {
-        const typeIndex = params.findIndex(p => p === 'income' || p === 'expense');
-        if (typeIndex !== -1) {
-          filteredTransactions = filteredTransactions.filter(t => t.type === params[typeIndex]);
-        }
+      const categoryParam = paramFor('category =');
+      if (categoryParam !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => t.category === categoryParam);
       }
 
-      if (text.includes('category =') && params) {
-        const categoryIndex = params.findIndex(p => p && typeof p === 'string' && !p.match(/^\d{4}-\d{2}-\d{2}$/) && p !== 'income' && p !== 'expense');
-        if (categoryIndex !== -1) {
-          filteredTransactions = filteredTransactions.filter(t => t.category === params[categoryIndex]);
-        }
+      const fromParam = paramFor('date >=');
+      if (fromParam !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => t.date >= fromParam);
       }
 
-      if (text.includes('date >=') && params) {
-        const dateIndex = params.findIndex(p => p && p.match(/^\d{4}-\d{2}-\d{2}$/));
-        if (dateIndex !== -1) {
-          filteredTransactions = filteredTransactions.filter(t => t.date >= params[dateIndex]);
-        }
-      }
-
-      if (text.includes('date <=') && params) {
-        const dateIndex = params.findIndex(p => p && p.match(/^\d{4}-\d{2}-\d{2}$/), params.findIndex(p => p && p.match(/^\d{4}-\d{2}-\d{2}$/)) + 1);
-        if (dateIndex !== -1) {
-          filteredTransactions = filteredTransactions.filter(t => t.date <= params[dateIndex]);
-        }
+      const toParam = paramFor('date <=');
+      if (toParam !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => t.date <= toParam);
       }
 
       // Apply sorting
@@ -249,10 +269,13 @@ export class FinancialMockDatabase extends MockDatabase {
 
       // Apply pagination
       if (text.includes('LIMIT') && params) {
-        const limitIndex = text.split('$').length - 1;
-        const limit = params[limitIndex - 1];
-        const offsetIndex = limitIndex - 1;
-        const offset = params[offsetIndex - 1] || 0;
+        // The query ends `LIMIT $n OFFSET $n+1` and pushes them in that order,
+        // so limit is second-to-last and offset is last. Deriving the index by
+        // counting '$' had these the wrong way round: with three placeholders it
+        // read limit=offset(0) and offset=limit(50), producing slice(50, 50) and
+        // an empty result for every unpaginated list query.
+        const limit = Number(params[params.length - 2]) || 0;
+        const offset = Number(params[params.length - 1]) || 0;
 
         filteredTransactions = filteredTransactions.slice(offset, offset + limit);
       }
@@ -396,6 +419,7 @@ export class FinancialMockDatabase extends MockDatabase {
   private mapTransactionToRow(transaction: TransactionRow): any {
     return {
       id: transaction.id,
+      business_id: transaction.business_id,
       user_id: transaction.user_id,
       type: transaction.type,
       category: transaction.category,

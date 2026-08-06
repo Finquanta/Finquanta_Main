@@ -1,7 +1,22 @@
 // Jest globals are available globally
 import { RedisClient } from '../../src/infrastructure/redis'
 
-describe('RedisClient', () => {
+/**
+ * These talk to a real Redis. Rather than failing on every machine that doesn't
+ * happen to have one running, they are opt-in:
+ *
+ *   docker run -d -p 6379:6379 redis
+ *   RUN_REDIS_TESTS=1 npx jest tests/infrastructure/redis.test.ts
+ *
+ * Gated on a dedicated flag rather than on REDIS_URL, because tests/setup.ts
+ * assigns REDIS_URL unconditionally — keying off it would never skip anything.
+ *
+ * Conditional rather than deleted: the behaviour is worth checking where Redis
+ * exists, and a permanently red suite trains everyone to ignore red.
+ */
+const describeWithRedis = process.env.RUN_REDIS_TESTS ? describe : describe.skip
+
+describeWithRedis('RedisClient', () => {
   let redisClient: RedisClient
 
   beforeAll(async () => {

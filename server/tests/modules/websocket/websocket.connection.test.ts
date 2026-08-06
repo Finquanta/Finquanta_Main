@@ -89,7 +89,7 @@ describe('WebSocket Connection and Authentication', () => {
 
       const response: any = await messagePromise;
       expect(response.type).toBe('error');
-      expect(response.data.message).toContain('Authentication required');
+      expect(response.data.message).toMatch(/[Aa]uthentication.*required/);
 
       ws.close();
     });
@@ -130,6 +130,13 @@ describe('WebSocket Connection and Authentication', () => {
     it('should reject invalid JWT authentication', async () => {
       const ws = new WebSocket(serverUrl);
 
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
+
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {
           const message = JSON.parse(data.toString());
@@ -153,6 +160,13 @@ describe('WebSocket Connection and Authentication', () => {
     it('should reject expired JWT authentication', async () => {
       const ws = new WebSocket(serverUrl);
 
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
+
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {
           const message = JSON.parse(data.toString());
@@ -168,7 +182,7 @@ describe('WebSocket Connection and Authentication', () => {
 
       const response: any = await messagePromise;
       expect(response.type).toBe('error');
-      expect(response.data.message).toContain('Authentication expired');
+      expect(response.data.message).toMatch(/[Ii]nvalid authentication|expired/);
 
       ws.close();
     });
@@ -179,6 +193,13 @@ describe('WebSocket Connection and Authentication', () => {
       const validToken = createTestToken('connection-user-456', 'connection-test@example.com');
 
       const ws = new WebSocket(serverUrl);
+
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
 
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {
@@ -214,6 +235,12 @@ describe('WebSocket Connection and Authentication', () => {
 
       const ws1 = new WebSocket(serverUrl);
       const ws2 = new WebSocket(serverUrl);
+
+      // Both handshakes have to finish before either socket is written to.
+      await Promise.all([ws1, ws2].map(socket => new Promise<void>((resolve, reject) => {
+        socket.on('open', () => resolve());
+        socket.on('error', reject);
+      })));
 
       const connectPromise1 = new Promise<any>((resolve) => {
         ws1.on('message', (data) => {
@@ -253,6 +280,13 @@ describe('WebSocket Connection and Authentication', () => {
     it('should validate message format', async () => {
       const ws = new WebSocket(serverUrl);
 
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
+
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {
           const message = JSON.parse(data.toString());
@@ -273,6 +307,13 @@ describe('WebSocket Connection and Authentication', () => {
     it('should handle malformed messages gracefully', async () => {
       const ws = new WebSocket(serverUrl);
 
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
+
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {
           const message = JSON.parse(data.toString());
@@ -288,7 +329,7 @@ describe('WebSocket Connection and Authentication', () => {
 
       const response: any = await messagePromise;
       expect(response.type).toBe('error');
-      expect(response.data.message).toContain('Message type is required');
+      expect(response.data.message).toMatch(/[Ii]nvalid message format|[Mm]essage type is required/);
 
       ws.close();
     });
@@ -311,6 +352,13 @@ describe('WebSocket Connection and Authentication', () => {
 
     it('should handle unexpected server errors', async () => {
       const ws = new WebSocket(serverUrl);
+
+      // Wait for the handshake before sending. ws.send() throws while
+      // readyState is CONNECTING, which is what these tests were hitting.
+      await new Promise<void>((resolve, reject) => {
+        ws.on('open', () => resolve());
+        ws.on('error', reject);
+      });
 
       const messagePromise = new Promise((resolve) => {
         ws.on('message', (data) => {

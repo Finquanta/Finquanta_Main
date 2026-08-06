@@ -1,6 +1,39 @@
 import { buildNativeTestServer } from '../../../src/tests/server-native';
 import request from 'supertest';
 
+// The breached-password check calls the HaveIBeenPwned range API over the
+// network. It fails open, so these tests pass offline and fail the moment the
+// machine has internet — 'Password123!' really is in the corpus. Stub it so the
+// suite is deterministic either way; the check itself is covered separately.
+jest.mock('../../../src/infrastructure/pwned', () => ({
+  isPasswordPwned: jest.fn().mockResolvedValue(false),
+}));
+
+// register and login both verify a Turnstile token, and verifyTurnstile returns
+// false for a missing one in every environment before posting to Cloudflare.
+// These tests exercise the controller, not the captcha, so the check is stubbed
+// rather than every request being given a fake token that Cloudflare would
+// reject anyway.
+jest.mock('../../../src/infrastructure/turnstile', () => ({
+  verifyTurnstile: jest.fn().mockResolvedValue(true),
+}));
+
+
+/**
+ * Registration now requires a date of birth (minimum age 16) and explicit
+ * acceptance of all three legal agreements, so every fixture that registers has
+ * to carry them. Computed rather than hardcoded so it can't age across the
+ * limit as years pass.
+ */
+const signupRequirements = {
+  dateOfBirth: new Date(
+    new Date().setFullYear(new Date().getFullYear() - 30)
+  ).toISOString().slice(0, 10),
+  acceptedTerms: true,
+  acceptedPrivacy: true,
+  acceptedRisk: true
+};
+
 describe('AuthController', () => {
   let server: any;
   let baseUrl: string;
@@ -29,7 +62,8 @@ describe('AuthController', () => {
       email: 'test@example.com',
       password: 'Password123!',
       firstName: 'John',
-      lastName: 'Doe'
+      lastName: 'Doe',
+      ...signupRequirements
     };
 
     it('should register a new user successfully', async () => {
@@ -56,7 +90,12 @@ describe('AuthController', () => {
       const response = await request(baseUrl)
         .post('/api/v1/auth/register')
         .send(validUser)
-        .expect(409);
+        // 409 would be the more precise status for a duplicate, but register
+        // deliberately answers 400 for everything the user can fix — weak
+        // password, duplicate email, under-age — and the frontend reads that.
+        // Changing the contract to satisfy this assertion would be the tail
+        // wagging the dog; the assertion is what was stale.
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('Email already exists');
@@ -110,7 +149,8 @@ describe('AuthController', () => {
       email: 'logintest@example.com',
       password: 'Password123!',
       firstName: 'Jane',
-      lastName: 'Smith'
+      lastName: 'Smith',
+      ...signupRequirements
     };
 
     beforeEach(async () => {
@@ -184,7 +224,8 @@ describe('AuthController', () => {
         email: 'refreshtest@example.com',
         password: 'Password123!',
         firstName: 'Refresh',
-        lastName: 'User'
+        lastName: 'User',
+        ...signupRequirements
       };
 
       const registerResponse = await request(baseUrl)
@@ -253,7 +294,8 @@ describe('AuthController', () => {
           email: 'cors@example.com',
           password: 'Password123!',
           firstName: 'CORS',
-          lastName: 'Test'
+          lastName: 'Test',
+          ...signupRequirements
         });
 
       expect(response.headers).toHaveProperty('access-control-allow-origin');

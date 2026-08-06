@@ -106,6 +106,12 @@ export interface TransactionAnalytics {
 // Database row interfaces
 export interface TransactionRow {
   id: string;
+  /**
+   * The tenant the row belongs to. Every read is filtered by it; `user_id` only
+   * records who entered the transaction. Optional because rows selected before
+   * business scoping existed predate the column.
+   */
+  business_id?: string;
   user_id: string;
   type: TransactionType;
   category: string;
