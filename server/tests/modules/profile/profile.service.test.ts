@@ -1,10 +1,19 @@
 import { ProfileService } from '../../../src/modules/profile/profile.service';
+import { PasswordManager } from '../../../src/modules/auth/password';
 
 describe('ProfileService', () => {
+  // Must satisfy the whole ProfileRepositoryPort. If a method is added to the
+  // port and not mirrored here, this file stops compiling and every test in it
+  // silently stops running — which is exactly how it sat dead for months.
   const repository = {
     getMe: jest.fn(),
     updateProfile: jest.fn(),
-    updateSettings: jest.fn()
+    updateSettings: jest.fn(),
+    updateName: jest.fn(),
+    getBusiness: jest.fn(),
+    upsertBusiness: jest.fn(),
+    getPasswordHash: jest.fn(),
+    deleteAccount: jest.fn()
   };
 
   beforeEach(() => jest.clearAllMocks());

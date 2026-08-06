@@ -71,23 +71,42 @@ export class AdminRepository {
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs(created_at DESC)`);
   }
 
-  /** Record an admin action. Best-effort: never throws into the request path. */
+  /**
+   * Record an admin action. Best-effort: never throws into the request path.
+   *
+   * Every caller logs *after* the action has already committed — the user is
+   * deleted, the password is changed. Letting a failed INSERT escape would send
+   * the route's catch-all 500 back for an operation that actually succeeded,
+   * telling the admin their delete failed when the account is already gone. A
+   * missing audit row is bad; reporting a completed deletion as an error is
+   * worse, so the write is swallowed and logged for the server operator.
+   */
   async addAuditLog(entry: {
     actorId?: string | null; actorEmail?: string | null; action: string;
     targetId?: string | null; targetEmail?: string | null; details?: any;
   }): Promise<void> {
-    await this.database.query(
-      `INSERT INTO admin_audit_logs (actor_id, actor_email, action, target_id, target_email, details)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        entry.actorId ?? null,
-        entry.actorEmail ?? null,
-        entry.action,
-        entry.targetId ?? null,
-        entry.targetEmail ?? null,
-        entry.details != null ? JSON.stringify(entry.details) : null,
-      ]
-    );
+    try {
+      await this.database.query(
+        `INSERT INTO admin_audit_logs (actor_id, actor_email, action, target_id, target_email, details)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          entry.actorId ?? null,
+          entry.actorEmail ?? null,
+          entry.action,
+          entry.targetId ?? null,
+          entry.targetEmail ?? null,
+          entry.details != null ? JSON.stringify(entry.details) : null,
+        ]
+      );
+    } catch (error) {
+      // Loud in the server logs: this is the audit trail failing to record a
+      // privileged action, which someone should notice even though the request
+      // itself is allowed to succeed.
+      console.error(
+        `ADMIN AUDIT LOG ERROR: failed to record "${entry.action}" by ${entry.actorEmail ?? 'unknown'} on ${entry.targetEmail ?? 'unknown'}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
   }
 
   /** Most recent audit entries, newest first. */
