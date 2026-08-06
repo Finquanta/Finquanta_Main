@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { HelpSettings, SupportTicket, BugReport, FeatureRequest } from './types';
 import { HelpCircle, MessageCircle, AlertTriangle, Plus, Send, Search, ExternalLink, BookOpen, ThumbsUp, Filter } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface HelpSupportProps {
   settings: HelpSettings;
@@ -189,6 +190,7 @@ const mockFeatureRequests: FeatureRequest[] = [
 ];
 
 export default function HelpSupport({ settings, onSettingsChange }: HelpSupportProps) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('tutorials');
   const [searchQuery, setSearchQuery] = useState('');
   const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 'medium' as const });
@@ -322,12 +324,8 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#1b263b] mb-2 flex items-center gap-2">
-          <HelpCircle className="w-6 h-6 text-[#150578]" />
-          Help & Support
-        </h2>
-        <p className="text-sm text-[#778da9]">
-          Get help, learn new skills, and connect with our support team
-        </p>
+          <HelpCircle className="w-6 h-6 text-[#150578]" />{t("dashboard","spHelpSupport")}</h2>
+        <p className="text-sm text-[#778da9]">{t("dashboard","spHelpDesc")}</p>
       </div>
 
       {/* Tab Navigation */}
@@ -360,7 +358,7 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#778da9] w-5 h-5" />
             <input
               type="text"
-              placeholder="Search tutorials..."
+              placeholder={t("dashboard","spSearchTutorials")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
@@ -385,9 +383,7 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
                   </div>
                   {tutorial.videoUrl && (
                     <button className="p-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors">
-                      <BookOpen className="w-4 h-4" />
-                      Watch Video
-                    </button>
+                      <BookOpen className="w-4 h-4" />{t("dashboard","spWatchVideo")}</button>
                   )}
                 </div>
               </div>
@@ -401,45 +397,31 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
           {/* Live Chat */}
           <div className="bg-green-50 p-6 rounded-lg border border-green-200">
             <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
-              <MessageCircle className="w-6 h-6" />
-              Live Chat Support
-            </h3>
-            <p className="text-sm text-green-700 mb-4">
-              Chat with our support team in real-time for immediate assistance.
-            </p>
-            <button className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              Start Live Chat
-            </button>
+              <MessageCircle className="w-6 h-6" />{t("dashboard","spLiveChat")}</h3>
+            <p className="text-sm text-green-700 mb-4">{t("dashboard","spLiveChatDesc")}</p>
+            <button className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">{t("dashboard","spStartChat")}</button>
           </div>
 
           {/* Email Support */}
           <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
             <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-              <Send className="w-6 h-6" />
-              Email Support
-            </h3>
-            <p className="text-sm text-blue-700 mb-4">
-              Send us an email and we&apos;ll respond within 24 hours.
-            </p>
+              <Send className="w-6 h-6" />{t("dashboard","spEmailSupport")}</h3>
+            <p className="text-sm text-blue-700 mb-4">{t("dashboard","spEmailSupportDesc")}</p>
             <a href="mailto:support@fundflow.com" className="block">
-              <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Send Email
-              </button>
+              <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">{t("dashboard","spSendEmail")}</button>
             </a>
           </div>
 
           {/* Phone Support */}
           <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-            <h3 className="text-lg font-semibold text-purple-800 mb-4">Phone Support</h3>
+            <h3 className="text-lg font-semibold text-purple-800 mb-4">{t("dashboard","spPhoneSupport")}</h3>
             <p className="text-sm text-purple-700 mb-2">
               Mon-Fri: 9 AM - 6 PM EST
             </p>
             <p className="text-sm text-purple-700 mb-4">
               +1 (800) 123-4567
             </p>
-            <p className="text-sm text-purple-700">
-              Available for Premium and Enterprise customers
-            </p>
+            <p className="text-sm text-purple-700">{t("dashboard","spPremiumOnly")}</p>
           </div>
         </div>
       )}
@@ -452,23 +434,17 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
               onClick={() => setShowNewForm('ticket')}
               className="flex-1 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              New Support Ticket
-            </button>
+              <Plus className="w-4 h-4" />{t("dashboard","spNewTicket")}</button>
             <button
               onClick={() => setShowNewForm('bug')}
               className="flex-1 px-4 py-2 border border-gray-300 text-[#150578] rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <AlertTriangle className="w-4 h-4" />
-              Report Bug
-            </button>
+              <AlertTriangle className="w-4 h-4" />{t("dashboard","spReportBug")}</button>
             <button
               onClick={() => setShowNewForm('feature')}
               className="flex-1 px-4 py-2 border border-gray-300 text-[#150578] rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Request Feature
-            </button>
+              <Plus className="w-4 h-4" />{t("dashboard","spRequestFeature")}</button>
           </div>
 
           {/* New Form Modal */}
@@ -493,36 +469,36 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
                   <>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-[#1b263b] mb-2">Subject</label>
+                        <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spSubject")}</label>
                         <input
                           type="text"
                           value={newTicket.subject}
                           onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                          placeholder="Brief description of your issue"
+                          placeholder={t("dashboard","spPhIssueBrief")}
                           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[#1b263b] mb-2">Description</label>
+                        <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","targetLabel")}</label>
                         <textarea
                           value={newTicket.description}
                           onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
-                          placeholder="Detailed description of your issue"
+                          placeholder={t("dashboard","spPhIssueDetail")}
                           rows={4}
                           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent resize-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[#1b263b] mb-2">Priority</label>
+                        <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spPriority")}</label>
                         <select
                           value={newTicket.priority}
                           onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value as any })}
                           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                         >
                           <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="medium">{t("dashboard","spMedium")}</option>
+                          <option value="high">{t("dashboard","spHigh")}</option>
+                          <option value="urgent">{t("dashboard","spUrgent")}</option>
                         </select>
                       </div>
                     </div>
@@ -530,15 +506,11 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
                       <button
                         onClick={() => setShowNewForm(null)}
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
+                      >{t("dashboard","invCancel")}</button>
                       <button
                         onClick={handleSubmitTicket}
                         className="flex-1 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-                      >
-                        Submit Ticket
-                      </button>
+                      >{t("dashboard","spSubmitTicket")}</button>
                     </div>
                   </>
                 )}
@@ -550,16 +522,12 @@ export default function HelpSupport({ settings, onSettingsChange }: HelpSupportP
           {settings.supportTickets.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-lg font-semibold text-[#1b263b] mb-2">No Support Tickets</h3>
-              <p className="text-sm text-[#778da9] mb-4">
-                You haven&apos;t submitted any support tickets yet.
-              </p>
+              <h3 className="text-lg font-semibold text-[#1b263b] mb-2">{t("dashboard","spNoTickets")}</h3>
+              <p className="text-sm text-[#778da9] mb-4">{t("dashboard","spNoTicketsDesc")}</p>
               <button
                 onClick={() => setShowNewForm('ticket')}
                 className="px-6 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-              >
-                Create First Ticket
-              </button>
+              >{t("dashboard","spCreateFirstTicket")}</button>
             </div>
           ) : (
             <div className="space-y-4">

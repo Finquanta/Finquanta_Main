@@ -12,7 +12,13 @@ import { WebSocketNotificationService } from '../websocket/notification.service'
 
 export class TransactionService {
   // Business rule constants
-  private static readonly MAX_DAILY_EXPENSE_AMOUNT = 10000; // $10,000 daily limit
+  //
+  // There is deliberately NO daily expense cap. There used to be one ($10,000),
+  // which rejected any day whose expenses totalled more than that — one rent
+  // payment, payroll run or equipment purchase hit it, and the entry was refused
+  // outright. A bookkeeping tool has no business telling someone they spent too
+  // much. Genuine data-entry slips are still caught by the max-reasonable-amount
+  // check below ($10m per transaction).
   private static readonly MAX_TRANSACTIONS_PER_DAY = 100; // Max 100 transactions per day
   private static readonly MAX_CATEGORY_LENGTH = 100; // Max category name length
 
@@ -303,19 +309,7 @@ export class TransactionService {
       throw new Error(`Cannot create more than ${TransactionService.MAX_TRANSACTIONS_PER_DAY} transactions per day`);
     }
 
-    // Rule 3: Daily expense amount limit
-    if (data.type === TransactionType.EXPENSE) {
-      const currentDailyExpenses = dayTransactions.transactions
-        .filter(t => t.type === TransactionType.EXPENSE)
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-      const totalAfterNewExpense = currentDailyExpenses + data.amount;
-      if (totalAfterNewExpense > TransactionService.MAX_DAILY_EXPENSE_AMOUNT) {
-        throw new Error(`Expense amount exceeds daily limit of $${TransactionService.MAX_DAILY_EXPENSE_AMOUNT.toLocaleString()}`);
-      }
-    }
-
-    // Rule 4: Reasonable transaction amount (prevent data entry errors)
+    // Rule 3: Reasonable transaction amount (prevent data entry errors)
     const maxReasonableAmount = 10000000; // $10 million
     if (data.amount > maxReasonableAmount) {
       throw new Error(`Transaction amount exceeds maximum reasonable limit of $${maxReasonableAmount.toLocaleString()}`);
@@ -341,20 +335,10 @@ export class TransactionService {
       endDate: today
     });
 
-    const currentDailyExpenses = dayTransactions.transactions
-      .filter(t => t.type === TransactionType.EXPENSE)
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-    const totalAfterNewExpense = currentDailyExpenses + data.amount;
-    const dailyLimitWarning = TransactionService.MAX_DAILY_EXPENSE_AMOUNT * 0.8; // 80% of limit
-
-    if (totalAfterNewExpense > dailyLimitWarning && totalAfterNewExpense <= TransactionService.MAX_DAILY_EXPENSE_AMOUNT) {
-      this.notificationService.notifyLimitReached(businessId, {
-        type: 'daily_spending',
-        currentAmount: totalAfterNewExpense,
-        limitAmount: TransactionService.MAX_DAILY_EXPENSE_AMOUNT
-      });
-    }
+    // The "approaching your daily spending limit" notification went with the
+    // limit itself — there is no daily expense cap to approach any more, so the
+    // day-wide total it was computed from is gone too. `dayTransactions` is
+    // still needed below for the per-category check.
 
     // Check category spending (example: $1000 per category daily limit)
     const categoryLimit = 1000;

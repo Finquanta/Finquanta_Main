@@ -60,6 +60,11 @@ export function NavBarComponent() {
               <option value="de">🇩🇪 DE</option>
             </select>
 
+            <Link href="/demo">
+              <Button variant="ghost" className="text-gray-600 hover:text-gray-900 rounded-lg px-4 py-2">
+                {t("nav", "tryDemo")}
+              </Button>
+            </Link>
             <Link href="/signup">
               <Button variant="default" className="bg-[#4CAF50] hover:bg-[#45a049] text-white rounded-lg px-5 py-2">
                 {t("nav", "signUp")}

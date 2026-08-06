@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import { StatisticsTableData } from '@/mockData/statisticsMockData';
 import { TrendingUp, TrendingDown, ChevronDownIcon } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface StatisticsTableProps {
   data: StatisticsTableData[];
 }
 
 export default function StatisticsTable({ data }: StatisticsTableProps) {
+  const { t } = useLanguage();
   const [sortField, setSortField] = useState<keyof StatisticsTableData | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,14 +73,10 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-[#1b263b]">Monthly Statistics</h3>
+        <h3 className="text-xl font-semibold text-[#1b263b]">{t("dashboard","stMonthly")}</h3>
         <div className="flex items-center gap-4">
-          <button className="px-4 py-2 text-sm font-medium text-[#150578] border border-[#150578] rounded-lg hover:bg-[#150578] hover:text-white transition-colors">
-            Export CSV
-          </button>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-[#150578] rounded-lg hover:bg-[#0d0342] transition-colors">
-            Export PDF
-          </button>
+          <button className="px-4 py-2 text-sm font-medium text-[#150578] border border-[#150578] rounded-lg hover:bg-[#150578] hover:text-white transition-colors">{t("dashboard","stExportCsv")}</button>
+          <button className="px-4 py-2 text-sm font-medium text-white bg-[#150578] rounded-lg hover:bg-[#0d0342] transition-colors">{t("dashboard","stExportPdf")}</button>
         </div>
       </div>
 
@@ -91,63 +89,49 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
                 <button
                   onClick={() => handleSort('period')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors"
-                >
-                  Period
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stPeriod")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('income')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Income
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stIncome")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('expenses')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Expenses
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stExpensesPl")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('profit')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Profit/Loss
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stProfitLoss")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('transactions')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Transactions
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stTransactions")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('avgTransaction')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Avg Transaction
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stAvgTransaction")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
               <th className="text-right py-3 px-4 font-medium text-[#1b263b]">
                 <button
                   onClick={() => handleSort('growthRate')}
                   className="flex items-center gap-1 hover:text-[#150578] transition-colors ml-auto"
-                >
-                  Growth Rate
-                  <ChevronDownIcon width={16} height={16} color="#778da9" />
+                >{t("dashboard","stGrowthRate")}<ChevronDownIcon width={16} height={16} color="#778da9" />
                 </button>
               </th>
             </tr>
@@ -183,35 +167,35 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
       <div className="mt-4 pt-4 border-t border-gray-200 bg-gray-50 -mx-6 px-6 -mb-6 py-4 rounded-b-[20px]">
         <div className="grid grid-cols-7 gap-4 text-sm">
           <div>
-            <p className="text-[#778da9] mb-1">Total</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","invTotal")}</p>
             <p className="font-semibold text-[#1b263b]">{data.length} months</p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Total Income</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stTotalIncome")}</p>
             <p className="font-semibold text-[#63d51d]">
               {formatCurrency(data.reduce((sum, row) => sum + row.income, 0))}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Total Expenses</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stTotalExpenses")}</p>
             <p className="font-semibold text-[#ff8600]">
               {formatCurrency(data.reduce((sum, row) => sum + row.expenses, 0))}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Net Profit</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stNetProfit")}</p>
             <p className={`font-semibold ${data.reduce((sum, row) => sum + row.profit, 0) >= 0 ? 'text-[#150578]' : 'text-[#dc2626]'}`}>
               {formatCurrency(data.reduce((sum, row) => sum + row.profit, 0))}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Total Transactions</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stTotalTransactions")}</p>
             <p className="font-semibold text-[#778da9]">
               {data.reduce((sum, row) => sum + row.transactions, 0)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Avg Transaction</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stAvgTransaction")}</p>
             <p className="font-semibold text-[#778da9]">
               {formatCurrency(
                 data.reduce((sum, row) => sum + row.income, 0) /
@@ -220,7 +204,7 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[#778da9] mb-1">Avg Growth Rate</p>
+            <p className="text-[#778da9] mb-1">{t("dashboard","stAvgGrowthRate")}</p>
             <p className="font-semibold text-[#63d51d]">
               +{(data.reduce((sum, row) => sum + row.growthRate, 0) / data.length).toFixed(1)}%
             </p>
@@ -239,9 +223,7 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Previous
-            </button>
+            >{t("dashboard","stPrevious")}</button>
             <div className="flex items-center gap-1">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
@@ -261,9 +243,7 @@ export default function StatisticsTable({ data }: StatisticsTableProps) {
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Next
-            </button>
+            >{t("dashboard","stNext")}</button>
           </div>
         </div>
       )}

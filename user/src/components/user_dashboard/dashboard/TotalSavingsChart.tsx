@@ -3,6 +3,7 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 const chartConfig = {
   incomes: {
@@ -26,13 +27,12 @@ const chartData = [
 ];
 
 export default function TotalSavingsChart() {
+  const { t } = useLanguage();
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200 h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-medium text-[#1b263b]">Total savings</h3>
-        <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">
-          This week
-          <ChevronDownIcon width={11} height={6} color="#778da9" />
+        <h3 className="text-2xl font-medium text-[#1b263b]">{t("dashboard","dcTotalSavings")}</h3>
+        <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">{t("dashboard","dcThisWeek")}<ChevronDownIcon width={11} height={6} color="#778da9" />
         </div>
       </div>
 
@@ -79,11 +79,11 @@ export default function TotalSavingsChart() {
       <div className="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-[#dce4ee]">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-[#150578] rounded-full"></div>
-          <span className="text-xs font-medium text-[#778da9]">Incomes</span>
+          <span className="text-xs font-medium text-[#778da9]">{t("dashboard","stIncomes")}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-[#ff8600] rounded-full"></div>
-          <span className="text-xs font-medium text-[#778da9]">Expenses</span>
+          <span className="text-xs font-medium text-[#778da9]">{t("dashboard","stExpensesPl")}</span>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface ClientSectionProps {
   data?: {
@@ -14,6 +15,7 @@ interface ClientSectionProps {
 }
 
 export default function ClientSection({ data }: ClientSectionProps) {
+  const { t } = useLanguage();
   if (!data) return null;
 
   const handleSendInvoice = () => {
@@ -23,7 +25,7 @@ export default function ClientSection({ data }: ClientSectionProps) {
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <h3 className="font-medium text-[#0a112f] text-base">Client</h3>
+        <h3 className="font-medium text-[#0a112f] text-base">{t("dashboard","pyClient")}</h3>
       </CardHeader>
       
       <CardContent className="pt-0">
@@ -49,9 +51,7 @@ export default function ClientSection({ data }: ClientSectionProps) {
           <Button
             className="bg-[#150578] hover:bg-[#150578]/90 text-white px-6 py-2 rounded-full text-sm font-medium"
             onClick={handleSendInvoice}
-          >
-            Send invoice
-          </Button>
+          >{t("dashboard","pySendInvoice")}</Button>
         </div>
       </CardContent>
     </Card>

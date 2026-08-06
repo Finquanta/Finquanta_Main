@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { BusinessPlan, PlanStatus, PlanTemplate } from '@/mockData/businessPlanMockData';
 import { formatDate } from '@/mockData/businessPlanMockData';
 import { MoreVertical, Share2, Eye, Edit3, Trash2, Users, Calendar, BarChart3 } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface BusinessPlanCardProps {
   plan: BusinessPlan;
@@ -22,6 +23,7 @@ export default function BusinessPlanCard({
   onDelete,
   onDuplicate
 }: BusinessPlanCardProps) {
+  const { t } = useLanguage();
   const [showActions, setShowActions] = useState(false);
 
   const getStatusColor = (status: PlanStatus) => {
@@ -108,27 +110,21 @@ export default function BusinessPlanCard({
                   onClick={(e) => handleActionClick(e, () => onView(plan))}
                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
                 >
-                  <Eye className="w-4 h-4" />
-                  View Plan
-                </button>
+                  <Eye className="w-4 h-4" />{t("dashboard","bpViewPlan")}</button>
               )}
               {onEdit && (
                 <button
                   onClick={(e) => handleActionClick(e, () => onEdit(plan))}
                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
                 >
-                  <Edit3 className="w-4 h-4" />
-                  Edit
-                </button>
+                  <Edit3 className="w-4 h-4" />{t("dashboard","invEdit")}</button>
               )}
               {onShare && (
                 <button
                   onClick={(e) => handleActionClick(e, () => onShare(plan))}
                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
                 >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </button>
+                  <Share2 className="w-4 h-4" />{t("dashboard","docShare")}</button>
               )}
               {onDuplicate && (
                 <button
@@ -137,18 +133,14 @@ export default function BusinessPlanCard({
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8v8z" />
-                  </svg>
-                  Duplicate
-                </button>
+                  </svg>{t("dashboard","bpDuplicate")}</button>
               )}
               {onDelete && (
                 <button
                   onClick={(e) => handleActionClick(e, () => onDelete(plan))}
                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
+                  <Trash2 className="w-4 h-4" />{t("demo","deleteTitle")}</button>
               )}
             </div>
           )}
@@ -163,7 +155,7 @@ export default function BusinessPlanCard({
       {/* Progress */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-[#1b263b]">Progress</span>
+          <span className="text-sm font-medium text-[#1b263b]">{t("dashboard","bpProgress")}</span>
           <span className="text-sm font-bold text-[#150578]">{plan.progress}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">

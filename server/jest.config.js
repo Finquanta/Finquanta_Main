@@ -7,7 +7,9 @@ module.exports = {
     '**/?(*.)+(spec|test).ts'
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    // Point ts-jest at the test tsconfig: the base one excludes tests/, which
+    // left every suite without the jest globals and failing to compile.
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',

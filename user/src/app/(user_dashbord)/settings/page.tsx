@@ -14,8 +14,10 @@ import AccountProfile from '@/components/user_dashboard/settings/AccountProfile'
 import { defaultSettings, UserSettings } from '@/components/user_dashboard/settings/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const logout = useAppState((s) => s.logout);
   const [activeSection, setActiveSection] = useState('notification-preference');
@@ -51,9 +53,7 @@ export default function SettingsPage() {
       return (
         <div className="bg-white p-6 h-full flex items-center justify-center overflow-hidden">
           <h2 className="text-2xl font-bold text-red-600 mb-4 flex items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-            Logging Out...
-          </h2>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>{t("dashboard","setLoggingOut")}</h2>
           <p className="text-center text-sm text-[#778da9]">
             Thank you for using Fund Flow AI. You are being securely logged out.
           </p>
@@ -104,25 +104,19 @@ export default function SettingsPage() {
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Logout</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to log out of your account?
-            </DialogDescription>
+            <DialogTitle>{t("dashboard","setConfirmLogout")}</DialogTitle>
+            <DialogDescription>{t("dashboard","setLogoutAsk")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowLogoutDialog(false)}
-            >
-              Cancel
-            </Button>
+            >{t("dashboard","invCancel")}</Button>
             <Button
               variant="default"
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700"
-            >
-              Yes, Log Out
-            </Button>
+            >{t("dashboard","setYesLogout")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

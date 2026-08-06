@@ -186,7 +186,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       <div className={cn("grid gap-6", className)} {...props}>
         <div className="grid gap-1">
           <h3 className="font-semibold text-lg text-black">Two-factor authentication</h3>
-          <p className="text-sm text-gray-600">Enter the 6-digit code from your authenticator app, or one of your backup codes.</p>
+          <p className="text-sm text-gray-600">{t('auth', 'a2faHint')}</p>
         </div>
         <form onSubmit={handleTwoFactorSubmit}>
           <div className="grid gap-4">

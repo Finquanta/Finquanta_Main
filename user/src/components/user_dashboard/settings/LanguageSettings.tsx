@@ -54,6 +54,7 @@ const dateFormats = [
 ];
 
 export default function LanguageSettings({ settings, onSettingsChange }: LanguageSettingsProps) {
+  const { t } = useLanguage();
   const [customTimeZone, setCustomTimeZone] = useState('');
   const { language, setLanguage } = useLanguage();
 
@@ -69,18 +70,14 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#1b263b] mb-2 flex items-center gap-2">
-          <Globe className="w-6 h-6 text-[#150578]" />
-          Language & Region
-        </h2>
-        <p className="text-sm text-[#778da9]">
-          Configure your preferred language, timezone, and regional settings
-        </p>
+          <Globe className="w-6 h-6 text-[#150578]" />{t("settings","languageRegion")}</h2>
+        <p className="text-sm text-[#778da9]">{t("settings","configureLanguageSettings")}</p>
       </div>
 
       <div className="space-y-8">
         {/* Language Selection */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Display Language</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("settings","displayLanguage")}</h3>
           <div className="space-y-3">
            <select
   value={language}
@@ -107,16 +104,14 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
         {/* Time Zone */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-[#150578]" />
-            Time Zone
-          </h3>
+            <Clock className="w-5 h-5 text-[#150578]" />{t("settings","timeZone")}</h3>
           <div className="space-y-3">
             <select
               value={settings.timeZone}
               onChange={(e) => handleTimeZoneChange(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
             >
-              <option value="">Select timezone</option>
+              <option value="">{t("settings","selectTimezone")}</option>
               {timeZones.map((tz) => (
                 <option key={tz.value} value={tz.value}>
                   {tz.label} ({tz.offset})
@@ -133,9 +128,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#150578]" />
-              Date Format
-            </h3>
+              <Calendar className="w-5 h-5 text-[#150578]" />{t("settings","dateFormat")}</h3>
             <div className="space-y-3">
               <select
                 value={settings.dateFormat}
@@ -164,7 +157,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Time Format</h3>
+            <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("settings","timeFormat")}</h3>
             <div className="space-y-3">
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -215,9 +208,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-[#150578]" />
-              Currency
-            </h3>
+              <DollarSign className="w-5 h-5 text-[#150578]" />{t("settings","currency")}</h3>
             <div className="space-y-3">
               <select
                 value={settings.currency}
@@ -243,9 +234,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
 
           <div>
             <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-              <Ruler className="w-5 h-5 text-[#150578]" />
-              Measurement System
-            </h3>
+              <Ruler className="w-5 h-5 text-[#150578]" />{t("settings","measurementSystem")}</h3>
             <div className="space-y-3">
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -262,7 +251,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
                     }}
                     className="text-[#150578]"
                   />
-                  <span className="text-sm">Metric (kg, cm, L)</span>
+                  <span className="text-sm">{t("settings","metric")}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -278,7 +267,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
                     }}
                     className="text-[#150578]"
                   />
-                  <span className="text-sm">Imperial (lbs, ft, gal)</span>
+                  <span className="text-sm">{t("settings","imperial")}</span>
                 </label>
               </div>
             </div>
@@ -287,7 +276,7 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
 
         {/* Number Format */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Number Format</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("settings","numberFormat")}</h3>
           <div className="space-y-3">
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -347,22 +336,20 @@ export default function LanguageSettings({ settings, onSettingsChange }: Languag
 
         {/* Region Settings */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Regional Preferences</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("settings","regionalPreferences")}</h3>
           <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-[#778da9] mb-3">
-              These settings help customize your experience based on your location and preferences.
-            </p>
+            <p className="text-sm text-[#778da9] mb-3">{t("settings","regionSettingsDescription")}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[#1b263b]">Week starts on:</span>
+                <span className="text-sm text-[#1b263b]">{t("settings","weekStartsOn")}</span>
                 <select className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent">
-                  <option value="sunday">Sunday</option>
-                  <option value="monday">Monday</option>
-                  <option value="tuesday">Tuesday</option>
-                  <option value="wednesday">Wednesday</option>
-                  <option value="thursday">Thursday</option>
-                  <option value="friday">Friday</option>
-                  <option value="saturday">Saturday</option>
+                  <option value="sunday">{t("dashboard","spSunday")}</option>
+                  <option value="monday">{t("dashboard","spMonday")}</option>
+                  <option value="tuesday">{t("dashboard","spTuesday")}</option>
+                  <option value="wednesday">{t("dashboard","spWednesday")}</option>
+                  <option value="thursday">{t("dashboard","spThursday")}</option>
+                  <option value="friday">{t("dashboard","spFriday")}</option>
+                  <option value="saturday">{t("dashboard","spSaturday")}</option>
                 </select>
               </div>
             </div>

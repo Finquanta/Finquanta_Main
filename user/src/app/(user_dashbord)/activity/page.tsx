@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { Activity, ACTIVITY_META, ActivityType, listActivity } from "@/lib/api/activity";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 
@@ -32,6 +33,7 @@ const FILTERS: { key: "all" | "money-in" | "money-out" | "invoices" | "debt"; la
 
 export default function ActivityPage() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   const [items, setItems] = useState<Activity[]>([]);
@@ -42,7 +44,7 @@ export default function ActivityPage() {
   useEffect(() => {
     listActivity(200)
       .then(setItems)
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load activity."))
+      .catch((e) => setError(e instanceof Error ? e.message : t("dashboard","errLoadActivity")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -67,12 +69,10 @@ export default function ActivityPage() {
     <DashboardShell><div className="p-4 sm:p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-1">
-          <h1 className={`text-xl font-bold ${text}`}>Activity</h1>
+          <h1 className={`text-xl font-bold ${text}`}>{t("dashboard","actTitle")}</h1>
           <Link href="/dashboard" className="text-sm text-blue-500 hover:underline">← Dashboard</Link>
         </div>
-        <p className={`text-sm mb-5 ${sub}`}>
-          Every financial event in your business, newest first. This history is a record of what happened — it&apos;s never edited or removed.
-        </p>
+        <p className={`text-sm mb-5 ${sub}`}>{t("dashboard","actDesc")}</p>
 
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
@@ -90,11 +90,11 @@ export default function ActivityPage() {
         </div>
 
         {loading ? (
-          <p className={`text-sm ${sub}`}>Loading activity…</p>
+          <p className={`text-sm ${sub}`}>{t("dashboard","actLoading")}</p>
         ) : rows.length === 0 ? (
           <div className={`rounded-xl border p-8 text-center ${card}`}>
             <p className={`text-sm ${sub}`}>
-              {items.length === 0 ? "Nothing has happened yet. Add data or send an invoice and it'll show up here." : "No events match that filter."}
+              {items.length === 0 ? "Nothing has happened yet. Add data or send an invoice and it'll show up here." : t("dashboard","errNoEventsMatch")}
             </p>
           </div>
         ) : (

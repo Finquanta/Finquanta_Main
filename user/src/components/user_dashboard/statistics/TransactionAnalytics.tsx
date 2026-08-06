@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import { CategoryData } from '@/mockData/statisticsMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface TransactionAnalyticsProps {
   incomeSources: CategoryData[];
@@ -7,6 +10,7 @@ interface TransactionAnalyticsProps {
 }
 
 export default function TransactionAnalytics({ incomeSources, expenseCategories }: TransactionAnalyticsProps) {
+  const { t } = useLanguage();
   const renderDonutChart = (data: CategoryData[], title: string, primaryColor: string) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     let cumulativePercentage = 0;
@@ -50,7 +54,7 @@ export default function TransactionAnalytics({ incomeSources, expenseCategories 
 
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-[#778da9]">Total</span>
+              <span className="text-xs text-[#778da9]">{t("dashboard","invTotal")}</span>
               <span className="text-lg font-bold text-[#1b263b]">${(total / 1000).toFixed(0)}k</span>
             </div>
           </div>

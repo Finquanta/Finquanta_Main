@@ -12,6 +12,7 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
 import { captureReferralCode, clearReferralCode, storedReferralCode } from "@/lib/api/referrals";
 import { PASSWORD_RULES, SYMBOL_EXAMPLES, SYMBOL_RE, firstPasswordProblem, passwordIsValid } from "@/lib/password-rules";
 import { Turnstile } from "@/components/auth/Turnstile";
+import { bindStashToUser } from "@/lib/demo/migrate";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -51,6 +52,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   /** Set when they arrived on someone's referral link — shown as a confirmation. */
   const [referredBy, setReferredBy] = useState<string | undefined>(undefined);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Bumped on every failed attempt to issue a fresh captcha challenge — the
+  // old token is spent the moment it's submitted, so without this a user who
+  // corrects a rejected signup is told the captcha failed, forever.
+  const [captchaNonce, setCaptchaNonce] = useState(0);
 
   /** A form-level error that STAYS on screen, unlike the 5s toast. */
   const [formError, setFormError] = useState<string | null>(null);
@@ -92,10 +97,41 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     setPasswordMismatch(password !== value);
   };
 
-  /** Show it inline AND as a toast — the toast alone is missable on a phone. */
-  const fail = (message: string) => {
+
+  /**
+   * A password rule in the reader's language. Falls back to the English label
+   * baked into the rule when a locale is missing the key, so a gap degrades to
+   * English rather than rendering a raw `auth.pwRuleLen`.
+   */
+  const ruleText = (rule: { key: string; label: string }) => {
+    const s = t("auth", rule.key);
+    return s && !s.startsWith("auth.") ? s : rule.label;
+  };
+
+  /**
+   * Show it inline AND as a toast — the toast alone is missable on a phone.
+   * Does NOT touch the captcha: these fire before anything is sent, so the
+   * token is still unused and still valid.
+   */
+  const showError = (message: string) => {
     setFormError(message);
     ui.toast("error", message, 6000);
+  };
+
+  /**
+   * Same, but for failures after the request went out. Only then has the server
+   * consumed the token — Turnstile tokens are single-use, so it has to be
+   * retired and re-issued.
+   *
+   * Keep this off the client-side validation paths. Bumping the nonce remounts
+   * the widget, which aborts any challenge still in flight: submitting before
+   * Turnstile resolves would restart it, and a user clicking again would restart
+   * it again, never getting a token.
+   */
+  const fail = (message: string) => {
+    showError(message);
+    setTurnstileToken(null);
+    setCaptchaNonce((n) => n + 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +139,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     setFormError(null);
     if (!emailValid || !password || !firstName || password !== confirmPassword) return;
     if (!turnstileToken) {
-      fail("Please complete the verification check.");
+      showError(t("auth","aVerifyCheck"));
       return;
     }
 
@@ -111,20 +147,20 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     // here so nobody gets bounced by a requirement the form never mentioned.
     const problem = firstPasswordProblem(password);
     if (problem) {
-      fail(`Your password needs: ${problem.toLowerCase()}.`);
+      showError(t("auth","pwNeeds").split("{rule}").join(ruleText(problem)));
       return;
     }
 
     if (!dateOfBirth || isNaN(age)) {
-      fail("Please enter your date of birth");
+      showError(t("auth","aDobRequired"));
       return;
     }
     if (!ageValid) {
-      fail(`You must be at least ${MIN_AGE} years old to create an account`);
+      showError(t("auth","aMinAge").split("{n}").join(String(MIN_AGE)));
       return;
     }
     if (!allAccepted) {
-      fail("Please accept the Terms, Privacy Policy, and Risk Disclosure");
+      showError(t("auth","aAcceptTerms"));
       return;
     }
 
@@ -150,6 +186,11 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         // Attributed (or not) — either way it's spent, so don't credit it twice.
         clearReferralCode();
         const data = await res.json();
+        // Name the account any stashed Try-It Demo session belongs to. Until this
+        // runs the stash is provisional and the dashboard will refuse to replay
+        // it, so this is what makes a demo handoff possible at all — and what
+        // keeps it out of every other account on this browser.
+        bindStashToUser(data.user.id);
         auth.login({
           token: data.accessToken,
           refreshToken: data.refreshToken,
@@ -203,7 +244,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           {referredBy && (
             <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
               <CheckIcon className="h-4 w-4 shrink-0" />
-              <span>You were invited. Referral code <strong>{referredBy}</strong> applied.</span>
+              <span>{t('auth', 'aInvitedPre')} <strong>{referredBy}</strong> {t('auth', 'aInvitedPost')}</span>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -300,14 +341,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                   const met = rule.test(password);
                   return (
                     <li
-                      key={rule.label}
+                      key={rule.key}
                       className={cn("flex items-center gap-1.5 text-xs", met ? "text-green-600" : "text-gray-500")}
                     >
                       <span className={cn("flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold shrink-0",
                         met ? "bg-green-500 text-white" : "border border-gray-300")}>
                         {met ? "✓" : ""}
                       </span>
-                      {rule.label}
+                      {ruleText(rule)}
                     </li>
                   );
                 })}
@@ -316,7 +357,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                   missing — "add a symbol" shouldn't be a guessing game. */}
               {!SYMBOL_RE.test(password) && (
                 <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
-                  Any of these count: <span className="font-mono text-gray-700">{SYMBOL_EXAMPLES}</span>
+                  {t("auth","pwAnyCount")} <span className="font-mono text-gray-700">{SYMBOL_EXAMPLES}</span>
                   <br />Letters, numbers and spaces don&apos;t.
                 </p>
               )}
@@ -351,7 +392,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </div>
 
           {passwordMismatch && (
-            <p className="text-xs text-red-500 -mt-2">Passwords do not match</p>
+            <p className="text-xs text-red-500 -mt-2">{t('auth', 'aPwMismatch')}</p>
           )}
 
           {/* Date of birth — enforces the 16+ age requirement */}
@@ -398,7 +439,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             </p>
           )}
 
-          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
+          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} resetSignal={captchaNonce} />
 
           <Button
             type="submit"

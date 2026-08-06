@@ -1,11 +1,15 @@
+'use client';
+
 import React from 'react';
 import { PerformanceMetric } from '@/mockData/statisticsMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface PerformanceMetricsProps {
   metrics: PerformanceMetric[];
 }
 
 export default function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
+  const { t } = useLanguage();
   const getStatusColor = (status: PerformanceMetric['status']) => {
     switch (status) {
       case 'excellent':
@@ -46,23 +50,23 @@ export default function PerformanceMetrics({ metrics }: PerformanceMetricsProps)
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-[#1b263b]">Performance Metrics</h3>
+        <h3 className="text-xl font-semibold text-[#1b263b]">{t("dashboard","stPerformance")}</h3>
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#63d51d] rounded-full"></div>
-            <span className="text-[#778da9]">Excellent</span>
+            <span className="text-[#778da9]">{t("dashboard","stExcellent")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#150578] rounded-full"></div>
-            <span className="text-[#778da9]">Good</span>
+            <span className="text-[#778da9]">{t("dashboard","stGood")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#ff8600] rounded-full"></div>
-            <span className="text-[#778da9]">Average</span>
+            <span className="text-[#778da9]">{t("dashboard","stAverage")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#dc2626] rounded-full"></div>
-            <span className="text-[#778da9]">Poor</span>
+            <span className="text-[#778da9]">{t("dashboard","stPoor")}</span>
           </div>
         </div>
       </div>
@@ -80,13 +84,13 @@ export default function PerformanceMetrics({ metrics }: PerformanceMetricsProps)
               </div>
               <div className="flex items-center gap-4 text-sm">
                 <div className="text-right">
-                  <p className="text-[#778da9]">Current</p>
+                  <p className="text-[#778da9]">{t("dashboard","stCurrent")}</p>
                   <p className={`font-semibold ${getStatusTextColor(metric.status)}`}>
                     {metric.value}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[#778da9]">Target</p>
+                  <p className="text-[#778da9]">{t("dashboard","stTarget")}</p>
                   <p className="font-semibold text-[#1b263b]">{metric.target}</p>
                 </div>
               </div>

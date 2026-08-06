@@ -3,6 +3,7 @@ import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 const chartConfig = {
   incomes: {
@@ -31,10 +32,11 @@ const chartData = [
 ];
 
 export default function TotalFinancesChart() {
+  const { t } = useLanguage();
   return (
     <div className="bg-white p-4 sm:p-6 rounded-[12px] sm:rounded-[20px] border border-gray-200 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <h3 className="text-lg sm:text-xl md:text-2xl font-medium text-[#1b263b]">Total finances</h3>
+        <h3 className="text-lg sm:text-xl md:text-2xl font-medium text-[#1b263b]">{t("dashboard","dcTotalFinances")}</h3>
         <div className="flex items-center text-xs sm:text-[13px] font-medium text-[#778da9] gap-1 sm:gap-2">
           2024
           <ChevronDownIcon width={11} height={6} color="#778da9" />
@@ -98,11 +100,11 @@ export default function TotalFinancesChart() {
       <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-4">
         <div className="flex items-center gap-1 sm:gap-2">
           <div className="w-4 h-4 sm:w-5 sm:h-5 bg-[#150578] rounded-full"></div>
-          <span className="text-xs sm:text-[14px] md:text-[15px] font-medium text-[#778da9]">Incomes</span>
+          <span className="text-xs sm:text-[14px] md:text-[15px] font-medium text-[#778da9]">{t("dashboard","stIncomes")}</span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <div className="w-4 h-4 sm:w-5 sm:h-5 bg-[#ff8600] rounded-full"></div>
-          <span className="text-xs sm:text-[14px] md:text-[15px] font-medium text-[#778da9]">Expenses</span>
+          <span className="text-xs sm:text-[14px] md:text-[15px] font-medium text-[#778da9]">{t("dashboard","stExpensesPl")}</span>
         </div>
       </div>
     </div>

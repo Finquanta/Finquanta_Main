@@ -49,28 +49,10 @@ type Basis = 'cash' | 'accrual' | 'debt';
 /** Accrual options: receivables and payables (loans live under Debt). */
 const ACCRUAL_TYPES = workflowsInGroup('accrual');
 
-const DEBT_ACTIONS: { value: DebtAction; label: string; hint: string }[] = [
-  {
-    value: 'loan_received',
-    label: 'Loan Payable Increase (Business Cash Increase)',
-    hint: 'You borrowed money. The loan you owe goes up, and your business cash goes up by the same amount.',
-  },
-  {
-    value: 'loan_payment',
-    label: 'Loan Payable Decrease (Business Cash Decrease)',
-    hint: 'You made a payment on a loan you owe. Cash goes down by the full payment; the loan balance drops by the principal portion, and the interest portion is recorded as Interest Expense.',
-  },
-  {
-    value: 'loan_issued',
-    label: 'Loan Receivable Increase (Business Cash Decrease)',
-    hint: 'You lent money out. Your cash goes down, and what the borrower owes you goes up by the same amount.',
-  },
-  {
-    value: 'loan_repayment_received',
-    label: 'Loan Receivable Decrease (Business Cash Increase)',
-    hint: 'Someone repaid a loan you gave them. Cash goes up by the full payment; what they owe you drops by the principal portion, and the interest portion is recorded as Interest Income.',
-  },
-];
+/** Built per render so the labels and hints follow the reader's language;
+    a module-level constant cannot reach the translation hook. */
+const debtActions = (t: (ns: string, k: string) => string): { value: DebtAction; label: string; hint: string }[] =>
+  [];
 const isPaymentAction = (a: DebtAction) => a === 'loan_payment' || a === 'loan_repayment_received';
 const loanTypeFor = (a: DebtAction): LoanType =>
   (a === 'loan_received' || a === 'loan_payment') ? 'payable' : 'receivable';
@@ -231,7 +213,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
       setAddingGroup(false);
       setNewGroupName('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create that group.');
+      setError(e instanceof Error ? e.message : t("dashboard","errCreateGroup"));
     } finally {
       setSavingGroup(false);
     }
@@ -353,7 +335,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
               ))}
             </div>
             <p className="text-[11px] text-gray-400 mb-5">
-              {basis === 'cash' && 'Money that actually moved — cash in or cash out.'}
+              {basis === 'cash' && t("dashboard","bkCashHint")}
               {basis === 'accrual' && "Money owed to you or money you owe — even if no cash has moved yet."}
               {basis === 'debt' && 'Loans you took out, and loans you gave out.'}
             </p>
@@ -363,7 +345,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {/* DEBT — which loan is this payment against? */}
         {basis === 'debt' && isPaymentAction(debtAction) && (
           <>
-            <label className="block text-sm font-semibold mb-1">Which Loan?</label>
+            <label className="block text-sm font-semibold mb-1">{t("demo","dWhichLoan")}</label>
             {loans.length === 0 ? (
               <p className="text-xs text-gray-400 mb-4">
                 No {loanTypeFor(debtAction) === 'payable' ? 'borrowed' : 'lent-out'} loans yet — record one first.
@@ -403,13 +385,13 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
             new loans; a loan PAYMENT inherits the loan's group automatically. */}
         {!(basis === 'debt' && isPaymentAction(debtAction)) && (
           <>
-            <label className="block text-sm font-semibold mb-1">Group <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-semibold mb-1">{t("demo","dGroup")}<span className="text-gray-400 font-normal">(optional)</span></label>
             {addingGroup ? (
               <div className="flex gap-2 mb-4">
                 <input
                   autoFocus
                   className="flex-1 bg-[#2a2a3e] rounded-lg px-4 py-2 text-sm outline-none"
-                  placeholder="e.g. Marketing"
+                  placeholder={t("demo","dPhGroup")}
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroupInline(); } }}
@@ -417,13 +399,13 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
                 <button type="button" onClick={addGroupInline} disabled={savingGroup || !newGroupName.trim()}
                   className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold px-4 rounded-lg">Add</button>
                 <button type="button" onClick={() => { setAddingGroup(false); setNewGroupName(''); }}
-                  className="text-sm text-gray-400 px-2">Cancel</button>
+                  className="text-sm text-gray-400 px-2">{t("dashboard","invCancel")}</button>
               </div>
             ) : (
               <div className="flex gap-2 mb-4">
                 <select className="flex-1 bg-[#2a2a3e] rounded-lg px-4 py-2 text-sm outline-none"
                   value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                  <option value="">No group</option>
+                  <option value="">{t("dashboard","invNoGroup")}</option>
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
                 <button type="button" onClick={() => setAddingGroup(true)}
@@ -455,7 +437,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {basis === 'cash' && currency !== 'USD' && (
           <div className="mb-4 rounded-lg bg-[#22223a] px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-semibold text-gray-300">Recorded in your books (USD)</label>
+              <label className="text-xs font-semibold text-gray-300">{t("dashboard","bmRecordedUsd")}</label>
               {rateLoading
                 ? <span className="text-[11px] text-gray-500">fetching rate…</span>
                 : rate && <span className="text-[11px] text-gray-500">rate {rate.rate.toFixed(4)} · {rate.effectiveDate}</span>}
@@ -482,7 +464,7 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         {/* Interest rate when creating a loan */}
         {basis === 'debt' && !isPaymentAction(debtAction) && (
           <>
-            <label className="block text-sm font-semibold mb-1">Annual Interest Rate (%)</label>
+            <label className="block text-sm font-semibold mb-1">{t("demo","dAnnualRate")}</label>
             <input className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none" type="number" step="0.01" min="0"
               placeholder="e.g. 7.5" value={annualRate} onChange={(e) => setAnnualRate(e.target.value)} />
           </>
@@ -492,9 +474,9 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
             which is pinned to its existing direction. */}
         {basis === 'debt' && !editing?.ledger && (
           <>
-            <label className="block text-sm font-semibold mb-2">Debt Type</label>
+            <label className="block text-sm font-semibold mb-2">{t("demo","dDebtType")}</label>
             <div className="flex flex-col gap-2 mb-2">
-              {DEBT_ACTIONS.map((a) => (
+              {debtActions(t).map((a) => (
                 <label key={a.value} className="flex items-start gap-2 cursor-pointer">
                   <input type="radio" name="debtAction" className="mt-1" checked={debtAction === a.value}
                     onChange={() => setDebtAction(a.value)} />
@@ -502,24 +484,24 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
                 </label>
               ))}
             </div>
-            <p className="text-[11px] text-gray-400 mb-4">{DEBT_ACTIONS.find((a) => a.value === debtAction)?.hint}</p>
+            <p className="text-[11px] text-gray-400 mb-4">{debtActions(t).find((a) => a.value === debtAction)?.hint}</p>
           </>
         )}
 
         {/* Live principal vs interest breakdown for a loan payment */}
         {basis === 'debt' && isPaymentAction(debtAction) && split && selectedLoan && (
           <div className="bg-[#2a2a3e] rounded-lg p-3 mb-4 text-xs">
-            <p className="font-semibold mb-2">This Payment Breaks Down As:</p>
+            <p className="font-semibold mb-2">{t("demo","dBreakdown")}</p>
             <div className="flex justify-between mb-1">
               <span className="text-gray-300">Interest ({selectedLoan.annualRate}% ÷ 12 on {money(selectedLoan.remainingBalance)})</span>
               <span className="text-orange-400">{money(split.interest)}</span>
             </div>
             <div className="flex justify-between mb-1">
-              <span className="text-gray-300">Principal</span>
+              <span className="text-gray-300">{t("demo","dPrincipal")}</span>
               <span className="text-green-400">{money(split.principal)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-[#3a3a4e]">
-              <span className="text-gray-300">Balance After</span>
+              <span className="text-gray-300">{t("demo","dBalanceAfter")}</span>
               <span className="font-semibold">{money(split.balanceAfter)}</span>
             </div>
           </div>

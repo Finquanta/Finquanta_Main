@@ -29,6 +29,27 @@ export function withBusiness(database: Database) {
       businessId = await repo.getDefaultBusinessId(userId);
     }
 
+    // Still nothing: this account predates default-business-on-registration, or
+    // its creation failed. Every request it makes would 409 forever, which is an
+    // unusable account rather than a meaningful error, so heal it here instead
+    // of reporting it. Registration is the normal path — this is the net.
+    if (!businessId) {
+      try {
+        await repo.create(userId, 'My Business');
+      } catch (error) {
+        request.log?.error({ err: error, userId }, 'failed to create default business');
+      }
+      // Re-read instead of trusting the row we just inserted. A dashboard load
+      // fires several authenticated requests at once, and `businesses` has no
+      // UNIQUE(owner_id) to stop each of them taking this branch and creating
+      // its own workspace. Trusting our own insert would have each in-flight
+      // request writing into a *different* businessId, and once the requests
+      // settle only the earliest is ever read back — silently stranding whatever
+      // the losers wrote. getDefaultBusinessId orders by created_at, so every
+      // racer converges on the same one.
+      businessId = await repo.getDefaultBusinessId(userId);
+    }
+
     if (!businessId) {
       reply.status(409).send({ success: false, error: 'No business found for this user' });
       return;

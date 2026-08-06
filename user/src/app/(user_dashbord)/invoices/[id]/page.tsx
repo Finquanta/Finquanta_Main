@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Printer, Mail, Check, Send, Ban, Pencil } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
   Invoice, STATUS_COLORS, getInvoice, markInvoiceSent, markInvoicePaid, cancelInvoice, money,
 } from "@/lib/api/invoices";
@@ -17,6 +18,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const { id } = use(params);
   const router = useRouter();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -34,7 +36,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       setBusiness(biz);
       setCustomer(inv.customerId ? await getCustomer(inv.customerId).catch(() => null) : null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load invoice.");
+      setError(e instanceof Error ? e.message : t("dashboard","errLoadInvoice"));
     } finally {
       setLoading(false);
     }
@@ -75,10 +77,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const sub = isDark ? "text-gray-400" : "text-gray-500";
   const btn = `flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border ${isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
 
-  if (loading) return <DashboardShell><div className="p-6"><p className={sub}>Loading…</p></div></DashboardShell>;
+  if (loading) return <DashboardShell><div className="p-6"><p className={sub}>{t("dashboard","loading")}</p></div></DashboardShell>;
   if (!invoice) return (
     <DashboardShell><div className="p-6">
-      <p className="text-red-500 text-sm">{error || "Invoice not found."}</p>
+      <p className="text-red-500 text-sm">{error || t("dashboard","errInvoiceNotFound")}</p>
       <Link href="/invoices" className="text-blue-500 text-sm hover:underline">← Invoices</Link>
     </div></DashboardShell>
   );
@@ -107,31 +109,30 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* A paid invoice is settled in the books — editing it would put the
-              ledger out of step with the document. */}
-          {invoice.status !== "paid" && (
+          {/* Only a draft is editable. Once an invoice is sent it has posted the
+              receivable and gone out to the customer, and editing it would move
+              the document without moving the books — raise it at 100, edit it to
+              500, mark it paid, and Accounts Receivable is left at -400. Past
+              draft the way back is Void, which reverses what was actually
+              posted. */}
+          {invoice.status === "draft" && (
             <Link href={`/invoices/${invoice.id}/edit`} className={btn}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Link>
+              <Pencil className="h-4 w-4" />{t("dashboard","invEdit")}</Link>
           )}
           <button onClick={() => window.print()} className={btn}>
-            <Printer className="h-4 w-4" /> Print / Save As PDF
-          </button>
+            <Printer className="h-4 w-4" />{t("dashboard","invPrintPdf")}</button>
           <button onClick={emailInvoice} className={btn}>
-            <Mail className="h-4 w-4" /> Email Invoice
-          </button>
+            <Mail className="h-4 w-4" />{t("dashboard","invEmail")}</button>
 
           {canSend && (
             <button onClick={() => act(() => markInvoiceSent(invoice.id))} disabled={busy}
               className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm font-semibold px-3 py-2 rounded-lg">
-              <Send className="h-4 w-4" /> Mark As Sent
-            </button>
+              <Send className="h-4 w-4" />{t("dashboard","invMarkSent")}</button>
           )}
           {canPay && (
             <button onClick={() => act(() => markInvoicePaid(invoice.id))} disabled={busy}
               className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white text-sm font-semibold px-3 py-2 rounded-lg">
-              <Check className="h-4 w-4" /> Mark As Paid
-            </button>
+              <Check className="h-4 w-4" />{t("dashboard","invMarkPaid")}</button>
           )}
           {canCancel && (
             <button

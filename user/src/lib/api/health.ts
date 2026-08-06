@@ -13,6 +13,9 @@ export interface Ratio {
   explanation: string;
   insight: string;
   note?: string;
+  /** insight/note as data, so the client can render them translated. */
+  insightParts?: { key: string; v?: Record<string, number> };
+  noteKey?: string;
 }
 
 export interface HealthScore {
@@ -23,6 +26,14 @@ export interface HealthScore {
   trend: number | null;
   ratios: Ratio[];
   summary: string;
+  /** The summary as data, so the card can build the sentence in the reader's
+   *  language. See health.types.ts on the server. */
+  summaryParts?: {
+    band: 'strong' | 'stable' | 'weak' | 'strained';
+    bestKey: RatioKey;
+    worstKey: RatioKey;
+    goalAligned: boolean;
+  };
   periodDays: number;
 }
 

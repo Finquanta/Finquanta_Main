@@ -74,6 +74,12 @@ build/
 dist/
 
 # Environment variables
+# Broad on purpose: a bare `.env` rule does not match sibling files like
+# `.env.backup-prod-20260805-114255`, so a credential backup sitting next to it
+# is one `git add .` away from being committed. Example files are re-included.
+.env.*
+!.env.example
+!.env.sample
 .env.local
 .env.development.local
 .env.test.local
@@ -119,3 +125,4 @@ temp/
 
 # DynamoDB Local files
 .dynamodb/
+.gstack/

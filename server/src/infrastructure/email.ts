@@ -18,8 +18,30 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
   const from = process.env.RESET_EMAIL_FROM || 'Finquanta <onboarding@resend.dev>';
 
   if (!apiKey) {
-    // Don't crash the flow in environments without email configured; just log.
-    console.warn('[email] RESEND_API_KEY not set — skipping send to', to);
+    // No key means email isn't configured — local dev, tests, a fresh clone.
+    // Don't crash the flow, but don't silently swallow it either: every one of
+    // these messages exists to carry a link (reset password, verify email), and
+    // the endpoints deliberately return success whether or not an account
+    // exists, so a dropped send is invisible from the UI. Someone waiting on a
+    // password reset here would wait forever with no way to tell why.
+    //
+    // The link is printed for local dev only, and gated on NODE_ENV rather than
+    // on "no key means not production". That reasoning is an assumption about
+    // deployment config, not an invariant: a blanked, rotated or mistyped
+    // RESEND_API_KEY on the real host would take this branch and write live,
+    // single-use reset tokens into the log stream and every aggregator behind
+    // it — turning a delivery outage into account takeover. The warning itself
+    // stays unconditional so the outage is still loud in production.
+    const link =
+      process.env.NODE_ENV !== 'production'
+        ? html.match(/https?:\/\/[^"'\s>]+/)?.[0]
+        : undefined;
+    console.warn(
+      `[email] RESEND_API_KEY not set — nothing sent to ${to}\n` +
+      `        subject: ${subject}\n` +
+      (link ? `        link:    ${link}\n` : '') +
+      `        (set RESEND_API_KEY to deliver these for real)`
+    );
     return;
   }
 

@@ -74,9 +74,17 @@ export class TransactionController {
 
       if (error instanceof Error) {
         // Handle validation errors
+        // The business-rule limits in TransactionService (daily expense cap,
+        // per-day count, max reasonable amount) are rejected input, not server
+        // faults. Without them listed here they fell through to a 500 — which
+        // also meant every one was reported to Sentry as a bug by the global
+        // error handler, and the caller got "Internal server error" instead of
+        // the message explaining what the limit was.
         if (error.message.includes('required') ||
             error.message.includes('Invalid') ||
-            error.message.includes('must be')) {
+            error.message.includes('must be') ||
+            error.message.includes('exceeds') ||
+            error.message.includes('Cannot create more than')) {
           return reply.status(400).send({
             success: false,
             error: error.message

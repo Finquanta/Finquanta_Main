@@ -1,6 +1,36 @@
 {
-  "generatedAt": "2026-08-02T22:04:27.009Z",
+  "generatedAt": "2026-08-04T15:06:04.642Z",
   "commits": [
+    {
+      "hash": "48f6fd5",
+      "author": "gio",
+      "date": "2026-08-03T01:23:02-04:00",
+      "subject": "fix(profile): make delete-account actually work"
+    },
+    {
+      "hash": "3e7f217",
+      "author": "gio",
+      "date": "2026-08-03T01:02:10-04:00",
+      "subject": "debug(auth): log Cloudflare's siteverify error-codes on rejection"
+    },
+    {
+      "hash": "ea21535",
+      "author": "gio",
+      "date": "2026-08-03T00:56:05-04:00",
+      "subject": "fix(auth): stop Turnstile implicit/explicit render race breaking signup and login"
+    },
+    {
+      "hash": "f82db3d",
+      "author": "gio",
+      "date": "2026-08-02T22:44:49-04:00",
+      "subject": "fix(deploy): move @types/qrcode to dependencies, sync pnpm-lock.yaml for Vercel"
+    },
+    {
+      "hash": "8f0c770",
+      "author": "gio",
+      "date": "2026-08-02T21:49:16-04:00",
+      "subject": "feat(security): rate limiting, IDOR audit, Turnstile, Sentry, AI usage cap, breached-password check, refresh-token rotation, 2FA"
+    },
     {
       "hash": "80db2e1",
       "author": "gio",

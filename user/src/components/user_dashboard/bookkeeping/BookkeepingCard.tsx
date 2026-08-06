@@ -21,39 +21,44 @@ import { getGroups, createGroup } from "@/lib/api/groups";
  * accounting background. "Accountant view" reveals the double-entry per row.
  */
 
-/** Human label for where a row came from. */
-function typeLabel(tx: LedgerTransaction): string {
+/**
+ * Human label for where a row came from. Takes `t` because these render in the
+ * table beside translated headers — returning English here left half the row in
+ * the user's language and half in ours.
+ */
+function typeLabel(tx: LedgerTransaction, t: (ns: string, key: string) => string): string {
+  const d = (key: string) => t("dashboard", key);
   switch (tx.sourceType) {
     case "bookkeeping":
-      return tx.direction === "in" ? "Cashflow" : "Expense";
+      return tx.direction === "in" ? d("cashflow") : d("expense");
     case "invoice":
-      return "Invoice (owed)";
+      return d("invoiceOwed");
     case "invoice_payment":
-      return "Invoice paid";
+      return d("invoicePaid");
     case "invoice_cancelled":
-      return "Invoice cancelled";
+      return d("invoiceCancelled");
     case "credit_revenue":
-      return "Receivable";
+      return d("receivable");
     case "receive_ar_payment":
-      return "Customer paid";
+      return d("customerPaid");
     case "credit_expense":
-      return "Payable";
+      return d("payable");
     case "pay_ap":
-      return "Bill paid";
+      return d("billPaid");
     case "loan_received":
-      return "Loan received";
+      return d("loanReceived");
     case "loan_issued":
-      return "Loan issued";
+      return d("loanIssued");
     case "loan_payment":
-      return "Loan payment";
+      return d("loanPaymentRow");
     case "loan_repayment_received":
-      return "Loan repaid";
+      return d("loanRepaid");
     case "cash_revenue":
-      return "Cashflow";
+      return d("cashflow");
     case "cash_expense":
-      return "Expense";
+      return d("expense");
     default:
-      return "Entry";
+      return d("entryRow");
   }
 }
 
@@ -88,6 +93,27 @@ export default function BookkeepingCard({
 }) {
   const [basis, setBasis] = useState<AccountingBasis>("cash");
   const [accountantView, setAccountantView] = useState(false);
+  /**
+   * Stops the rotation below once the reader picks a basis themselves. Goals and
+   * Reminders rotate forever because swapping them is free; swapping the basis
+   * refetches the ledger, and yanking someone off the view they just chose —
+   * mid-read, with a network round trip — is worse than simply stopping.
+   */
+  const [basisPinned, setBasisPinned] = useState(false);
+
+  /** Auto-rotate Cash Basis / Accrual every 10s, matching the Goals/Reminders card. */
+  useEffect(() => {
+    if (basisPinned) return;
+    const id = setInterval(() => {
+      setBasis((b) => (b === "cash" ? "accrual" : "cash"));
+    }, 10000);
+    return () => clearInterval(id);
+  }, [basisPinned]);
+
+  const chooseBasis = (next: AccountingBasis) => {
+    setBasisPinned(true);
+    setBasis(next);
+  };
   const [rows, setRows] = useState<LedgerTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +129,7 @@ export default function BookkeepingCard({
     setLoading(true);
     listLedgerTransactions(basis, 50)
       .then(setRows)
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load transactions."))
+      .catch((e) => setError(e instanceof Error ? e.message : t("dashboard","errLoadTransactions")))
       .finally(() => setLoading(false));
   }, [basis]);
 
@@ -142,15 +168,17 @@ export default function BookkeepingCard({
     ? rows
     : rows.filter((r) =>
         (r.groupId && groupFilter.includes(r.groupId)) || (!r.groupId && groupFilter.includes("none")));
-  const filterLabel = groupFilter.length === 0 ? "All groups" : `${groupFilter.length} selected`;
+  const filterLabel = groupFilter.length === 0
+    ? t("dashboard", "allGroups")
+    : `${groupFilter.length} ${t("dashboard", "selectedCount")}`;
 
   return (
     <div>
       {/* Cash vs accrual, and the optional accountant detail */}
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <button onClick={() => setBasis("cash")} className={chip(basis === "cash")}>Cash Basis</button>
-          <button onClick={() => setBasis("accrual")} className={chip(basis === "accrual")}>Accrual</button>
+          <button onClick={() => chooseBasis("cash")} className={chip(basis === "cash")}>{t("dashboard","cashBasis")}</button>
+          <button onClick={() => chooseBasis("accrual")} className={chip(basis === "accrual")}>{t("dashboard","accrualBasis")}</button>
         </div>
         <div className="flex items-center gap-3">
           {/* Group filter — a multi-select popover, with inline group creation. */}
@@ -168,7 +196,7 @@ export default function BookkeepingCard({
                 <div className="fixed inset-0 z-10" onClick={() => { setFilterOpen(false); setCreatingGroup(false); }} />
                 <div className={`absolute right-0 mt-1 z-20 w-52 rounded-lg border shadow-lg p-1.5 ${isDark ? "bg-[#1e1e2e] border-gray-700" : "bg-white border-gray-200"}`}>
                   {groupFilter.length > 0 && (
-                    <button onClick={() => setGroupFilter([])} className="w-full text-left text-[11px] text-blue-500 hover:underline px-2 py-1">Clear filter</button>
+                    <button onClick={() => setGroupFilter([])} className="w-full text-left text-[11px] text-blue-500 hover:underline px-2 py-1">{t("demo","dClearFilter")}</button>
                   )}
                   <div className="max-h-56 overflow-y-auto">
                     {groupEntries.map(([id, g]) => (
@@ -180,7 +208,7 @@ export default function BookkeepingCard({
                     ))}
                     <label className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-gray-600"}`}>
                       <input type="checkbox" checked={groupFilter.includes("none")} onChange={() => toggleGroupFilter("none")} />
-                      <span className="italic">Unassigned</span>
+                      <span className="italic">{t("dashboard","unassignedRow")}</span>
                     </label>
                   </div>
                   {/* Inline create */}
@@ -203,14 +231,14 @@ export default function BookkeepingCard({
           </div>
           <label className={`flex items-center gap-1.5 text-xs cursor-pointer ${sub}`}>
             <input type="checkbox" checked={accountantView} onChange={(e) => setAccountantView(e.target.checked)} />
-            Accountant view
+            {t("dashboard","accountantView")}
           </label>
         </div>
       </div>
       <p className={`text-xs mb-3 ${sub}`}>
         {basis === "cash"
-          ? "Money that actually moved — including invoice and loan payments."
-          : "Everything, including money owed to you and bills you owe."}
+          ? t("dashboard", "cashBasisHint")
+          : t("dashboard", "accrualHint")}
       </p>
 
       {error && <p className="text-red-500 text-xs mb-2">{error}</p>}
@@ -227,10 +255,10 @@ export default function BookkeepingCard({
         </thead>
         <tbody className={`divide-y ${colors.tableRow}`}>
           {loading ? (
-            <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>Loading…</td></tr>
+            <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>{t("dashboard","loading")}</td></tr>
           ) : visibleRows.length === 0 ? (
             <tr><td colSpan={5} className={`py-6 text-center ${colors.text}`}>
-              {rows.length === 0 ? t("dashboard", "noTransactions") : "Nothing matches that group filter."}
+              {rows.length === 0 ? t("dashboard", "noTransactions") : t("dashboard","errNoGroupMatch")}
             </td></tr>
           ) : (
             visibleRows.map((tx) => {
@@ -241,7 +269,22 @@ export default function BookkeepingCard({
                   <tr className="group">
                     <td className="py-3">{tx.date}</td>
                     <td className="py-3">
-                      <span>{typeLabel(tx)}</span>
+                      {/* Cashflow and Expense get the same pills the entry
+                          modal uses, so a row reads the same way here as it did
+                          when it was created. Everything else stays plain — the
+                          colour is what distinguishes money in from money out,
+                          and pilling every label would drown that out. */}
+                      {tx.direction === "in" || tx.direction === "out" ? (
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            tx.direction === "in" ? "bg-green-500 text-white" : "bg-orange-400 text-white"
+                          }`}
+                        >
+                          {typeLabel(tx, t)}
+                        </span>
+                      ) : (
+                        <span>{typeLabel(tx, t)}</span>
+                      )}
                       {tx.recurrence && tx.recurrence !== "once" && (
                         <span className={`ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isDark ? "bg-gray-700 text-gray-200" : "bg-blue-50 text-blue-600"}`}>
                           <RefreshCw className="h-2.5 w-2.5" />
@@ -292,10 +335,10 @@ export default function BookkeepingCard({
                         )}
                         {editable ? (
                           <>
-                            <button onClick={() => onEdit(tx)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                            <button onClick={() => onEdit(tx)} className="text-blue-500 hover:text-blue-700" title={t("dashboard","invEdit")}>
                               <Pencil className="h-4 w-4" />
                             </button>
-                            <button onClick={() => onDelete(tx)} className="text-red-500 hover:text-red-700" title="Delete">
+                            <button onClick={() => onDelete(tx)} className="text-red-500 hover:text-red-700" title={t("demo","deleteTitle")}>
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </>
@@ -309,9 +352,9 @@ export default function BookkeepingCard({
                               value={tx.groupId ?? ""}
                               onChange={(e) => onAssignGroup(tx, e.target.value || null)}
                               className={`rounded px-1.5 py-0.5 text-[11px] max-w-[120px] border outline-none ${isDark ? "bg-[#2a2a3e] border-gray-600 text-gray-100" : "bg-white border-gray-300 text-gray-700"}`}
-                              title="Assign a group"
+                              title={t("demo","dAssignGroup")}
                             >
-                              <option value="">No group</option>
+                              <option value="">{t("dashboard","invNoGroup")}</option>
                               {Object.entries(groupMap).map(([id, g]) => (
                                 <option key={id} value={id}>{g.name}</option>
                               ))}

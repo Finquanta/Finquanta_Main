@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { SecuritySettings, SessionInfo, ApiKey } from './types';
 import { Shield, Key, Monitor, Smartphone, Mail, Plus, Trash2, Download, Copy, Check, X } from 'lucide-react';
 import TwoFactorSettings from './TwoFactorSettings';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface AccessPermissionsProps {
   settings: SecuritySettings;
@@ -11,6 +12,7 @@ interface AccessPermissionsProps {
 }
 
 export default function AccessPermissions({ settings, onSettingsChange }: AccessPermissionsProps) {
+  const { t } = useLanguage();
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showNewKeyModal, setShowNewKeyModal] = useState(false);
   const [newKey, setNewKey] = useState({ name: '', permissions: ['read'] });
@@ -72,10 +74,8 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
     <div className="bg-white p-6">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[#1b263b] mb-2">Access & Permissions</h2>
-        <p className="text-sm text-[#778da9]">
-          Manage your account security, active sessions, and API access
-        </p>
+        <h2 className="text-2xl font-bold text-[#1b263b] mb-2">{t("dashboard","spAccessPerms")}</h2>
+        <p className="text-sm text-[#778da9]">{t("dashboard","spAccessDesc")}</p>
       </div>
 
       <div className="space-y-8">
@@ -85,12 +85,10 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
         {/* Active Sessions */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-[#150578]" />
-            Active Sessions
-          </h3>
+            <Monitor className="w-5 h-5 text-[#150578]" />{t("dashboard","spActiveSessions")}</h3>
           <div className="space-y-3">
             {settings.activeSessions.length === 0 ? (
-              <p className="text-sm text-[#778da9]">No active sessions</p>
+              <p className="text-sm text-[#778da9]">{t("dashboard","spNoSessions")}</p>
             ) : (
               settings.activeSessions.map((session) => (
                 <div key={session.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -120,9 +118,7 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
                         <button
                           onClick={() => handleRevokeSession(session.id)}
                           className="px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        >
-                          Revoke
-                        </button>
+                        >{t("dashboard","spRevoke")}</button>
                       </div>
                     )}
                   </div>
@@ -136,25 +132,19 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-[#1b263b] flex items-center gap-2">
-              <Key className="w-5 h-5 text-[#150578]" />
-              API Keys
-            </h3>
+              <Key className="w-5 h-5 text-[#150578]" />{t("dashboard","spApiKeys")}</h3>
             <button
               onClick={() => setShowNewKeyModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Create New Key
-            </button>
+              <Plus className="w-4 h-4" />{t("dashboard","spCreateNewKey")}</button>
           </div>
-          <p className="text-sm text-[#778da9] mb-4">
-            API keys allow external applications to access your account programmatically.
-          </p>
+          <p className="text-sm text-[#778da9] mb-4">{t("dashboard","spApiKeysDesc")}</p>
           <div className="space-y-3">
             {settings.apiKeys.length === 0 ? (
               <div className="text-center py-8 text-[#778da9]">
                 <Key className="w-8 h-8 mx-auto mb-4 text-gray-300" />
-                <p>No API keys created yet</p>
+                <p>{t("dashboard","spNoApiKeys")}</p>
               </div>
             ) : (
               settings.apiKeys.map((apiKey) => (
@@ -192,14 +182,14 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
                           alert('API key copied to clipboard!');
                         }}
                         className="p-2 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Copy API key ID"
+                        title={t("dashboard","spCopyKeyId")}
                       >
                         <Copy className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteApiKey(apiKey.id)}
                         className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete API key"
+                        title={t("dashboard","spDeleteKey")}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -214,28 +204,22 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
         {/* Recovery Email */}
         <div className="bg-gray-50 p-6 rounded-lg">
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Mail className="w-5 h-5 text-[#150578]" />
-            Account Recovery Email
-          </h3>
+            <Mail className="w-5 h-5 text-[#150578]" />{t("dashboard","spRecoveryEmail")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-[#778da9] mb-2">
-                Set a recovery email to help regain access to your account if you forget your password.
-              </p>
+              <p className="text-sm text-[#778da9] mb-2">{t("dashboard","spRecoveryEmailDesc")}</p>
               <div className="flex gap-3">
                 <input
                   type="email"
                   value={recoveryEmail}
                   onChange={(e) => setRecoveryEmail(e.target.value)}
-                  placeholder="Enter recovery email"
+                  placeholder={t("dashboard","spPhRecoveryEmail")}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                 />
                 <button
                   onClick={handleUpdateRecoveryEmail}
                   className="px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-                >
-                  Update
-                </button>
+                >{t("dashboard","spUpdate")}</button>
               </div>
             </div>
             {settings.recoveryEmail && (
@@ -253,7 +237,7 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#1b263b]">Create New API Key</h3>
+              <h3 className="text-lg font-semibold text-[#1b263b]">{t("dashboard","spCreateNewApiKey")}</h3>
               <button
                 onClick={() => setShowNewKeyModal(false)}
                 className="text-[#778da9] hover:text-[#1b263b] transition-colors"
@@ -263,17 +247,17 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#1b263b] mb-2">Key Name</label>
+                <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spKeyName")}</label>
                 <input
                   type="text"
                   value={newKey.name}
                   onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
-                  placeholder="Enter a name for this key"
+                  placeholder={t("dashboard","spPhKeyName")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#1b263b] mb-2">Permissions</label>
+                <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spPermissions")}</label>
                 <div className="space-y-2">
                   {['read', 'write', 'delete', 'admin'].map((permission) => (
                     <label key={permission} className="flex items-center gap-2 cursor-pointer">
@@ -299,15 +283,11 @@ export default function AccessPermissions({ settings, onSettingsChange }: Access
               <button
                 onClick={() => setShowNewKeyModal(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
               <button
                 onClick={handleCreateApiKey}
                 className="px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-              >
-                Create Key
-              </button>
+              >{t("dashboard","spCreateKey")}</button>
             </div>
           </div>
         </div>

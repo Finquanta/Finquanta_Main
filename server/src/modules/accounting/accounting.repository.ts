@@ -91,6 +91,49 @@ export class AccountingRepository {
     // workflows, manual). Bookkeeping/invoices resolve their group from the
     // source record instead, so this stays null for them.
     await this.database.query(`ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS group_id UUID`);
+    // A bookkeeping transaction owns exactly ONE journal entry. syncBookkeeping
+    // guards with NOT EXISTS, but that is a read-then-write race: resyncBookkeeping
+    // is called from the dashboard, health, activity and accounting routes, which
+    // the dashboard fires in parallel on load. Two of them check "does an entry
+    // exist?" at the same time, both see no, and both insert — producing entries
+    // milliseconds apart and doubling every row in the books.
+    //
+    // The guard belongs in the database, where concurrency can't get around it.
+    // Partial, because only bookkeeping is one-entry-per-source: an invoice
+    // legitimately posts several (sent, then paid) against the same source_id.
+    //
+    // Existing duplicates must go first or the index can't be built. Keep the
+    // earliest of each set; journal_lines cascade off the deleted entries.
+    await this.database.query(`
+      DELETE FROM journal_entries e
+      USING journal_entries keep
+      WHERE e.source_type = 'bookkeeping'
+        AND keep.source_type = 'bookkeeping'
+        AND e.source_id = keep.source_id
+        AND e.source_id IS NOT NULL
+        AND (e.created_at, e.id) > (keep.created_at, keep.id)
+    `);
+    await this.database.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uniq_journal_entries_bookkeeping_source
+      ON journal_entries (source_id) WHERE source_type = 'bookkeeping'
+    `);
+    // syncBookkeeping's ON CONFLICT names this index by its columns, and Postgres
+    // raises 42P10 ("no unique or exclusion constraint matching the ON CONFLICT
+    // specification") if it isn't there. Without this check a failed CREATE —
+    // a lock timeout on a large journal_entries, or a leftover duplicate the
+    // dedupe above missed — would be logged and swallowed at boot, and then
+    // every dashboard, health, activity and accounting request would 500 with an
+    // error that says nothing about the real cause. Confirm it landed.
+    const { rows } = await this.database.query(
+      `SELECT 1 FROM pg_indexes WHERE indexname = 'uniq_journal_entries_bookkeeping_source'`
+    );
+    if (rows.length === 0) {
+      throw new Error(
+        'uniq_journal_entries_bookkeeping_source is missing after CREATE INDEX. ' +
+        'syncBookkeeping cannot run without it — check for duplicate bookkeeping ' +
+        'source_ids that the dedupe step could not resolve.'
+      );
+    }
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_entries_business ON journal_entries(business_id, date DESC)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON journal_lines(entry_id)`);
     await this.database.query(`CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON journal_lines(account_id)`);
@@ -219,6 +262,12 @@ export class AccountingRepository {
              SELECT 1 FROM journal_entries e
              WHERE e.source_type = 'bookkeeping' AND e.source_id = t.id
            )
+         -- The NOT EXISTS above is only an optimisation: it loses the race when
+         -- two resyncs run concurrently. uniq_journal_entries_bookkeeping_source
+         -- is what actually enforces one-entry-per-transaction, and this makes
+         -- the loser of that race a no-op instead of an error. RETURNING then
+         -- yields nothing for it, so no duplicate lines are written either.
+         ON CONFLICT (source_id) WHERE source_type = 'bookkeeping' DO NOTHING
          RETURNING id AS entry_id, source_id
        )
        INSERT INTO journal_lines (entry_id, account_id, debit, credit)

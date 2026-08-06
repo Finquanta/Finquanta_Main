@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Gift, Mail, Share2 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 import { MyReferrals, ReferredUser, getMyReferrals, referralLink } from "@/lib/api/referrals";
 
@@ -16,6 +17,7 @@ import { MyReferrals, ReferredUser, getMyReferrals, referralLink } from "@/lib/a
  */
 export default function ReferralsPage() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   const [data, setData] = useState<MyReferrals | null>(null);
@@ -46,10 +48,8 @@ export default function ReferralsPage() {
   };
 
   const shareByEmail = () => {
-    const subject = encodeURIComponent("You should try Finquanta");
-    const body = encodeURIComponent(
-      `I've been using Finquanta to keep on top of my business finances — bookkeeping, invoices and a health score that actually explains itself.\n\nSign up here: ${link}`
-    );
+    const subject = encodeURIComponent(t("dashboard","refEmailSubject"));
+    const body = encodeURIComponent(t("dashboard","refEmailBody") + link);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
@@ -58,21 +58,19 @@ export default function ReferralsPage() {
       <div className="p-4 sm:p-6 max-w-4xl">
         <div className="flex items-center gap-2 mb-1">
           <Gift className="h-5 w-5 text-blue-500" />
-          <h1 className={`text-xl font-bold ${text}`}>Refer a business</h1>
+          <h1 className={`text-xl font-bold ${text}`}>{t("dashboard","refTitle")}</h1>
         </div>
-        <p className={`text-sm mb-6 ${sub}`}>
-          Share your link. You&apos;ll see every business you bring in, and how far along they are.
-        </p>
+        <p className={`text-sm mb-6 ${sub}`}>{t("dashboard","refDesc")}</p>
 
         {loading ? (
-          <p className={`text-sm ${sub}`}>Loading…</p>
+          <p className={`text-sm ${sub}`}>{t("dashboard","loading")}</p>
         ) : !data ? (
-          <p className="text-sm text-red-500">Couldn&apos;t load your referrals. Please try again.</p>
+          <p className="text-sm text-red-500">{t("dashboard","refLoadError")}</p>
         ) : (
           <>
             {/* The link */}
             <div className={`${card} p-5 mb-4`}>
-              <label className={`text-xs font-semibold ${sub}`}>YOUR REFERRAL LINK</label>
+              <label className={`text-xs font-semibold ${sub}`}>{t("dashboard","refYourLink")}</label>
               <div className="flex gap-2 mt-2 flex-wrap sm:flex-nowrap">
                 <input
                   readOnly
@@ -87,7 +85,7 @@ export default function ReferralsPage() {
                   className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shrink-0"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("dashboard","refCopied") : t("dashboard","refCopy")}
                 </button>
                 <button
                   onClick={shareByEmail}
@@ -98,19 +96,18 @@ export default function ReferralsPage() {
                   <Mail className="h-4 w-4" /> Email
                 </button>
               </div>
-              <p className={`text-xs mt-2 ${sub}`}>
-                Your code is <strong className={text}>{data.code}</strong>.
+              <p className={`text-xs mt-2 ${sub}`}>{t("dashboard","refYourCode")}<strong className={text}>{data.code}</strong>.
               </p>
             </div>
 
             {/* The three stages */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <Stat label="Signed up" value={data.signedUp} hint="Made an account" isDark={isDark} />
-              <Stat label="Verified" value={data.verified} hint="Confirmed their email" isDark={isDark} />
+              <Stat label={t("dashboard","refSignedUp")} value={data.signedUp} hint={t("dashboard","refSignedUpHint")} isDark={isDark} />
+              <Stat label={t("dashboard","refVerified")} value={data.verified} hint={t("dashboard","refVerifiedHint")} isDark={isDark} />
               <Stat
-                label="Qualified"
+                label={t("dashboard","refQualified")}
                 value={data.qualified}
-                hint="Verified and actually using it"
+                hint={t("dashboard","refQualifiedHint")}
                 isDark={isDark}
                 highlight
               />
@@ -119,24 +116,20 @@ export default function ReferralsPage() {
             <div className={`${card} p-4 mb-6`}>
               <p className={`text-xs ${sub}`}>
                 <Share2 className="inline h-3.5 w-3.5 mr-1" />
-                A referral only counts as <strong className={text}>qualified</strong> once the business
-                verifies its email <em>and</em> records real activity — an entry or an invoice. That keeps the
-                numbers honest: a throwaway signup earns nothing.
+                {t("dashboard","refQualifyNote")}
               </p>
             </div>
 
             {/* Who you brought in */}
-            <h2 className={`text-sm font-bold mb-2 ${text}`}>Businesses you&apos;ve referred</h2>
+            <h2 className={`text-sm font-bold mb-2 ${text}`}>{t("dashboard","refReferred")}</h2>
             {data.referred.length === 0 ? (
               <div className={`${card} p-8 text-center`}>
-                <p className={`text-sm ${sub}`}>
-                  Nobody yet. Share your link above and they&apos;ll show up here.
-                </p>
+                <p className={`text-sm ${sub}`}>{t("dashboard","refNobody")}</p>
               </div>
             ) : (
               <div className={`${card} overflow-hidden`}>
                 {data.referred.map((r, i) => (
-                  <Row key={i} r={r} isDark={isDark} last={i === data.referred.length - 1} />
+                  <Row key={i} r={r} isDark={isDark} last={i === data.referred.length - 1} t={t} />
                 ))}
               </div>
             )}
@@ -168,13 +161,14 @@ function Stat({
   );
 }
 
-const STAGE_LABEL: Record<string, { text: string; color: string }> = {
-  signed_up: { text: "Signed up", color: "#9ca3af" },
-  verified: { text: "Verified", color: "#3b82f6" },
-  qualified: { text: "Qualified", color: "#10b981" },
+/** Colour per stage; the label itself is translated at render time. */
+const STAGE_LABEL: Record<string, { key: string; color: string }> = {
+  signed_up: { key: "refSignedUp", color: "#9ca3af" },
+  verified: { key: "refVerified", color: "#3b82f6" },
+  qualified: { key: "refQualified", color: "#10b981" },
 };
 
-function Row({ r, isDark, last }: { r: ReferredUser; isDark: boolean; last: boolean }) {
+function Row({ r, isDark, last, t }: { r: ReferredUser; isDark: boolean; last: boolean; t: (ns: string, k: string) => string }) {
   const text = isDark ? "text-white" : "text-gray-900";
   const sub = isDark ? "text-gray-400" : "text-gray-500";
   const stage = STAGE_LABEL[r.stage] ?? STAGE_LABEL.signed_up!;
@@ -189,7 +183,7 @@ function Row({ r, isDark, last }: { r: ReferredUser; isDark: boolean; last: bool
         className="text-[11px] font-semibold px-2 py-1 rounded-full shrink-0"
         style={{ color: stage.color, backgroundColor: `${stage.color}1a` }}
       >
-        {stage.text}
+        {t("dashboard", stage.key)}
       </span>
     </div>
   );

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import RevenueIcon from '@/components/icons/RevenueIcon';
 import { ChartTimeframe, formatCurrency, formatPercentage } from '@/mockData/payrollMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface ChartDataPoint {
   date: Date;
@@ -34,6 +35,7 @@ const timeframes = [
 ];
 
 export default function OutstandingChart({ data }: OutstandingChartProps) {
+  const { t } = useLanguage();
   const [selectedTimeframe, setSelectedTimeframe] = useState<ChartTimeframe>(
     data?.selectedTimeframe || ChartTimeframe.ONE_YEAR
   );
@@ -77,7 +79,7 @@ export default function OutstandingChart({ data }: OutstandingChartProps) {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-medium text-[#0a112f] mb-2">Total Outstanding</h3>
+            <h3 className="text-xl font-medium text-[#0a112f] mb-2">{t("dashboard","pyTotalOutstanding")}</h3>
             <div className="flex items-center gap-2">
               <span className="text-4xl font-medium text-[#0a112f] tracking-tight">
                 {formatCurrency(Math.floor(data.total))}

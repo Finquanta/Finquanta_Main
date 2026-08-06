@@ -9,8 +9,10 @@ import TransactionAnalytics from '@/components/user_dashboard/statistics/Transac
 import PerformanceMetrics from '@/components/user_dashboard/statistics/PerformanceMetrics';
 import StatisticsTable from '@/components/user_dashboard/statistics/StatisticsTable';
 import { getStatisticsOverview } from '@/lib/api/statistics';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export default function StatisticsPage() {
+  const { t } = useLanguage();
   const [apiData, setApiData] = useState<StatisticsPageProps | null>(null);
   const sourceData = apiData ?? statisticsMockData;
 
@@ -34,7 +36,7 @@ export default function StatisticsPage() {
     <div className="p-4 sm:p-6 bg-[#f2f3f4] min-h-full">
       {/* Page Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1b263b] mb-2">Statistics</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#1b263b] mb-2">{t("dashboard","statTitle")}</h1>
         <p className="text-sm sm:text-base text-[#778da9]">
           Comprehensive financial analytics and insights for {period}
         </p>
@@ -93,10 +95,7 @@ export default function StatisticsPage() {
       {/* Footer */}
       <div className="text-center text-xs sm:text-sm text-[#778da9] pt-6 sm:pt-8 border-t border-gray-200">
         <p>Last updated: {new Date().toLocaleDateString()}</p>
-        <p className="mt-2">
-          Data is automatically refreshed every 24 hours. For real-time updates,
-          please check individual dashboard sections.
-        </p>
+        <p className="mt-2">{t("dashboard","statNote")}</p>
       </div>
     </div>
   );

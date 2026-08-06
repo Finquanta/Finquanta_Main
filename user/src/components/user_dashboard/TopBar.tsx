@@ -3,20 +3,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { Search, Bell, ChevronDown, ArrowRight, Menu, Globe } from 'lucide-react';
-import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from '@/hooks/context/LanguageContext';
  
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'nl', label: 'Nederlands' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'pt', label: 'Português' },
-  { code: 'ar', label: 'العربية' },
-  { code: 'zh', label: '中文' },
-  { code: 'ja', label: '日本語' },
-  { code: 'ru', label: 'Русский' },
-];
  
 interface TopBarProps {
   onMenuClick?: () => void;
@@ -36,7 +24,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label="Open menu"
+          aria-label={t("demo","dOpenMenu")}
         >
           <Menu className="h-6 w-6 text-gray-700" />
         </button>

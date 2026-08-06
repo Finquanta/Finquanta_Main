@@ -2,6 +2,8 @@ import { Database } from '../../infrastructure/database';
 import { BusinessProfile, CurrentUserResponse, UserProfile, UserSettingsPayload } from './profile.types';
 import { ensureGoalForPrimaryGoal } from './onboarding-goal';
 import { PasswordManager } from '../auth/password';
+import { BusinessesRepository } from '../businesses/businesses.repository';
+import { DEFAULT_BUSINESS_NAME } from '../auth/auth.service';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
@@ -60,6 +62,27 @@ export class ProfileService {
 
   async updateBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile> {
     const profile = await this.repository.upsertBusiness(userId, data);
+
+    // Registration creates the workspace before anyone has said what the
+    // business is called, so it starts as a placeholder. This is the first
+    // moment we learn the real name — without it the label stays "My Business"
+    // for the life of the account, since the old ensureSchema backfill that used
+    // to supply it now finds the row already present and skips it.
+    //
+    // Only the untouched placeholder is renamed: a name set deliberately in the
+    // workspace switcher must survive a later onboarding edit.
+    if (this.database && profile.businessName?.trim()) {
+      try {
+        const businesses = new BusinessesRepository(this.database);
+        const owned = await businesses.listForUser(userId);
+        const primary = owned[0];
+        if (primary && primary.name === DEFAULT_BUSINESS_NAME) {
+          await businesses.rename(primary.id, profile.businessName.trim());
+        }
+      } catch {
+        /* the profile is what must be saved; a stale workspace label is cosmetic */
+      }
+    }
 
     // Section 9: their chosen primary goal becomes a real goal on the dashboard.
     // Saving the profile is the thing that must succeed here — if the goal can't

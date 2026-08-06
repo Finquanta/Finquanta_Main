@@ -11,27 +11,48 @@ import { logoutAndRedirect } from "@/lib/auth";
 
 const FEEDBACK_FORM = "https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form";
 
-const NAV = [
+export interface SidebarNavItem {
+  href: string;
+  labelKey?: string;
+  label?: string;
+}
+
+const NAV: SidebarNavItem[] = [
+  // `label` is the English fallback the renderer uses when labelKey is absent —
+  // every item carries a key now, so the sidebar translates like the rest of the
+  // dashboard instead of staying English in all ten languages.
   { href: "/dashboard", labelKey: "title", label: "Dashboard" },
-  { href: "/invoices", label: "Invoices" },
-  { href: "/customers", label: "Customers" },
-  { href: "/activity", label: "Activity" },
-  { href: "/groups", label: "Groups" },
-  { href: "/referrals", label: "Refer a Business" },
-  { href: "/profile-settings", label: "Settings" },
+  { href: "/invoices", labelKey: "invoices", label: "Invoices" },
+  { href: "/customers", labelKey: "customers", label: "Customers" },
+  { href: "/activity", labelKey: "activity", label: "Activity" },
+  { href: "/groups", labelKey: "groups", label: "Groups" },
+  { href: "/referrals", labelKey: "referAB", label: "Refer a Business" },
+  { href: "/profile-settings", labelKey: "settings", label: "Settings" },
 ];
 
 /**
  * The dashboard's left sidebar, shared by every page under (user_dashbord) so
  * navigation never disappears when you move between Dashboard, Invoices and
  * Customers. Static on desktop; an off-canvas drawer on tablet/mobile.
+ *
+ * The Try-It Demo renders this same component so its shell is the real one
+ * rather than a lookalike that drifts. It passes its own `items`, turns
+ * `showAccount` off (an anonymous visitor has no account to call getMe/checkAdmin
+ * for) and swaps the log-out control via `footer`. Defaults keep the signed-in
+ * usage exactly as it was.
  */
 export default function DashboardSidebar({
   isDark, isOpen, onClose,
+  items = NAV,
+  showAccount = true,
+  footer,
 }: {
   isDark: boolean;
   isOpen: boolean;
   onClose: () => void;
+  items?: SidebarNavItem[];
+  showAccount?: boolean;
+  footer?: React.ReactNode;
 }) {
   const { t } = useLanguage();
   const pathname = usePathname();
@@ -39,9 +60,10 @@ export default function DashboardSidebar({
   const [accountId, setAccountId] = useState("");
 
   useEffect(() => {
+    if (!showAccount) return;
     checkAdmin().then(() => setIsAdmin(true)).catch(() => setIsAdmin(false));
     getMe().then((me) => setAccountId(finquantaAccountId(me.id))).catch(() => setAccountId(""));
-  }, []);
+  }, [showAccount]);
 
   const colors = {
     sidebar: isDark ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200",
@@ -72,7 +94,7 @@ export default function DashboardSidebar({
         </div>
 
         <nav className="flex flex-col gap-2" data-tour="sidebar">
-          {NAV.map((n) => (
+          {items.map((n) => (
             <Link key={n.href} href={n.href} className={linkClass(n.href)} onClick={onClose}>
               {n.labelKey ? t("dashboard", n.labelKey) : n.label}
             </Link>
@@ -94,13 +116,15 @@ export default function DashboardSidebar({
             <MessageSquare className="h-3.5 w-3.5" />
             {t("dashboard", "sendFeedback")}
           </a>
-          <button
-            onClick={() => logoutAndRedirect("/login")}
-            className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {t("settings", "logOut")}
-          </button>
+          {footer ?? (
+            <button
+              onClick={() => logoutAndRedirect("/login")}
+              className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              {t("settings", "logOut")}
+            </button>
+          )}
         </div>
       </div>
     </>

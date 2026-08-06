@@ -15,7 +15,7 @@ import { deleteLoan, deleteLoanPayment, listLoans, listLoanPayments } from '@/li
 import { assignToGroup } from '@/lib/api/groups';
 import { deleteInvoice } from '@/lib/api/invoices';
 import GoalModal, { GoalEditing } from '@/components/user_dashboard/dashboard/GoalModal';
-import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal, RevenueMetric } from '@/lib/api/dashboard';
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
@@ -35,18 +35,6 @@ const GOAL_PROMPT_DISMISSED_KEY = 'goalPromptDismissedAt';
 const GOAL_STALE_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
  
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'nl', label: 'Nederlands' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'pt', label: 'Português' },
-  { code: 'ar', label: 'العربية' },
-  { code: 'zh', label: '中文' },
-  { code: 'ja', label: '日本語' },
-  { code: 'ru', label: 'Русский' },
-];
 
 
 export default function DashboardPage() {
@@ -265,7 +253,7 @@ export default function DashboardPage() {
       setBookkeepingRefresh((n) => n + 1);
       refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not delete that entry.');
+      alert(e instanceof Error ? e.message : t("dashboard","errDeleteEntry"));
     }
   };
 
@@ -309,7 +297,7 @@ export default function DashboardPage() {
       setBookkeepingRefresh((n) => n + 1);
       refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not change that group.');
+      alert(e instanceof Error ? e.message : t("dashboard","errChangeGroup"));
     }
   };
 
@@ -405,7 +393,7 @@ export default function DashboardPage() {
       setBookkeepingRefresh((n) => n + 1);
       refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not delete that entry.');
+      alert(e instanceof Error ? e.message : t("dashboard","errDeleteEntry"));
     }
   };
 
@@ -595,22 +583,22 @@ export default function DashboardPage() {
             {t('dashboard', 'title')}
           </Link>
           <Link href="/invoices" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Invoices
+            {t('dashboard', 'invoices')}
           </Link>
           <Link href="/customers" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Customers
+            {t('dashboard', 'customers')}
           </Link>
           <Link href="/activity" data-tour="activity" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Activity
+            {t('dashboard', 'activity')}
           </Link>
           <Link href="/groups" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Groups
+            {t('dashboard', 'groups')}
           </Link>
           <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Refer a Business
+            {t('dashboard', 'referAB')}
           </Link>
           <Link href="/profile-settings" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            Settings
+            {t('dashboard', 'settings')}
           </Link>
           {isAdmin && (
             <Link href="/admin-users" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
@@ -724,12 +712,12 @@ export default function DashboardPage() {
                       <div className={`flex items-start gap-3 px-4 py-3 border-b ${colors.notifItem} ${isDark ? 'bg-gray-700/50' : 'bg-amber-50'}`}>
                         <div className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-amber-500" />
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Verify your email</p>
-                          <p className={`text-xs mt-0.5 ${colors.text}`}>Confirm your email address to secure your account. Check your inbox for the link.</p>
+                          <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{t("dashboard","dashVerifyTitle")}</p>
+                          <p className={`text-xs mt-0.5 ${colors.text}`}>{t("dashboard","dashVerifyBody")}</p>
                           {verifyResent ? (
-                            <p className="text-[11px] mt-1 text-green-500">Sent — check your inbox (and spam).</p>
+                            <p className="text-[11px] mt-1 text-green-500">{t("dashboard","dashVerifySent")}</p>
                           ) : (
-                            <button onClick={handleResendVerification} className="text-[11px] mt-1 text-blue-500 hover:underline">Resend verification email</button>
+                            <button onClick={handleResendVerification} className="text-[11px] mt-1 text-blue-500 hover:underline">{t("dashboard","dashResendVerify")}</button>
                           )}
                         </div>
                       </div>
@@ -863,15 +851,13 @@ export default function DashboardPage() {
               onClick={() => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); }}
               className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
-              <Plus className="h-4 w-4" /> Add data
-            </button>
+              <Plus className="h-4 w-4" />{t("dashboard","dashAddData")}</button>
             <Link
               href="/invoices/new"
               data-tour="invoices"
               className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
-              <FileText className="h-4 w-4" /> Create invoice
-            </Link>
+              <FileText className="h-4 w-4" />{t("dashboard","dashCreateInvoice")}</Link>
           </div>
 
           {/* Summary Cards */}
@@ -1011,7 +997,9 @@ export default function DashboardPage() {
                     onClick={() => setActiveCardTab('reminders')}
                     className={`px-2 py-1 rounded-lg transition-colors ${activeCardTab === 'reminders' ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900') : colors.subtext}`}
                   >
-                    {t('dashboard', 'reminders')}
+                    {/* Under settings, not dashboard — dashboard.reminders
+                        doesn't exist and renders as the literal key. */}
+                    {t('settings', 'reminders')}
                   </button>
                 </div>
                 {activeCardTab === 'goals' ? (

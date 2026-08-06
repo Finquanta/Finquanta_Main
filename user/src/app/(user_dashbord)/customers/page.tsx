@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
   Customer, CustomerInput, listCustomers, createCustomer, updateCustomer, deleteCustomer,
 } from "@/lib/api/customers";
@@ -19,6 +20,7 @@ const money = (n: number) =>
 
 export default function CustomersPage() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,7 +37,7 @@ export default function CustomersPage() {
     setLoading(true);
     listCustomers()
       .then(setCustomers)
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load customers."))
+      .catch((e) => setError(e instanceof Error ? e.message : t("dashboard","errLoadCustomers")))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
@@ -63,7 +65,7 @@ export default function CustomersPage() {
       setOpen(false);
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save customer.");
+      setError(err instanceof Error ? err.message : t("dashboard","errSaveCustomer"));
     } finally {
       setSaving(false);
     }
@@ -72,7 +74,7 @@ export default function CustomersPage() {
   const remove = async (c: Customer) => {
     if (!window.confirm(`Delete ${c.name}? This cannot be undone.`)) return;
     try { await deleteCustomer(c.id); load(); }
-    catch (err) { setError(err instanceof Error ? err.message : "Could not delete customer."); }
+    catch (err) { setError(err instanceof Error ? err.message : t("dashboard","errDeleteCustomer")); }
   };
 
   const filtered = customers.filter((c) => {
@@ -91,28 +93,27 @@ export default function CustomersPage() {
     <DashboardShell><div className="p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-1">
-          <h1 className={`text-xl font-bold ${text}`}>Customers</h1>
+          <h1 className={`text-xl font-bold ${text}`}>{t("dashboard","custTitle")}</h1>
           <Link href="/dashboard" className="text-sm text-blue-500 hover:underline">← Dashboard</Link>
         </div>
-        <p className={`text-sm mb-6 ${sub}`}>The people and businesses you invoice. Pick a customer when creating an invoice.</p>
+        <p className={`text-sm mb-6 ${sub}`}>{t("dashboard","custDesc")}</p>
 
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customers…"
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("dashboard","dSearchCustomers")}
             className={`flex-1 min-w-[200px] text-sm rounded-lg px-3 py-2 border outline-none ${input}`} />
           <button onClick={startNew}
             className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">
-            <Plus className="h-4 w-4" /> New customer
-          </button>
+            <Plus className="h-4 w-4" />{t("dashboard","custNew")}</button>
         </div>
 
         {error && !open && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
         {loading ? (
-          <p className={`text-sm ${sub}`}>Loading customers…</p>
+          <p className={`text-sm ${sub}`}>{t("dashboard","custLoading")}</p>
         ) : filtered.length === 0 ? (
           <div className={`rounded-xl border p-8 text-center ${card}`}>
             <p className={`text-sm ${sub}`}>
-              {customers.length === 0 ? "No customers yet. Add your first one to start invoicing." : "No customers match that search."}
+              {customers.length === 0 ? t("dashboard","custNoneYet") : t("dashboard","custNoMatch")}
             </p>
           </div>
         ) : (
@@ -121,10 +122,10 @@ export default function CustomersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className={`text-left ${sub} ${isDark ? "bg-gray-900/40" : "bg-gray-50"}`}>
-                    <th className="px-4 py-3 font-semibold">Name</th>
-                    <th className="px-4 py-3 font-semibold">Email</th>
-                    <th className="px-4 py-3 font-semibold">Phone</th>
-                    <th className="px-4 py-3 font-semibold">Outstanding</th>
+                    <th className="px-4 py-3 font-semibold">{t("dashboard","custName")}</th>
+                    <th className="px-4 py-3 font-semibold">{t("dashboard","custEmail")}</th>
+                    <th className="px-4 py-3 font-semibold">{t("dashboard","custPhone")}</th>
+                    <th className="px-4 py-3 font-semibold">{t("dashboard","custOutstanding")}</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -162,42 +163,40 @@ export default function CustomersPage() {
             {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
             <form onSubmit={save} className="space-y-3">
               <div>
-                <label className={`block text-xs mb-1 ${sub}`}>Name *</label>
+                <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","custName")}</label>
                 <input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={field} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={`block text-xs mb-1 ${sub}`}>Email</label>
+                  <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","custEmail")}</label>
                   <input type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={`block text-xs mb-1 ${sub}`}>Phone</label>
+                  <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","custPhone")}</label>
                   <input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={field} />
                 </div>
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${sub}`}>Billing address</label>
-                <input placeholder="Address line 1" value={form.addressLine1 ?? ""} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} className={`${field} mb-2`} />
-                <input placeholder="Address line 2" value={form.addressLine2 ?? ""} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} className={field} />
+                <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","custBillingAddress")}</label>
+                <input placeholder={t("dashboard","invAddrLine1")} value={form.addressLine1 ?? ""} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} className={`${field} mb-2`} />
+                <input placeholder={t("dashboard","invAddrLine2")} value={form.addressLine2 ?? ""} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} className={field} />
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <input placeholder="City" value={form.city ?? ""} onChange={(e) => setForm({ ...form, city: e.target.value })} className={field} />
-                <input placeholder="State/Region" value={form.region ?? ""} onChange={(e) => setForm({ ...form, region: e.target.value })} className={field} />
+                <input placeholder={t("dashboard","invCity")} value={form.city ?? ""} onChange={(e) => setForm({ ...form, city: e.target.value })} className={field} />
+                <input placeholder={t("dashboard","invRegion")} value={form.region ?? ""} onChange={(e) => setForm({ ...form, region: e.target.value })} className={field} />
                 <input placeholder="Postal code" value={form.postalCode ?? ""} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} className={field} />
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${sub}`}>Country</label>
+                <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","invCountry")}</label>
                 <input value={form.country ?? ""} onChange={(e) => setForm({ ...form, country: e.target.value })} className={field} />
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${sub}`}>Notes</label>
+                <label className={`block text-xs mb-1 ${sub}`}>{t("dashboard","custNotes")}</label>
                 <textarea value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={`${field} min-h-[70px]`} />
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setOpen(false)}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border ${isDark ? "border-gray-600" : "border-gray-300"}`}>
-                  Cancel
-                </button>
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border ${isDark ? "border-gray-600" : "border-gray-300"}`}>{t("dashboard","invCancel")}</button>
                 <button type="submit" disabled={saving}
                   className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm">
                   {saving ? "Saving…" : editing ? "Save changes" : "Add customer"}

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,11 @@ const HeroSection = () => {
             </Button>
           </div>
         </form>
+        <div className="text-center md:text-left mt-4 max-w-[1200px] mx-auto">
+          <Link href="/demo" className="text-sm sm:text-base font-medium text-green-600 hover:text-green-700 hover:underline">
+            {t("hero", "tryDemoLink")} →
+          </Link>
+        </div>
       </div>
       {/* Email signup */}
       <div className="flex flex-col w-full items-stretch space-y-3 pt-4 mt-4 sm:mt-6 max-w-[1200px] mx-auto">

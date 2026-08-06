@@ -6,8 +6,10 @@ import { Document, DocumentFolder } from '@/mockData/documentsMockData';
 import DocumentGrid from '@/components/user_dashboard/documents/DocumentGrid';
 import { Folder, FileText, Upload, Plus, X } from 'lucide-react';
 import { getDocumentStats, listDocuments } from '@/lib/api/documents';
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 export default function DocumentsPage() {
+  const { t } = useLanguage();
   const [documents, setDocuments] = useState(mockDocumentsPageProps.documents);
   const [folders] = useState(mockDocumentsPageProps.folders);
   const [stats, setStats] = useState(mockDocumentsPageProps.stats);
@@ -112,10 +114,8 @@ export default function DocumentsPage() {
     <div className="p-4 sm:p-6 bg-[#f2f3f4] min-h-full">
       {/* Page Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1b263b] mb-2">Documents</h1>
-        <p className="text-sm sm:text-base text-[#778da9]">
-          Manage, organize, and share all your business documents in one place
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#1b263b] mb-2">{t("dashboard","docTitle")}</h1>
+        <p className="text-sm sm:text-base text-[#778da9]">{t("dashboard","docSubtitle")}</p>
       </div>
 
       {/* Stats Overview */}
@@ -123,7 +123,7 @@ export default function DocumentsPage() {
         <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-[#778da9] mb-1">Total Documents</p>
+              <p className="text-xs sm:text-sm text-[#778da9] mb-1">{t("dashboard","docTotal")}</p>
               <p className="text-lg sm:text-2xl font-bold text-[#1b263b]">{stats.totalDocuments}</p>
             </div>
             <FileText className="w-5 h-5 sm:w-8 sm:h-8 text-[#150578]" />
@@ -132,7 +132,7 @@ export default function DocumentsPage() {
         <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-[#778da9] mb-1">Total Storage</p>
+              <p className="text-xs sm:text-sm text-[#778da9] mb-1">{t("dashboard","docStorage")}</p>
               <p className="text-lg sm:text-2xl font-bold text-[#1b263b]">
                 {(stats.totalSize / (1024 * 1024)).toFixed(1)} MB
               </p>
@@ -143,7 +143,7 @@ export default function DocumentsPage() {
         <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-[#778da9] mb-1">Starred</p>
+              <p className="text-xs sm:text-sm text-[#778da9] mb-1">{t("dashboard","docStarred")}</p>
               <p className="text-lg sm:text-2xl font-bold text-[#1b263b]">{stats.starredDocuments}</p>
             </div>
             <svg className="w-5 h-5 sm:w-8 sm:h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
@@ -154,7 +154,7 @@ export default function DocumentsPage() {
         <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-[#778da9] mb-1">Shared</p>
+              <p className="text-xs sm:text-sm text-[#778da9] mb-1">{t("dashboard","docShared")}</p>
               <p className="text-lg sm:text-2xl font-bold text-[#1b263b]">{stats.sharedDocuments}</p>
             </div>
             <svg className="w-5 h-5 sm:w-8 sm:h-8 text-[#ff8600]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,7 +166,7 @@ export default function DocumentsPage() {
 
       {/* Folders Section */}
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-lg sm:text-xl font-semibold text-[#1b263b] mb-3 sm:mb-4">Folders</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-[#1b263b] mb-3 sm:mb-4">{t("dashboard","docFolders")}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {folders.map((folder) => (
             <div
@@ -224,7 +224,7 @@ export default function DocumentsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base sm:text-lg font-semibold text-[#1b263b]">Upload Documents</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-[#1b263b]">{t("dashboard","docUpload")}</h3>
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="text-[#778da9] hover:text-[#1b263b] transition-colors"
@@ -249,19 +249,15 @@ export default function DocumentsPage() {
               }}
             >
               <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-[#778da9] mx-auto mb-3 sm:mb-4" />
-              <p className="text-sm sm:text-base text-[#1b263b] mb-2">Drop files here or click to upload</p>
-              <p className="text-xs sm:text-sm text-[#778da9]">
-                Supports PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG, JPG files
-              </p>
+              <p className="text-sm sm:text-base text-[#1b263b] mb-2">{t("dashboard","docDrop")}</p>
+              <p className="text-xs sm:text-sm text-[#778da9]">{t("dashboard","docSupports")}</p>
             </div>
 
             <div className="flex justify-end gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
               <button
                 onClick={() => {
                   const input = document.createElement('input');
@@ -271,9 +267,7 @@ export default function DocumentsPage() {
                   input.click();
                 }}
                 className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-              >
-                Select Files
-              </button>
+              >{t("dashboard","docSelectFiles")}</button>
             </div>
           </div>
         </div>

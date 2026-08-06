@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listBlogPosts, BlogPost } from "@/lib/api/blog";
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export default function BlogPreviewSection() {
+  const { t } = useLanguage();
   const [posts, setPosts] = useState<BlogPost[]>([]);
 
   useEffect(() => {
@@ -19,10 +21,10 @@ export default function BlogPreviewSection() {
       <div className="container mx-auto px-4">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">From the blog</h2>
-            <p className="text-gray-600 mt-2">Insights and updates from the Finquanta AI team.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">{t('pricing', 'pBlogTitle')}</h2>
+            <p className="text-gray-600 mt-2">{t('pricing', 'pBlogSub')}</p>
           </div>
-          <Link href="/blog" className="hidden sm:inline text-[#4CAF50] font-medium hover:underline">View all →</Link>
+          <Link href="/blog" className="hidden sm:inline text-[#4CAF50] font-medium hover:underline">{t('pricing', 'pBlogAll')} →</Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

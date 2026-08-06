@@ -6,6 +6,7 @@ import { ChartContainer } from '@/components/ui/chart';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/mockData/payrollMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface PayrollSummaryProps {
   data?: {
@@ -18,6 +19,7 @@ interface PayrollSummaryProps {
 }
 
 export default function PayrollSummaryCard({ data }: PayrollSummaryProps) {
+  const { t } = useLanguage();
   if (!data) return null;
 
   const summaryData = [
@@ -46,10 +48,8 @@ export default function PayrollSummaryCard({ data }: PayrollSummaryProps) {
     <Card className="w-full">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-medium text-[#0a112f]">Payroll Summary</h3>
-          <Button variant="ghost" size="sm" className="text-[#3981f7] hover:text-[#3981f7]/80 p-0 h-auto font-normal">
-            View report
-          </Button>
+          <h3 className="text-xl font-medium text-[#0a112f]">{t("dashboard","pyPayrollSummary")}</h3>
+          <Button variant="ghost" size="sm" className="text-[#3981f7] hover:text-[#3981f7]/80 p-0 h-auto font-normal">{t("dashboard","pyViewReport")}</Button>
         </div>
         <p className="text-base text-[#70707a] mt-1">
           From {formatDate(data.period.start)}, 2024

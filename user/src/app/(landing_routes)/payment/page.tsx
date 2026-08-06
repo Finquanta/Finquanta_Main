@@ -2,8 +2,10 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 function PaymentForm() {
+  const { t } = useLanguage();
   const [agreed, setAgreed] = useState(false);
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan");
@@ -108,7 +110,7 @@ function PaymentForm() {
                 <path d="M82 40 L84 42 L88 38" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <p className="text-sm text-gray-600 max-w-xs">Rest assured, your payment details are handled with the utmost security and confidentiality. Enjoy a seamless and hassle-free payment experience with Finquanta.</p>
+            <p className="text-sm text-gray-600 max-w-xs">{t('pricing', 'pPaymentSafe')}</p>
           </div>
         </div>
       </div>

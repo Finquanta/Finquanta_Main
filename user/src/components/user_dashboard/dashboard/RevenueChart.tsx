@@ -31,7 +31,19 @@ function CustomTooltip({ active, payload }: any) {
   return null;
 }
 
-export default function RevenueChart({ isDark, metric, onTotal }: { isDark: boolean; metric: RevenueMetric; onTotal?: (total: number) => void }) {
+/**
+ * `source` lets the Try-It Demo render this exact chart from its local ledger
+ * rather than the authenticated endpoint. Defaults to the real fetch.
+ */
+export default function RevenueChart({
+  isDark, metric, onTotal, source = getRevenue, refreshKey,
+}: {
+  isDark: boolean;
+  metric: RevenueMetric;
+  onTotal?: (total: number) => void;
+  source?: (range: RevenueRange, metric: RevenueMetric) => Promise<{ points: RevenuePoint[] }>;
+  refreshKey?: number;
+}) {
   const { t } = useLanguage();
   const [range, setRange] = useState<RevenueRange>('month');
   const [points, setPoints] = useState<RevenuePoint[]>([]);
@@ -42,7 +54,7 @@ export default function RevenueChart({ isDark, metric, onTotal }: { isDark: bool
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getRevenue(range, metric)
+    source(range, metric)
       .then((res) => {
         if (cancelled) return;
         setPoints(res.points);
@@ -54,7 +66,7 @@ export default function RevenueChart({ isDark, metric, onTotal }: { isDark: bool
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, metric]);
+  }, [range, metric, refreshKey]);
 
   const axisColor = isDark ? '#9ca3af' : '#778da9';
   const gridColor = isDark ? '#374151' : '#e5e7eb';

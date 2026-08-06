@@ -26,9 +26,11 @@ export default function LoginPage() {
         </div>
       </div>
  
-      {/* Right Column - Sign in Form */}
-      <div className="w-full lg:w-3/5 flex flex-col items-center justify-center px-6 lg:px-16">
-        <div className="w-full max-w-md">
+      {/* Right Column - Sign in Form. Same overflow-safe centring as signup —
+          see the note there. A short viewport plus the Turnstile widget and an
+          error message is enough to push this past the fold. */}
+      <div className="w-full lg:w-3/5 flex flex-col items-center overflow-y-auto px-6 lg:px-16 py-10">
+        <div className="w-full max-w-md my-auto">
           {/* Home link */}
           <div className="flex justify-between items-center mb-12">
             <button type="button" onClick={() => logoutAndRedirect("/home")} className="text-sm font-medium text-blue-600 hover:underline flex items-center">

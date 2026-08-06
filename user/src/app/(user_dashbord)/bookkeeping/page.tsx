@@ -5,8 +5,10 @@ import BookkeepingSummaryCard from '@/components/user_dashboard/bookkeeping/Book
 import ManagementTable from '@/components/user_dashboard/bookkeeping/ManagementTable';
 import { mockRootProps } from '@/mockData/bookkeepingMockData';
 import { BookkeepingOverview, getBookkeepingOverview } from '@/lib/api/bookkeeping';
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 export default function BookkeepingPage() {
+  const { t } = useLanguage();
   const [data, setData] = useState<BookkeepingOverview | null>(null);
   const { summaryData, incomeTransactions, expenseTransactions, generalTransactions } = data ?? mockRootProps;
 
@@ -19,7 +21,7 @@ export default function BookkeepingPage() {
   return (
     <div className="h-full flex flex-col space-y-6 sm:space-y-8 p-4 sm:p-6 overflow-hidden">
       {/* Title */}
-      <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex-shrink-0">Bookkeeping</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex-shrink-0">{t("dashboard","bkTitle")}</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-16 flex-shrink-0">

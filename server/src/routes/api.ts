@@ -228,11 +228,12 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Ledger tables (accounts / journal_entries / journal_lines). Must come after
   // businesses, since accounts are scoped to a business. Per-business chart of
   // accounts is seeded lazily the first time a ledger is touched.
-  try {
-    await new AccountingRepository(database).ensureSchema();
-  } catch (error) {
-    fastify.log.error({ error }, 'Failed to ensure accounting schema');
-  }
+  // Deliberately NOT swallowed, unlike the migrations above. Those degrade —
+  // a missing optional column disables one feature. This one is load-bearing:
+  // syncBookkeeping's ON CONFLICT requires the unique index this creates, so
+  // booting without it serves an app whose every ledger-backed route 500s.
+  // Refusing to start is the diagnosable failure; the alternative is not.
+  await new AccountingRepository(database).ensureSchema();
   await fastify.register(accountingRoutes, { database });
 
   // Customers (invoices are raised against these).

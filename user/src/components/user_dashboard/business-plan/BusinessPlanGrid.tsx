@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { BusinessPlan, PlanStatus, PlanTemplate } from '@/mockData/businessPlanMockData';
 import BusinessPlanCard from './BusinessPlanCard';
 import { Plus, Search, Filter, BarChart3, TrendingUp, Clock, Users } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface BusinessPlanGridProps {
   plans: BusinessPlan[];
@@ -24,6 +25,7 @@ export default function BusinessPlanGrid({
   onPlanDuplicate,
   onCreateNew
 }: BusinessPlanGridProps) {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<PlanStatus | 'all'>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<PlanTemplate | 'all'>('all');
@@ -97,7 +99,7 @@ export default function BusinessPlanGrid({
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Total Plans</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpTotalPlans")}</p>
               <p className="text-2xl font-bold text-[#1b263b]">{stats.total}</p>
             </div>
             <BarChart3 className="w-8 h-8 text-[#150578]" />
@@ -106,7 +108,7 @@ export default function BusinessPlanGrid({
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Completed</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpCompleted")}</p>
               <p className="text-2xl font-bold text-[#63d51d]">{stats.completed}</p>
             </div>
             <svg className="w-8 h-8 text-[#63d51d]" fill="currentColor" viewBox="0 0 20 20">
@@ -117,7 +119,7 @@ export default function BusinessPlanGrid({
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">In Progress</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpInProgress")}</p>
               <p className="text-2xl font-bold text-[#ff8600]">{stats.inProgress}</p>
             </div>
             <Clock className="w-8 h-8 text-[#ff8600]" />
@@ -126,7 +128,7 @@ export default function BusinessPlanGrid({
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Shared</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","docShared")}</p>
               <p className="text-2xl font-bold text-[#150578]">{stats.shared}</p>
             </div>
             <Users className="w-8 h-8 text-[#150578]" />
@@ -135,7 +137,7 @@ export default function BusinessPlanGrid({
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Avg Progress</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpAvgProgress")}</p>
               <p className="text-2xl font-bold text-[#63d51d]">{stats.averageProgress}%</p>
             </div>
             <TrendingUp className="w-8 h-8 text-[#63d51d]" />
@@ -151,7 +153,7 @@ export default function BusinessPlanGrid({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#778da9] w-4 h-4" />
             <input
               type="text"
-              placeholder="Search business plans..."
+              placeholder={t("dashboard","bpSearchPlans")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
@@ -164,12 +166,12 @@ export default function BusinessPlanGrid({
             onChange={(e) => setSelectedStatus(e.target.value as PlanStatus | 'all')}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
           >
-            <option value="all">All Status</option>
-            <option value={PlanStatus.DRAFT}>Draft</option>
-            <option value={PlanStatus.IN_PROGRESS}>In Progress</option>
-            <option value={PlanStatus.REVIEW}>Under Review</option>
-            <option value={PlanStatus.COMPLETED}>Completed</option>
-            <option value={PlanStatus.PUBLISHED}>Published</option>
+            <option value="all">{t("dashboard","bpAllStatus")}</option>
+            <option value={PlanStatus.DRAFT}>{t("dashboard","bpDraft")}</option>
+            <option value={PlanStatus.IN_PROGRESS}>{t("dashboard","bpInProgress")}</option>
+            <option value={PlanStatus.REVIEW}>{t("dashboard","bpUnderReview")}</option>
+            <option value={PlanStatus.COMPLETED}>{t("dashboard","bpCompleted")}</option>
+            <option value={PlanStatus.PUBLISHED}>{t("dashboard","bpPublished")}</option>
           </select>
 
           {/* Template Filter */}
@@ -178,13 +180,13 @@ export default function BusinessPlanGrid({
             onChange={(e) => setSelectedTemplate(e.target.value as PlanTemplate | 'all')}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
           >
-            <option value="all">All Templates</option>
-            <option value={PlanTemplate.STARTUP}>Startup</option>
-            <option value={PlanTemplate.ESTABLISHED}>Established</option>
-            <option value={PlanTemplate.NONPROFIT}>Nonprofit</option>
-            <option value={PlanTemplate.RESTAURANT}>Restaurant</option>
-            <option value={PlanTemplate.TECH}>Tech</option>
-            <option value={PlanTemplate.RETAIL}>Retail</option>
+            <option value="all">{t("dashboard","bpAllTemplates")}</option>
+            <option value={PlanTemplate.STARTUP}>{t("dashboard","bpStartup")}</option>
+            <option value={PlanTemplate.ESTABLISHED}>{t("dashboard","bpEstablished")}</option>
+            <option value={PlanTemplate.NONPROFIT}>{t("dashboard","bpNonprofit")}</option>
+            <option value={PlanTemplate.RESTAURANT}>{t("dashboard","bpRestaurant")}</option>
+            <option value={PlanTemplate.TECH}>{t("dashboard","bpTech")}</option>
+            <option value={PlanTemplate.RETAIL}>{t("dashboard","bpRetail")}</option>
           </select>
         </div>
 
@@ -194,7 +196,7 @@ export default function BusinessPlanGrid({
           className="flex items-center gap-2 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
         >
           <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Create New Plan</span>
+          <span className="hidden sm:inline">{t("dashboard","bpCreateNew")}</span>
         </button>
       </div>
 
@@ -212,39 +214,31 @@ export default function BusinessPlanGrid({
         <div className="flex items-center gap-4">
           {/* Sort Options */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-[#778da9]">Sort by:</span>
+            <span className="text-[#778da9]">{t("dashboard","docSortBy")}</span>
             <button
               onClick={() => handleSort('title')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'title' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Title
-            </button>
+            >{t("dashboard","bpTitleCol")}</button>
             <button
               onClick={() => handleSort('date')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'date' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Date
-            </button>
+            >{t("dashboard","date")}</button>
             <button
               onClick={() => handleSort('progress')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'progress' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Progress
-            </button>
+            >{t("dashboard","bpProgress")}</button>
             <button
               onClick={() => handleSort('status')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'status' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Status
-            </button>
+            >{t("dashboard","invStatus")}</button>
           </div>
         </div>
       </div>
@@ -272,9 +266,7 @@ export default function BusinessPlanGrid({
               onClick={onCreateNew}
               className="flex items-center gap-2 mx-auto px-6 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Create Business Plan
-            </button>
+              <Plus className="w-4 h-4" />{t("dashboard","bpCreatePlan")}</button>
           )}
         </div>
       ) : (

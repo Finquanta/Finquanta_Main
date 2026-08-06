@@ -3,6 +3,7 @@
 import { Invoice, money } from "@/lib/api/invoices";
 import { BusinessProfile, formatBusinessAddress } from "@/lib/api/business";
 import { Customer, formatAddress } from "@/lib/api/customers";
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 /** The "Powered by" mark in the invoice footer. Swap the file, not the code. */
 const FINQUANTA_LOGO = "/images/finquanta_ai_logo.svg";
@@ -20,6 +21,7 @@ export default function InvoiceTemplate({
   business: BusinessProfile;
   customer: Customer | null;
 }) {
+  const { t } = useLanguage();
   const businessAddress = formatBusinessAddress(business);
   const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { month: "2-digit", day: "2-digit", year: "numeric" }) : "—");
 
@@ -46,7 +48,7 @@ export default function InvoiceTemplate({
         </div>
         <div className="text-right text-[13px] leading-5">
           <p className="font-bold">Invoice# {invoice.number}</p>
-          <p className="font-bold mt-2">Issue Date</p>
+          <p className="font-bold mt-2">{t("dashboard","invIssueDate")}</p>
           <p className="text-slate-600">{fmtDate(invoice.issueDate)}</p>
         </div>
       </div>
@@ -95,15 +97,15 @@ export default function InvoiceTemplate({
       <table className="w-full mt-14 text-[13px]">
         <thead>
           <tr className="border-b border-slate-300">
-            <th className="text-left font-bold tracking-widest uppercase text-[11px] pb-3">Item</th>
+            <th className="text-left font-bold tracking-widest uppercase text-[11px] pb-3">{t("dashboard","itItem")}</th>
             <th className="text-right font-bold tracking-widest uppercase text-[11px] pb-3 w-20">Qty</th>
-            <th className="text-right font-bold tracking-widest uppercase text-[11px] pb-3 w-28">Price</th>
-            <th className="text-right font-bold tracking-widest uppercase text-[11px] pb-3 w-32">Amount</th>
+            <th className="text-right font-bold tracking-widest uppercase text-[11px] pb-3 w-28">{t("dashboard","invPrice")}</th>
+            <th className="text-right font-bold tracking-widest uppercase text-[11px] pb-3 w-32">{t("dashboard","amount")}</th>
           </tr>
         </thead>
         <tbody>
           {invoice.items.length === 0 ? (
-            <tr><td colSpan={4} className="py-6 text-slate-400">No items yet.</td></tr>
+            <tr><td colSpan={4} className="py-6 text-slate-400">{t("dashboard","itNoItems")}</td></tr>
           ) : invoice.items.map((it, i) => (
             <tr key={it.id ?? i} className="border-b border-slate-200">
               <td className="py-4 pr-4 align-top">
@@ -121,7 +123,7 @@ export default function InvoiceTemplate({
       {/* Totals */}
       <div className="mt-8 text-[13px]">
         <div className="flex justify-between py-1">
-          <span>Subtotal</span>
+          <span>{t("dashboard","invSubtotal")}</span>
           <span>{money(invoice.subtotal, invoice.currency)}</span>
         </div>
         <div className="flex justify-between py-1">
@@ -129,14 +131,14 @@ export default function InvoiceTemplate({
           <span>{money(invoice.tax, invoice.currency)}</span>
         </div>
         <div className="flex justify-between py-3 mt-2 border-t border-b border-slate-300 font-bold text-[15px]">
-          <span>Total Due</span>
+          <span>{t("dashboard","invTotalDue")}</span>
           <span>{money(invoice.total, invoice.currency)}</span>
         </div>
       </div>
 
       {invoice.notes && (
         <div className="mt-10 text-[12px] text-slate-600">
-          <p className="font-bold text-slate-800 mb-1">Notes</p>
+          <p className="font-bold text-slate-800 mb-1">{t("dashboard","custNotes")}</p>
           <p className="whitespace-pre-wrap">{invoice.notes}</p>
         </div>
       )}

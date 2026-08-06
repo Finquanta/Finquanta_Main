@@ -1,0 +1,18 @@
+{
+  // ts-jest's tsconfig. The base config deliberately limits `include` to
+  // `src/**/*` so `npm run build` never compiles tests into dist/ — but ts-jest
+  // reads that same config, so test files sat outside the project entirely and
+  // the jest globals were never applied to them. Every suite failed to compile
+  // with "Cannot find name 'jest'", and `passWithNoTests` turned that into a
+  // silent zero-test run rather than a failure.
+  //
+  // Widening `include` here instead of in the base config keeps the build output
+  // clean while giving the tests a project that actually contains them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

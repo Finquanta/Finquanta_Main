@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import SendInvoiceIcon from '@/components/icons/SendInvoiceIcon';
 import { formatDate, formatTime, formatCurrency, TransactionStatus } from '@/mockData/payrollMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface TransactionData {
   id: string;
@@ -24,6 +25,7 @@ interface TransactionHistoryProps {
 }
 
 export default function TransactionHistory({ data }: TransactionHistoryProps) {
+  const { t } = useLanguage();
   if (!data || data.length === 0) return null;
 
   const handleSendInvoice = (transactionId: string) => {
@@ -34,7 +36,7 @@ export default function TransactionHistory({ data }: TransactionHistoryProps) {
     <Card className="w-full">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-medium text-[#0a112f]">Transaction History</h3>
+          <h3 className="text-xl font-medium text-[#0a112f]">{t("dashboard","pyTransactionHistory")}</h3>
           <Button variant="ghost" size="sm" className="text-[#3981f7] hover:text-[#3981f7]/80 p-0 h-auto font-normal">
             See All
           </Button>

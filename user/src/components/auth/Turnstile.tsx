@@ -53,10 +53,33 @@ function loadTurnstileScript(): Promise<void> {
   return scriptLoadPromise;
 }
 
-export function Turnstile({ onVerify, onExpire }: { onVerify: (token: string) => void; onExpire?: () => void }) {
+export function Turnstile({
+  onVerify,
+  onExpire,
+  resetSignal = 0,
+}: {
+  onVerify: (token: string) => void;
+  onExpire?: () => void;
+  /**
+   * Bump this to issue a fresh challenge. A Turnstile token is single-use: once
+   * a submit has been sent with it, Cloudflare's siteverify will reject that
+   * token forever. So any failed attempt — an email that already exists, a weak
+   * password — leaves the form holding a spent token, and every retry fails with
+   * "Captcha verification failed" no matter what the user corrects.
+   */
+  resetSignal?: number;
+}) {
   const containerId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // 0 is the initial render — the widget has just issued its first token.
+    if (!resetSignal) return;
+    if (widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+  }, [resetSignal]);
 
   useEffect(() => {
     let cancelled = false;

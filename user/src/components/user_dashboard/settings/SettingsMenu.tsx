@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import SearchIcon from '@/components/icons/SearchIcon';
 import ChevronRightIcon from '@/components/icons/ChevronRightIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface SettingsMenuProps {
   activeSection: string;
@@ -19,16 +22,17 @@ const settingsItems = [
 ];
 
 export default function SettingsMenu({ activeSection, onSectionChange }: SettingsMenuProps) {
+  const { t } = useLanguage();
   return (
     <div className="bg-[#e7e7e7] p-6 h-full">
-      <h2 className="text-2xl font-medium text-black mb-6">Settings</h2>
+      <h2 className="text-2xl font-medium text-black mb-6">{t("dashboard","settings")}</h2>
       
       {/* Search */}
       <div className="relative mb-8">
         <div className="relative border border-black rounded-lg">
           <input
             type="text"
-            placeholder="search"
+            placeholder={t("dashboard","spSearch")}
             className="w-full pl-4 pr-10 py-2 bg-transparent text-sm font-medium text-black placeholder-black focus:outline-none"
           />
           <SearchIcon 

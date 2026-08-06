@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 /**
  * Section 10 — the new user tour.
@@ -129,6 +130,7 @@ const STEPS: Step[] = [
 interface Rect { top: number; left: number; width: number; height: number }
 
 export default function TourGuide({ isDark }: { isDark: boolean }) {
+  const { t } = useLanguage();
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -235,7 +237,7 @@ export default function TourGuide({ isDark }: { isDark: boolean }) {
             <h3 className="text-base font-bold">{current.title}</h3>
           </div>
           {/* Skip — on every step, per the spec. */}
-          <button onClick={finish} className={`p-1 rounded-lg ${sub} hover:opacity-70`} aria-label="Skip tour">
+          <button onClick={finish} className={`p-1 rounded-lg ${sub} hover:opacity-70`} aria-label={t("dashboard","tourSkip")}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -251,9 +253,7 @@ export default function TourGuide({ isDark }: { isDark: boolean }) {
         </div>
 
         <div className="flex items-center justify-between mt-4">
-          <button onClick={finish} className={`text-xs font-medium ${sub} hover:underline`}>
-            Skip tour
-          </button>
+          <button onClick={finish} className={`text-xs font-medium ${sub} hover:underline`}>{t("dashboard","tourSkip")}</button>
 
           <div className="flex items-center gap-2">
             {step > 0 && (
@@ -262,9 +262,7 @@ export default function TourGuide({ isDark }: { isDark: boolean }) {
                 className={`text-sm font-semibold px-3 py-1.5 rounded-lg border ${
                   isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-gray-50"
                 }`}
-              >
-                Back
-              </button>
+              >{t("dashboard","tourBack")}</button>
             )}
             <button
               onClick={() => (isLast ? finish() : setStep((s) => s + 1))}

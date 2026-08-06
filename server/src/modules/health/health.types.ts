@@ -22,6 +22,20 @@ export interface Ratio {
   insight: string;
   /** Set when the ratio is undefined — e.g. no revenue yet, no liabilities. */
   note?: string;
+  /**
+   * `insight` and `note` as data. Both are English prose assembled here from the
+   * business's own figures, so the client cannot translate the finished string —
+   * it needs to know WHICH sentence was chosen and WHICH numbers went into it,
+   * then build its own. The English fields above stay for any consumer that
+   * hasn't moved over.
+   */
+  insightParts?: {
+    /** Which branch was taken, e.g. 'liqTight'. */
+    key: string;
+    /** Raw figures the sentence interpolates, unformatted. */
+    v?: Record<string, number>;
+  };
+  noteKey?: string;
 }
 
 export interface HealthScore {
@@ -36,8 +50,23 @@ export interface HealthScore {
   /** Change in the overall score since 30 days ago. */
   trend: number | null;
   ratios: Ratio[];
-  /** Finna's plain-language summary of the whole picture. */
+  /** Finna's plain-language summary of the whole picture. English only. */
   summary: string;
+  /**
+   * The same summary as data, so the client can build the sentence in the
+   * reader's language. `summary` above is assembled here by concatenating
+   * English fragments ("Your X is the strongest part..."), which no amount of
+   * word substitution can translate — word order and grammar differ per
+   * language. The client renders from these instead; `summary` stays for any
+   * consumer that hasn't moved over.
+   */
+  summaryParts?: {
+    band: 'strong' | 'stable' | 'weak' | 'strained';
+    bestKey: RatioKey;
+    worstKey: RatioKey;
+    /** The weakest area matches the goal they chose at signup. */
+    goalAligned: boolean;
+  };
   /** The window the profit/cash-flow figures cover. */
   periodDays: number;
 }

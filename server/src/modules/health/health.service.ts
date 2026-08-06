@@ -118,6 +118,15 @@ function buildRatios(s: FinancialSnapshot, prev: FinancialSnapshot | null, ctx: 
               ? `You can cover your bills, but not by much: $${Math.round(currentAssets).toLocaleString()} available against $${Math.round(currentLiabilities).toLocaleString()} owed. A late-paying customer would squeeze you.`
               : `Your bills ($${Math.round(currentLiabilities).toLocaleString()}) are larger than the cash and receivables you have to meet them ($${Math.round(currentAssets).toLocaleString()}). Chase what you're owed before taking on more commitments.`,
       note: liquidity === null ? 'No short-term liabilities recorded.' : undefined,
+      noteKey: liquidity === null ? 'hNoteNoShortTerm' : undefined,
+      insightParts:
+        liquidity === null
+          ? { key: 'liqNone' }
+          : liquidity >= 2
+            ? { key: 'liqStrong', v: { assets: Math.round(currentAssets), liabs: Math.round(currentLiabilities) } }
+            : liquidity >= 1
+              ? { key: 'liqTight', v: { assets: Math.round(currentAssets), liabs: Math.round(currentLiabilities) } }
+              : { key: 'liqShort', v: { assets: Math.round(currentAssets), liabs: Math.round(currentLiabilities) } },
     },
     {
       key: 'profitability',
@@ -140,6 +149,15 @@ function buildRatios(s: FinancialSnapshot, prev: FinancialSnapshot | null, ctx: 
               ? `You keep about $${Math.round(margin)} of every $100 you earn. Expenses of $${Math.round(s.expenses).toLocaleString()} are eating most of your $${Math.round(s.revenue).toLocaleString()} in revenue.`
               : `You're spending more than you earn — $${Math.round(s.expenses).toLocaleString()} out against $${Math.round(s.revenue).toLocaleString()} in. Every sale is currently costing you money.`,
       note: margin === null ? 'No revenue recorded in this period.' : undefined,
+      noteKey: margin === null ? 'hNoteNoRevenue' : undefined,
+      insightParts:
+        margin === null
+          ? (young ? { key: 'profNoneYoung' } : { key: 'profNone' })
+          : margin >= 20
+            ? { key: 'profStrong', v: { margin: Math.round(margin) } }
+            : margin > 0
+              ? { key: 'profThin', v: { margin: Math.round(margin), expenses: Math.round(s.expenses), revenue: Math.round(s.revenue) } }
+              : { key: 'profLoss', v: { expenses: Math.round(s.expenses), revenue: Math.round(s.revenue) } },
     },
     {
       key: 'debtRisk',
@@ -160,6 +178,15 @@ function buildRatios(s: FinancialSnapshot, prev: FinancialSnapshot | null, ctx: 
               ? `You've borrowed $${Math.round(totalDebt).toLocaleString()} against $${Math.round(equity).toLocaleString()} of your own money in the business — a manageable level.`
               : `You've borrowed $${Math.round(totalDebt).toLocaleString()}, more than the $${Math.round(equity).toLocaleString()} of equity behind it. Review your repayment plan before borrowing further.`,
       note: totalDebt === 0 ? 'No loans recorded.' : equity <= 0 ? 'Equity is zero or negative.' : undefined,
+      noteKey: totalDebt === 0 ? 'hNoteNoLoans' : equity <= 0 ? 'hNoteNegEquity' : undefined,
+      insightParts:
+        equity <= 0
+          ? { key: 'debtNegEquity', v: { owed: Math.round(s.payables + s.loanPayable) } }
+          : totalDebt === 0
+            ? { key: 'debtNone' }
+            : debtToEquity! <= 1
+              ? { key: 'debtOk', v: { debt: Math.round(totalDebt), equity: Math.round(equity) } }
+              : { key: 'debtHigh', v: { debt: Math.round(totalDebt), equity: Math.round(equity) } },
     },
     {
       key: 'cashFlow',
@@ -180,6 +207,15 @@ function buildRatios(s: FinancialSnapshot, prev: FinancialSnapshot | null, ctx: 
               ? `Your operations generated $${Math.round(s.operatingCashFlow).toLocaleString()} — more than enough to cover the $${Math.round(currentLiabilities).toLocaleString()} you owe.`
               : `Your operations generated $${Math.round(s.operatingCashFlow).toLocaleString()}, short of the $${Math.round(currentLiabilities).toLocaleString()} you owe. The business isn't yet funding its own bills.`,
       note: ocfRatio === null && s.operatingCashFlow >= 0 ? 'No short-term liabilities recorded.' : undefined,
+      noteKey: ocfRatio === null && s.operatingCashFlow >= 0 ? 'hNoteNoShortTerm' : undefined,
+      insightParts:
+        s.operatingCashFlow < 0
+          ? { key: 'cashNegative', v: { gap: Math.abs(Math.round(s.operatingCashFlow)) } }
+          : ocfRatio === null
+            ? { key: 'cashNoLiabs', v: { ocf: Math.round(s.operatingCashFlow) } }
+            : ocfRatio >= 1
+              ? { key: 'cashCovers', v: { ocf: Math.round(s.operatingCashFlow), liabs: Math.round(currentLiabilities) } }
+              : { key: 'cashShort', v: { ocf: Math.round(s.operatingCashFlow), liabs: Math.round(currentLiabilities) } },
     },
   ];
 }
@@ -188,6 +224,25 @@ function buildRatios(s: FinancialSnapshot, prev: FinancialSnapshot | null, ctx: 
  * The plain-language summary. It names the strongest and weakest areas and says
  * what to do — never just "this number is good".
  */
+/**
+ * The same decision buildSummary() makes, as data. Returned to the client so it
+ * can compose the sentence in the reader's language rather than receiving an
+ * English one it cannot translate.
+ */
+export function buildSummaryParts(score: number, ratios: Ratio[], ctx: HealthContext) {
+  const sorted = [...ratios].sort((a, b) => b.score - a.score);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  if (!best || !worst) return undefined;
+
+  const band = score >= 80 ? 'strong' : score >= 60 ? 'stable' : score >= 40 ? 'weak' : 'strained';
+  const goalAligned =
+    (ctx.primaryGoal === 'Reduce expenses' && worst.key === 'profitability') ||
+    (ctx.primaryGoal === 'Improve cash flow' && worst.key === 'cashFlow');
+
+  return { band, bestKey: best.key, worstKey: worst.key, goalAligned } as const;
+}
+
 function buildSummary(score: number, ratios: Ratio[], ctx: HealthContext): string {
   const sorted = [...ratios].sort((a, b) => b.score - a.score);
   const best = sorted[0];
@@ -267,6 +322,7 @@ export function computeHealthScore(
     trend,
     ratios,
     summary: buildSummary(score, ratios, context),
+    summaryParts: buildSummaryParts(score, ratios, context),
     periodDays: PERIOD_DAYS,
   };
 }

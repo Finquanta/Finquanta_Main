@@ -108,7 +108,7 @@ export default function ProfileSettingsPage() {
     <div className={`flex h-full ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
       {/* Middle - Settings Menu */}
       <div className={`w-64 border-r flex flex-col py-6 px-4 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Settings</h2>
+        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t("dashboard","settings")}</h2>
         <div className="relative mb-4">
           <input
             type="text"
@@ -167,9 +167,7 @@ export default function ProfileSettingsPage() {
                 <button
                   onClick={() => { setDeletingAccount(false); setDeletePassword(''); setDeleteError(null); }}
                   className={`text-xs px-3 py-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  Cancel
-                </button>
+                >{t("dashboard","invCancel")}</button>
               </div>
             </div>
           ) : (
@@ -282,19 +280,19 @@ export default function ProfileSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fBusinessName')}</label>
-                  <input className={inputCls} value={biz.businessName ?? ''} onChange={(e) => setBizField('businessName', e.target.value)} placeholder="e.g. Acme Co." />
+                  <input className={inputCls} value={biz.businessName ?? ''} onChange={(e) => setBizField('businessName', e.target.value)} placeholder={t("dashboard","psPhBizName")} />
                 </div>
                 <div>
                   <label className={labelCls}>{t('settings', 'fBusinessType')}</label>
-                  <input className={inputCls} value={biz.businessType ?? ''} onChange={(e) => setBizField('businessType', e.target.value)} placeholder="e.g. SaaS, Retail, Agency" />
+                  <input className={inputCls} value={biz.businessType ?? ''} onChange={(e) => setBizField('businessType', e.target.value)} placeholder={t("dashboard","psPhBizType")} />
                 </div>
                 <div>
                   <label className={labelCls}>{t('settings', 'fIndustry')}</label>
-                  <input className={inputCls} value={biz.industry ?? ''} onChange={(e) => setBizField('industry', e.target.value)} placeholder="e.g. Technology, Food" />
+                  <input className={inputCls} value={biz.industry ?? ''} onChange={(e) => setBizField('industry', e.target.value)} placeholder={t("dashboard","psPhIndustry")} />
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fNiche')}</label>
-                  <input className={inputCls} value={biz.niche ?? ''} onChange={(e) => setBizField('niche', e.target.value)} placeholder="e.g. vegan meal prep" />
+                  <input className={inputCls} value={biz.niche ?? ''} onChange={(e) => setBizField('niche', e.target.value)} placeholder={t("dashboard","psPhNiche")} />
                 </div>
                 <div>
                   <label className={labelCls}>{t('settings', 'fStructure')}</label>
@@ -309,7 +307,7 @@ export default function ProfileSettingsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fPlaceOfIncorporation')}</label>
-                  <input className={inputCls} value={biz.incorporationLocation ?? ''} onChange={(e) => setBizField('incorporationLocation', e.target.value)} placeholder="e.g. Delaware, USA" />
+                  <input className={inputCls} value={biz.incorporationLocation ?? ''} onChange={(e) => setBizField('incorporationLocation', e.target.value)} placeholder={t("dashboard","psPhIncorporation")} />
                 </div>
                 <div>
                   <label className={labelCls}>{t('settings', 'fMaturityStage')}</label>
@@ -333,14 +331,14 @@ export default function ProfileSettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Loans Or Debt</label>
+                  <label className={labelCls}>{t("dashboard","psLoansOrDebt")}</label>
                   <select className={inputCls} value={biz.hasDebt ?? ''} onChange={(e) => setBizField('hasDebt', e.target.value)}>
                     <option value="">{t('settings', 'selectOption')}</option>
                     {DEBT_ANSWERS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Primary Financial Goal</label>
+                  <label className={labelCls}>{t("dashboard","psPrimaryGoal")}</label>
                   <select className={inputCls} value={biz.primaryGoal ?? ''} onChange={(e) => setBizField('primaryGoal', e.target.value)}>
                     <option value="">{t('settings', 'selectOption')}</option>
                     {PRIMARY_GOALS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -348,58 +346,54 @@ export default function ProfileSettingsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fFinancialGoals')}</label>
-                  <textarea className={`${inputCls} min-h-[80px]`} value={biz.financialGoals ?? ''} onChange={(e) => setBizField('financialGoals', e.target.value)} placeholder="e.g. Reach $20k/month, build 6-month runway" />
+                  <textarea className={`${inputCls} min-h-[80px]`} value={biz.financialGoals ?? ''} onChange={(e) => setBizField('financialGoals', e.target.value)} placeholder={t("dashboard","psPhGoals")} />
                 </div>
               </div>
 
               {/* Business Details — exactly what prints at the top of every invoice */}
               <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className={`text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Business Details</h3>
-                <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  These appear at the top of every invoice your customers receive.
-                </p>
+                <h3 className={`text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t("dashboard","psBizDetails")}</h3>
+                <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t("dashboard","psBizDetailsHint")}</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>Business Email</label>
+                    <label className={labelCls}>{t("dashboard","invBusinessEmail")}</label>
                     <input type="email" className={inputCls} value={biz.businessEmail ?? ''} onChange={(e) => setBizField('businessEmail', e.target.value)} placeholder="billing@yourbusiness.com" />
                   </div>
                   <div>
-                    <label className={labelCls}>Business Phone</label>
+                    <label className={labelCls}>{t("dashboard","invBusinessPhone")}</label>
                     <input className={inputCls} value={biz.businessPhone ?? ''} onChange={(e) => setBizField('businessPhone', e.target.value)} placeholder="+1 555 000 0000" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className={labelCls}>Website</label>
-                    <input className={inputCls} value={biz.website ?? ''} onChange={(e) => setBizField('website', e.target.value)} placeholder="www.yourbusiness.com" />
+                    <label className={labelCls}>{t("dashboard","invWebsite")}</label>
+                    <input className={inputCls} value={biz.website ?? ''} onChange={(e) => setBizField('website', e.target.value)} placeholder={t("dashboard","invWebsite")} />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className={labelCls}>Business Address</label>
-                    <input className={`${inputCls} mb-2`} value={biz.addressLine1 ?? ''} onChange={(e) => setBizField('addressLine1', e.target.value)} placeholder="Address line 1" />
-                    <input className={inputCls} value={biz.addressLine2 ?? ''} onChange={(e) => setBizField('addressLine2', e.target.value)} placeholder="Address line 2" />
+                    <label className={labelCls}>{t("dashboard","invBusinessAddress")}</label>
+                    <input className={`${inputCls} mb-2`} value={biz.addressLine1 ?? ''} onChange={(e) => setBizField('addressLine1', e.target.value)} placeholder={t("dashboard","invAddrLine1")} />
+                    <input className={inputCls} value={biz.addressLine2 ?? ''} onChange={(e) => setBizField('addressLine2', e.target.value)} placeholder={t("dashboard","invAddrLine2")} />
                   </div>
                   <div>
-                    <label className={labelCls}>City</label>
+                    <label className={labelCls}>{t("dashboard","invCity")}</label>
                     <input className={inputCls} value={biz.city ?? ''} onChange={(e) => setBizField('city', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelCls}>State / Region</label>
+                    <label className={labelCls}>{t("dashboard","psStateRegion")}</label>
                     <input className={inputCls} value={biz.region ?? ''} onChange={(e) => setBizField('region', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelCls}>Zip Code</label>
+                    <label className={labelCls}>{t("dashboard","psZip")}</label>
                     <input className={inputCls} value={biz.postalCode ?? ''} onChange={(e) => setBizField('postalCode', e.target.value)} />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className={labelCls}>Business Logo</label>
+                    <label className={labelCls}>{t("dashboard","invBusinessLogo")}</label>
                     <div className="flex items-center gap-3">
                       {biz.logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={biz.logoUrl} alt="Logo" className="rounded-lg object-contain bg-white border" style={{ width: 56, height: 56 }} />
                       ) : (
-                        <div className={`rounded-lg flex items-center justify-center text-xs ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-400'}`} style={{ width: 56, height: 56 }}>
-                          None
-                        </div>
+                        <div className={`rounded-lg flex items-center justify-center text-xs ${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-400'}`} style={{ width: 56, height: 56 }}>{t("dashboard","invNone")}</div>
                       )}
                       <div className="flex-1">
                         <input
@@ -414,7 +408,7 @@ export default function ProfileSettingsPage() {
                               const saved = await uploadBusinessLogo(file);
                               setBiz((p) => ({ ...p, logoUrl: saved.logoUrl }));
                             } catch (err) {
-                              alert(err instanceof Error ? err.message : 'Could not upload logo.');
+                              alert(err instanceof Error ? err.message : t("dashboard","errUploadLogo"));
                             } finally {
                               setLogoUploading(false);
                               e.target.value = '';
@@ -444,16 +438,14 @@ export default function ProfileSettingsPage() {
         {/* Product tour — the spec requires it be restartable from settings */}
         {activeSection === 'business-profile' && (
           <div className={`p-6 rounded-lg max-w-2xl mt-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Product Tour</h2>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t("dashboard","psProductTour")}</h2>
             <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               A five-step walkthrough of the dashboard, bookkeeping, invoices and Finna. Takes about a minute.
             </p>
             <button
               onClick={() => { restartTour(); router.push('/dashboard'); }}
               className={`inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-            >
-              Restart Tour
-            </button>
+            >{t("dashboard","psRestartTour")}</button>
           </div>
         )}
 
@@ -540,10 +532,8 @@ export default function ProfileSettingsPage() {
             at the bottom of the sidebar; they belong here. */}
         {activeSection === 'legal' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Legal</h2>
-            <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              The terms you agreed to when you created your account.
-            </p>
+            <h2 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t("dashboard","psLegal")}</h2>
+            <p className={`text-sm mb-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t("dashboard","psLegalHint")}</p>
             <div className="flex flex-col">
               {[
                 { href: '/terms', label: t('dashboard', 'termsOfService') },
@@ -569,9 +559,7 @@ export default function ProfileSettingsPage() {
         {activeSection === 'feedback' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('settings', 'giveFeedback')}</h2>
-            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              We would love to hear your thoughts on Finquanta. Click below to share your feedback!
-            </p>
+            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t("dashboard","psFeedbackHint")}</p>
             <a
               href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
               target="_blank"
@@ -587,7 +575,7 @@ export default function ProfileSettingsPage() {
         {activeSection === 'logout' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('settings', 'logOut')}</h2>
-            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Are you sure you want to log out?</p>
+            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t("dashboard","psLogoutAsk")}</p>
             <button onClick={() => logoutAndRedirect('/login')} className={`text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}>
               {t('settings', 'logOut')}
             </button>

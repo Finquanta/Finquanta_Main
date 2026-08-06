@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import ToggleOffIcon from '@/components/icons/ToggleOffIcon';
 import ToggleOnIcon from '@/components/icons/ToggleOnIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface SwitchProps {
   checked: boolean;
@@ -8,6 +11,7 @@ interface SwitchProps {
 }
 
 export default function Switch({ checked, onChange }: SwitchProps) {
+  const { t } = useLanguage();
   return (
     <button
       type="button"
@@ -21,7 +25,7 @@ export default function Switch({ checked, onChange }: SwitchProps) {
       ) : (
         <ToggleOffIcon width={40} height={40} />
       )}
-      <span className="sr-only">Toggle setting</span>
+      <span className="sr-only">{t("dashboard","spToggleSetting")}</span>
     </button>
   );
 }

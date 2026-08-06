@@ -6,11 +6,13 @@ import {
   Business, BusinessMember, BusinessRole, BUSINESS_ROLES,
   listBusinesses, createBusiness, createInvite, renameBusiness, getMembers, removeMember,
 } from "@/lib/api/businesses";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
 const ACTIVE_KEY = "activeBusinessId";
 const INVITABLE_ROLES = BUSINESS_ROLES.filter((r) => r !== "Owner");
 
 export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
+  const { t } = useLanguage();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [open, setOpen] = useState(false);
@@ -120,7 +122,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 
       {open && mounted && pos && createPortal(
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }} className={`rounded-xl border shadow-xl overflow-hidden ${colors.menu}`}>
-          <div className={`px-3 py-2 text-[10px] uppercase tracking-wide ${colors.sub}`}>Your businesses</div>
+          <div className={`px-3 py-2 text-[10px] uppercase tracking-wide ${colors.sub}`}>{t("dashboard","wsYourBusinesses")}</div>
           <div className="max-h-56 overflow-y-auto">
             {businesses.map((b) => {
               const canRename = b.role === "Owner" || b.role === "Admin";
@@ -130,8 +132,8 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                     <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingId(""); }}
                       className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
-                    <button onClick={handleRename} className="text-green-500 hover:text-green-600" title="Save"><Check className="h-4 w-4" /></button>
-                    <button onClick={() => setEditingId("")} className="text-gray-400 hover:text-gray-600" title="Cancel"><X className="h-4 w-4" /></button>
+                    <button onClick={handleRename} className="text-green-500 hover:text-green-600" title={t("dashboard","grpSave")}><Check className="h-4 w-4" /></button>
+                    <button onClick={() => setEditingId("")} className="text-gray-400 hover:text-gray-600" title={t("dashboard","invCancel")}><X className="h-4 w-4" /></button>
                   </div>
                 );
               }
@@ -143,7 +145,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                   </button>
                   <span className="flex items-center gap-2 flex-shrink-0">
                     {canRename && (
-                      <button onClick={() => startRename(b)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600" title="Rename">
+                      <button onClick={() => startRename(b)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600" title={t("dashboard","grpRename")}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -160,20 +162,17 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
               <div className="p-2 flex gap-2">
                 <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-                  placeholder="Business name" className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
+                  placeholder={t("settings","fBusinessName")} className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
                 <button onClick={handleCreate} className="bg-blue-500 text-white text-xs px-3 rounded-lg">Add</button>
               </div>
             ) : (
               <button onClick={() => setCreating(true)} className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${colors.item}`}>
-                <Plus className="h-3.5 w-3.5" /> Create business
-              </button>
+                <Plus className="h-3.5 w-3.5" />{t("dashboard","wsCreateBusiness")}</button>
             )}
             <button onClick={() => { setOpen(false); setTeamOpen(true); }} className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${colors.item}`}>
-              <Users className="h-3.5 w-3.5" /> View team
-            </button>
+              <Users className="h-3.5 w-3.5" />{t("dashboard","wsViewTeam")}</button>
             <button onClick={() => { setOpen(false); setInviteOpen(true); }} className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${colors.item}`}>
-              <UserPlus className="h-3.5 w-3.5" /> Invite team member
-            </button>
+              <UserPlus className="h-3.5 w-3.5" />{t("dashboard","wsInviteMember")}</button>
           </div>
         </div>,
         document.body
@@ -191,6 +190,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 }
 
 function TeamModal({ business, isDark, onClose }: { business: Business; isDark: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
   const [members, setMembers] = useState<BusinessMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -229,9 +229,9 @@ function TeamModal({ business, isDark, onClose }: { business: Business; isDark: 
 
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         {loading ? (
-          <p className={`text-sm ${sub}`}>Loading team…</p>
+          <p className={`text-sm ${sub}`}>{t("dashboard","wsLoadingTeam")}</p>
         ) : members.length === 0 ? (
-          <p className={`text-sm ${sub}`}>No team members yet.</p>
+          <p className={`text-sm ${sub}`}>{t("dashboard","wsNoMembers")}</p>
         ) : (
           <div className="divide-y max-h-72 overflow-y-auto -mx-1">
             {members.map((m) => (
@@ -243,7 +243,7 @@ function TeamModal({ business, isDark, onClose }: { business: Business; isDark: 
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <span className={`text-xs ${sub}`}>{m.role}</span>
                   {canManage && m.role !== "Owner" && (
-                    <button onClick={() => remove(m)} disabled={busyId === m.userId} title="Remove from team"
+                    <button onClick={() => remove(m)} disabled={busyId === m.userId} title={t("dashboard","wsRemoveMember")}
                       className="text-gray-400 hover:text-red-500 disabled:opacity-50">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -259,6 +259,7 @@ function TeamModal({ business, isDark, onClose }: { business: Business; isDark: 
 }
 
 function InviteModal({ business, isDark, onClose }: { business: Business; isDark: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
   const [role, setRole] = useState<BusinessRole>("Viewer");
   const [password, setPassword] = useState("");
   const [expiry, setExpiry] = useState<"once" | "7d">("7d");
@@ -299,15 +300,15 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
         </div>
 
         {!canInvite ? (
-          <p className="text-sm text-gray-500">Only an owner or admin can invite team members.</p>
+          <p className="text-sm text-gray-500">{t("dashboard","wsOnlyOwnerInvite")}</p>
         ) : !link ? (
           <>
-            <label className="block text-sm font-medium mb-1">Role</label>
+            <label className="block text-sm font-medium mb-1">{t("settings","role")}</label>
             <select value={role} onChange={(e) => setRole(e.target.value as BusinessRole)} className={`w-full text-sm rounded-lg px-3 py-2 border outline-none mb-4 ${input}`}>
               {INVITABLE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
 
-            <label className="block text-sm font-medium mb-1">Link expiry</label>
+            <label className="block text-sm font-medium mb-1">{t("dashboard","wsLinkExpiry")}</label>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {([["once", "One-time use"], ["7d", "Expires in 7 days"]] as const).map(([val, lbl]) => (
                 <button key={val} type="button" onClick={() => setExpiry(val)}
@@ -317,10 +318,10 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
               ))}
             </div>
 
-            <label className="block text-sm font-medium mb-1">Password (optional)</label>
-            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Set a password the invitee must enter"
+            <label className="block text-sm font-medium mb-1">{t("dashboard","wsPasswordOptional")}</label>
+            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("dashboard","wsPhPassword")}
               className={`w-full text-sm rounded-lg px-3 py-2 border outline-none mb-2 ${input}`} />
-            <p className="text-xs text-gray-500 mb-4">If set, anyone using the link must enter this password to join.</p>
+            <p className="text-xs text-gray-500 mb-4">{t("dashboard","wsPasswordHint")}</p>
 
             {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
             <button onClick={generate} disabled={busy} className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm">
@@ -329,7 +330,7 @@ function InviteModal({ business, isDark, onClose }: { business: Business; isDark
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-2">Share this link with your team member (role: <strong>{role}</strong>). {expiry === "once" ? "It can be used once." : "It expires in 7 days."}</p>
+            <p className="text-sm text-gray-500 mb-2">{t("dashboard","wsShareLink")}<strong>{role}</strong>). {expiry === "once" ? "It can be used once." : "It expires in 7 days."}</p>
             <div className="flex gap-2">
               <input readOnly value={link} className={`flex-1 text-xs rounded-lg px-3 py-2 border outline-none ${input}`} />
               <button onClick={copy} className="bg-blue-500 hover:bg-blue-600 text-white px-3 rounded-lg flex items-center gap-1 text-sm">

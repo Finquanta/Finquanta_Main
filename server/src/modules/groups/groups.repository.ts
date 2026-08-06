@@ -72,6 +72,34 @@ export class GroupsRepository {
     await this.database.query(
       `CREATE INDEX IF NOT EXISTS idx_groups_business ON groups(business_id)`
     );
+
+    // `business_id` was declared NOT NULL but with no REFERENCES, so the
+    // database never knew a group belonged to a business. Every other table
+    // under a business (accounts, journal_entries, invoices) cascades on
+    // delete; groups didn't, so deleting an account left its groups behind
+    // pointing at a business id that no longer exists. Invisible — every query
+    // scopes by business_id, which can never match again — but they accumulate
+    // for good, and they carry the names the user typed.
+    //
+    // Clear the existing orphans first: the constraint can't be added while
+    // rows violate it.
+    await this.database.query(
+      `DELETE FROM groups WHERE business_id NOT IN (SELECT id FROM businesses)`
+    );
+    // ADD CONSTRAINT has no IF NOT EXISTS, so guard on the catalogue to keep
+    // ensureSchema idempotent across every boot.
+    await this.database.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'groups_business_id_fkey'
+        ) THEN
+          ALTER TABLE groups
+            ADD CONSTRAINT groups_business_id_fkey
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
   }
 
   private map(row: any): Group {

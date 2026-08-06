@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Document, ShareStatus, formatFileSize, formatRelativeTime } from '@/mockData/documentsMockData';
 import FileIcon from './FileIcon';
 import { Star, Download, Share2, MoreVertical } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface DocumentCardProps {
   document: Document;
@@ -28,6 +29,7 @@ export default function DocumentCard({
   onStar,
   onDelete
 }: DocumentCardProps) {
+  const { t } = useLanguage();
   const [showActions, setShowActions] = useState(false);
 
   const handleCardClick = () => {
@@ -111,7 +113,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onPreview(document))}
               className="p-2 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded-lg transition-colors"
-              title="Preview"
+              title={t("dashboard","docPreview")}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -123,7 +125,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onDownload(document))}
               className="p-2 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded-lg transition-colors"
-              title="Download"
+              title={t("dashboard","docDownload")}
             >
               <Download className="w-4 h-4" />
             </button>
@@ -132,7 +134,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onShare(document))}
               className="p-2 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded-lg transition-colors"
-              title="Share"
+              title={t("dashboard","docShare")}
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -144,7 +146,7 @@ export default function DocumentCard({
                 setShowActions(!showActions);
               }}
               className="p-2 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded-lg transition-colors"
-              title="More options"
+              title={t("dashboard","docMore")}
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -166,9 +168,7 @@ export default function DocumentCard({
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete
-                  </button>
+                    </svg>{t("demo","deleteTitle")}</button>
                 )}
               </div>
             )}
@@ -220,7 +220,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onPreview(document))}
               className="p-1.5 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded transition-colors"
-              title="Preview"
+              title={t("dashboard","docPreview")}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -232,7 +232,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onDownload(document))}
               className="p-1.5 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded transition-colors"
-              title="Download"
+              title={t("dashboard","docDownload")}
             >
               <Download className="w-3.5 h-3.5" />
             </button>
@@ -241,7 +241,7 @@ export default function DocumentCard({
             <button
               onClick={(e) => handleActionClick(e, () => onShare(document))}
               className="p-1.5 text-[#778da9] hover:text-[#150578] hover:bg-gray-100 rounded transition-colors"
-              title="Share"
+              title={t("dashboard","docShare")}
             >
               <Share2 className="w-3.5 h-3.5" />
             </button>

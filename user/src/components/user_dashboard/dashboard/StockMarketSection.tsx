@@ -4,6 +4,7 @@ import { LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { ChartContainer } from '@/components/ui/chart';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface Stock {
   name: string;
@@ -15,6 +16,7 @@ interface Stock {
 }
 
 export default function StockMarketSection() {
+  const { t } = useLanguage();
   const stocks: Stock[] = [
     { 
       name: 'Apple', 
@@ -70,10 +72,8 @@ export default function StockMarketSection() {
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200 h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-medium text-[#1b263b]">Stock market</h3>
-        <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">
-          Today
-          <ChevronDownIcon width={11} height={6} color="#778da9" />
+        <h3 className="text-2xl font-medium text-[#1b263b]">{t("dashboard","dcStockMarket")}</h3>
+        <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">{t("dashboard","dcToday")}<ChevronDownIcon width={11} height={6} color="#778da9" />
         </div>
       </div>
       

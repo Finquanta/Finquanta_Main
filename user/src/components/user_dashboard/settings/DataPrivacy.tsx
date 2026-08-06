@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { PrivacySettings } from './types';
 import { Shield, Download, Trash2, ExternalLink, Cookie, BarChart, Search } from 'lucide-react';
 import Switch from './Switch';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface DataPrivacyProps {
   settings: PrivacySettings;
@@ -11,6 +12,7 @@ interface DataPrivacyProps {
 }
 
 export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyProps) {
+  const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState('json');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -85,23 +87,17 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#1b263b] mb-2 flex items-center gap-2">
-          <Shield className="w-6 h-6 text-[#150578]" />
-          Data & Privacy
-        </h2>
-        <p className="text-sm text-[#778da9]">
-          Control your data, privacy settings, and account information
-        </p>
+          <Shield className="w-6 h-6 text-[#150578]" />{t("dashboard","spDataPrivacy")}</h2>
+        <p className="text-sm text-[#778da9]">{t("dashboard","spDataPrivacyDesc")}</p>
       </div>
 
       <div className="space-y-8">
         {/* Profile Visibility */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Profile Visibility</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spProfileVisibility")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-[#778da9] mb-3">
-                Control who can see your profile information and activity
-              </p>
+              <p className="text-sm text-[#778da9] mb-3">{t("dashboard","spVisibilityDesc")}</p>
               <select
                 value={settings.profileVisibility}
                 onChange={(e) => {
@@ -112,9 +108,9 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
                 }}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
               >
-                <option value="public">Public - Anyone can view your profile</option>
-                <option value="private">Private - Only you can view your profile</option>
-                <option value="connections">Connections - Only connected users can view</option>
+                <option value="public">{t("dashboard","spPublicVis")}</option>
+                <option value="private">{t("dashboard","spPrivateVis")}</option>
+                <option value="connections">{t("dashboard","spConnectionsVis")}</option>
               </select>
             </div>
           </div>
@@ -122,14 +118,12 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
 
         {/* Data Sharing */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Data Sharing Preferences</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spDataSharing")}</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Share anonymized usage data</p>
-                <p className="text-sm text-[#778da9]">
-                  Help us improve our services by sharing usage patterns
-                </p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spShareAnon")}</p>
+                <p className="text-sm text-[#778da9]">{t("dashboard","spShareAnonDesc")}</p>
               </div>
               <Switch
                 checked={settings.dataSharing}
@@ -143,10 +137,8 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Third-party integrations</p>
-                <p className="text-sm text-[#778da9]">
-                  Allow secure data sharing with trusted partners
-                </p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spThirdParty")}</p>
+                <p className="text-sm text-[#778da9]">{t("dashboard","spThirdPartyDesc")}</p>
               </div>
               <Switch
                 checked={settings.thirdPartyDataSharing}
@@ -164,13 +156,11 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
         {/* Analytics Tracking */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <BarChart className="w-5 h-5 text-[#150578]" />
-            Analytics & Tracking
-          </h3>
+            <BarChart className="w-5 h-5 text-[#150578]" />{t("dashboard","spAnalyticsTracking")}</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Usage Analytics</p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spUsageAnalytics")}</p>
                 <p className="text-sm text-[#778da9]">
                   Help us improve Fund Flow AI with anonymous usage data
                 </p>
@@ -187,10 +177,8 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Search Engine Indexing</p>
-                <p className="text-sm text-[#778da9]">
-                  Allow search engines to index your public profile
-                </p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spSearchIndexing")}</p>
+                <p className="text-sm text-[#778da9]">{t("dashboard","spSearchIndexingDesc")}</p>
               </div>
               <Switch
                 checked={settings.searchEngineIndexing}
@@ -208,14 +196,10 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
         {/* Cookie Settings */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Cookie className="w-5 h-5 text-[#150578]" />
-            Cookie Preferences
-          </h3>
+            <Cookie className="w-5 h-5 text-[#150578]" />{t("dashboard","spCookiePrefs")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-[#778da9] mb-3">
-                Choose how we use cookies to enhance your experience
-              </p>
+              <p className="text-sm text-[#778da9] mb-3">{t("dashboard","spCookiePrefsDesc")}</p>
               <div className="space-y-3">
                 {cookieOptions.map((option) => (
                   <label key={option.value} className="flex items-start gap-3 cursor-pointer">
@@ -246,14 +230,10 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
         {/* Data Export */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Download className="w-5 h-5 text-[#150578]" />
-            Export Your Data
-          </h3>
+            <Download className="w-5 h-5 text-[#150578]" />{t("dashboard","spExportYourData")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-[#778da9] mb-3">
-                Download a copy of all your data, including transactions, documents, and settings
-              </p>
+              <p className="text-sm text-[#778da9] mb-3">{t("dashboard","spExportDesc")}</p>
               <div className="flex gap-3">
                 <select
                   value={exportFormat}
@@ -268,9 +248,7 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
                   onClick={handleExportData}
                   className="px-6 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors flex items-center gap-2"
                 >
-                  <Download className="w-4 h-4" />
-                  Export Data
-                </button>
+                  <Download className="w-4 h-4" />{t("dashboard","spExportData")}</button>
               </div>
             </div>
           </div>
@@ -279,14 +257,10 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
         {/* Account Deletion */}
         <div className="bg-red-50 border border-red-200 p-6 rounded-lg">
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2 text-red-700">
-            <Trash2 className="w-5 h-5" />
-            Delete Account
-          </h3>
+            <Trash2 className="w-5 h-5" />{t("dashboard","spDeleteAccount")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-red-700 mb-3">
-                Permanently delete your account and all associated data. This action cannot be undone.
-              </p>
+              <p className="text-sm text-red-700 mb-3">{t("dashboard","spDeleteAccountDesc")}</p>
               <p className="text-sm text-red-700 mb-4">
                 ⚠️ Warning: This will immediately delete:
               </p>
@@ -310,9 +284,7 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
               <button
                 onClick={() => setShowDeleteModal(false)}
                 className="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
             </div>
           </div>
         </div>
@@ -323,7 +295,7 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-red-700 mb-2">Delete Account Confirmation</h3>
+              <h3 className="text-lg font-semibold text-red-700 mb-2">{t("dashboard","spDeleteConfirmTitle")}</h3>
               <p className="text-sm text-gray-700">
                 Are you absolutely sure you want to delete your account? This action is permanent and cannot be undone.
               </p>
@@ -332,15 +304,11 @@ export default function DataPrivacy({ settings, onSettingsChange }: DataPrivacyP
               <button
                 onClick={() => setShowDeleteModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
               <button
                 onClick={handleDeleteAccount}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Yes, Delete My Account
-              </button>
+              >{t("dashboard","spYesDelete")}</button>
             </div>
           </div>
         </div>

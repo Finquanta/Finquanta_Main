@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
 import GoalModal from './GoalModal';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface Goal {
   name: string;
@@ -30,12 +31,13 @@ function getProgressPercentage(current: number, target: number) {
 }
 
 export default function GoalsSection() {
+  const { t } = useLanguage();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200 h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-medium text-[#1b263b]">Goals</h3>
+        <h3 className="text-2xl font-medium text-[#1b263b]">{t("dashboard","goals")}</h3>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsModalOpen(true)}
@@ -43,9 +45,7 @@ export default function GoalsSection() {
           >
             + Add Goal
           </button>
-          <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">
-            This month
-            <ChevronDownIcon width={11} height={6} color="#778da9" />
+          <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">{t("dashboard","dcThisMonth")}<ChevronDownIcon width={11} height={6} color="#778da9" />
           </div>
         </div>
       </div>

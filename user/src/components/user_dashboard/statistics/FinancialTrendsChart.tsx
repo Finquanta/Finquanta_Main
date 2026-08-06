@@ -1,11 +1,15 @@
+'use client';
+
 import React from 'react';
 import { MonthlyTrend } from '@/mockData/statisticsMockData';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface FinancialTrendsChartProps {
   data: MonthlyTrend[];
 }
 
 export default function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
+  const { t } = useLanguage();
   // Find max values for scaling
   const maxValue = Math.max(
     ...data.map(d => Math.max(d.income, d.expenses, Math.abs(d.profit)))
@@ -17,19 +21,19 @@ export default function FinancialTrendsChart({ data }: FinancialTrendsChartProps
   return (
     <div className="bg-white p-6 rounded-[20px] border border-gray-200">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-[#1b263b]">Financial Trends</h3>
+        <h3 className="text-xl font-semibold text-[#1b263b]">{t("dashboard","stFinancialTrends")}</h3>
         <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#63d51d] rounded-full"></div>
-            <span className="text-[#778da9]">Income</span>
+            <span className="text-[#778da9]">{t("dashboard","stIncome")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#ff8600] rounded-full"></div>
-            <span className="text-[#778da9]">Expenses</span>
+            <span className="text-[#778da9]">{t("dashboard","stExpensesPl")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#150578] rounded-full"></div>
-            <span className="text-[#778da9]">Profit</span>
+            <span className="text-[#778da9]">{t("dashboard","stProfit")}</span>
           </div>
         </div>
       </div>
@@ -117,19 +121,19 @@ export default function FinancialTrendsChart({ data }: FinancialTrendsChartProps
       {/* Summary stats */}
       <div className="mt-8 pt-6 border-t border-gray-100 grid grid-cols-3 gap-4 text-center">
         <div>
-          <p className="text-xs text-[#778da9] mb-1">Total Income</p>
+          <p className="text-xs text-[#778da9] mb-1">{t("dashboard","stTotalIncome")}</p>
           <p className="text-lg font-semibold text-[#63d51d]">
             ${data.reduce((sum, item) => sum + item.income, 0).toLocaleString()}
           </p>
         </div>
         <div>
-          <p className="text-xs text-[#778da9] mb-1">Total Expenses</p>
+          <p className="text-xs text-[#778da9] mb-1">{t("dashboard","stTotalExpenses")}</p>
           <p className="text-lg font-semibold text-[#ff8600]">
             ${data.reduce((sum, item) => sum + item.expenses, 0).toLocaleString()}
           </p>
         </div>
         <div>
-          <p className="text-xs text-[#778da9] mb-1">Net Profit</p>
+          <p className="text-xs text-[#778da9] mb-1">{t("dashboard","stNetProfit")}</p>
           <p className={`text-lg font-semibold ${data.reduce((sum, item) => sum + item.profit, 0) >= 0 ? 'text-[#150578]' : 'text-[#dc2626]'}`}>
             ${data.reduce((sum, item) => sum + item.profit, 0).toLocaleString()}
           </p>

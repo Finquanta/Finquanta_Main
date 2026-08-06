@@ -3,6 +3,7 @@ import React from 'react';
 import { PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import ChevronDownIcon from '../icons/ChevronDownIcon';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 const chartConfig = {
     goods: {
@@ -31,12 +32,11 @@ const chartData = [
 ];
 
 export default function TotalExpensesCard() {
+  const { t } = useLanguage();
     const CustomLabel = ({ cx, cy }: { cx: number; cy: number }) => {
         return (
             <g>
-                <text x={cx} y={cy - 10} textAnchor="middle" dominantBaseline="middle" className="fill-[#1b263b] text-[15px] font-semibold">
-                    Total expenses
-                </text>
+                <text x={cx} y={cy - 10} textAnchor="middle" dominantBaseline="middle" className="fill-[#1b263b] text-[15px] font-semibold">{t("dashboard","dcTotalExpenses")}</text>
                 <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle" className="fill-[#ff8600] text-2xl font-bold">
                     -$1980
                 </text>
@@ -47,7 +47,7 @@ export default function TotalExpensesCard() {
     return (
         <div className="bg-white p-6 rounded-[20px] border border-gray-200 h-full flex flex-col">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-medium text-[#1b263b]">Total expenses</h3>
+                <h3 className="text-2xl font-medium text-[#1b263b]">{t("dashboard","dcTotalExpenses")}</h3>
                 <div className="flex items-center text-[13px] font-medium text-[#778da9] gap-2">
                     May 2024
                     <ChevronDownIcon width={11} height={6} color="#778da9" />
@@ -85,7 +85,7 @@ export default function TotalExpensesCard() {
                     {/* Center text - positioned absolutely */}
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="text-center">
-                            <div className="text-[15px] font-semibold text-[#1b263b] mb-1">Total expenses</div>
+                            <div className="text-[15px] font-semibold text-[#1b263b] mb-1">{t("dashboard","dcTotalExpenses")}</div>
                             <div className="text-2xl font-bold text-[#ff8600]">-$1980</div>
                         </div>
                     </div>
@@ -93,9 +93,7 @@ export default function TotalExpensesCard() {
 
                 {/* Description text */}
                 <div className="text-center space-y-2 max-w-[300px] mb-6">
-                    <p className="text-[13px] font-normal text-[#778da9] leading-relaxed">
-                        This month you spent the most on goods and services. Spending is 10% higher than last month
-                    </p>
+                    <p className="text-[13px] font-normal text-[#778da9] leading-relaxed">{t("dashboard","dcExpensesNote")}</p>
                     <p className="text-[13px] font-normal text-[#778da9]">
                         Try <span className="text-[#ff8600] underline cursor-pointer hover:text-[#e67700]">planning your expenses</span> for the next month
                     </p>

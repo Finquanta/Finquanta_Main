@@ -3,11 +3,13 @@
 import React, { useState, useCallback } from 'react';
 import { mockBusinessPlanPageProps, BusinessPlan, PlanTemplate } from '@/mockData/businessPlanMockData';
 import { BusinessPlanSection } from '@/mockData/businessPlanMockData';
-import BusinessPlanGrid from '@/components/user_dashboard/business-plan/usinessPlanGrid';
+import BusinessPlanGrid from '@/components/user_dashboard/business-plan/BusinessPlanGrid';
 import { Lightbulb, Target, TrendingUp, Calendar, DollarSign, Users, ArrowRight, Plus } from 'lucide-react';
 import { getBusinessPlanMarketData, getBusinessPlanStats, listBusinessPlans } from '@/lib/api/business-plans';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 export default function BusinessPlanPage() {
+  const { t } = useLanguage();
   const [plans, setPlans] = useState(mockBusinessPlanPageProps.plans);
   const [stats, setStats] = useState(mockBusinessPlanPageProps.stats);
   const [marketData, setMarketData] = useState(mockBusinessPlanPageProps.marketData);
@@ -95,10 +97,8 @@ export default function BusinessPlanPage() {
     return (
       <div className="p-6 bg-[#f2f3f4] min-h-full">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#1b263b] mb-2">Business Plan Templates</h1>
-          <p className="text-[#778da9]">
-            Choose a template to get started with your business plan
-          </p>
+          <h1 className="text-3xl font-bold text-[#1b263b] mb-2">{t("dashboard","bpTemplates")}</h1>
+          <p className="text-[#778da9]">{t("dashboard","bpChoose")}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -151,9 +151,7 @@ export default function BusinessPlanPage() {
               <p className="text-sm text-[#778da9] mb-4">
                 Professional template designed for {template.toLowerCase()} businesses
               </p>
-              <button className="w-full px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors">
-                Use This Template
-              </button>
+              <button className="w-full px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors">{t("dashboard","bpUseTemplate")}</button>
             </div>
           ))}
         </div>
@@ -192,7 +190,7 @@ export default function BusinessPlanPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <h2 className="text-xl font-semibold text-[#1b263b] mb-4">Plan Sections</h2>
+              <h2 className="text-xl font-semibold text-[#1b263b] mb-4">{t("dashboard","bpSections")}</h2>
               <div className="space-y-4">
                 {selectedPlan.sections.map((section, index) => (
                   <div key={section.id} className="border border-gray-200 rounded-lg p-4">
@@ -213,7 +211,7 @@ export default function BusinessPlanPage() {
                         setSelectedPlan(updatedPlan);
                         setPlans(prev => prev.map(p => p.id === selectedPlan.id ? updatedPlan : p));
                       }}
-                      placeholder="Start writing your business plan section..."
+                      placeholder={t("dashboard","bpWriteHint")}
                       className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent resize-none"
                     />
                     <div className="flex items-center justify-between mt-2 text-sm text-[#778da9]">
@@ -241,10 +239,10 @@ export default function BusinessPlanPage() {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-[#1b263b] mb-4">Plan Details</h2>
+              <h2 className="text-xl font-semibold text-[#1b263b] mb-4">{t("dashboard","bpDetails")}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#1b263b] mb-2">Description</label>
+                  <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","targetLabel")}</label>
                   <textarea
                     value={selectedPlan.description}
                     onChange={(e) => {
@@ -256,7 +254,7 @@ export default function BusinessPlanPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#1b263b] mb-2">Target Audience</label>
+                  <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","bpTargetAudience")}</label>
                   <input
                     type="text"
                     value={selectedPlan.targetAudience}
@@ -269,7 +267,7 @@ export default function BusinessPlanPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#1b263b] mb-2">Industry</label>
+                  <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("settings","fIndustry")}</label>
                   <input
                     type="text"
                     value={selectedPlan.industry}
@@ -293,10 +291,8 @@ export default function BusinessPlanPage() {
     <div className="p-6 bg-[#f2f3f4] min-h-full">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#1b263b] mb-2">Business Plan</h1>
-        <p className="text-[#778da9]">
-          Create, manage, and track your business plans with intelligent templates and tools
-        </p>
+        <h1 className="text-3xl font-bold text-[#1b263b] mb-2">{t("dashboard","bpTitle")}</h1>
+        <p className="text-[#778da9]">{t("dashboard","bpIntro")}</p>
       </div>
 
       {/* Quick Stats */}
@@ -304,7 +300,7 @@ export default function BusinessPlanPage() {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Total Plans</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpTotalPlans")}</p>
               <p className="text-2xl font-bold text-[#1b263b]">{stats.totalPlans}</p>
             </div>
             <Target className="w-8 h-8 text-[#150578]" />
@@ -313,7 +309,7 @@ export default function BusinessPlanPage() {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Completed</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpCompleted")}</p>
               <p className="text-2xl font-bold text-[#63d51d]">{stats.completedPlans}</p>
             </div>
             <svg className="w-8 h-8 text-[#63d51d]" fill="currentColor" viewBox="0 0 20 20">
@@ -324,7 +320,7 @@ export default function BusinessPlanPage() {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">In Progress</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpInProgress")}</p>
               <p className="text-2xl font-bold text-[#ff8600]">{stats.inProgressPlans}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-[#ff8600]" />
@@ -333,7 +329,7 @@ export default function BusinessPlanPage() {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Avg Progress</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpAvgProgress")}</p>
               <p className="text-2xl font-bold text-[#63d51d]">{Math.round(stats.averageProgress)}%</p>
             </div>
             <Lightbulb className="w-8 h-8 text-[#63d51d]" />
@@ -345,22 +341,20 @@ export default function BusinessPlanPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#150578]" />
-            Market Size & Growth
-          </h3>
+            <DollarSign className="w-5 h-5 text-[#150578]" />{t("dashboard","bpMarketSize")}</h3>
           <div className="space-y-3">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Total Market Size</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpTotalMarket")}</p>
               <p className="text-xl font-bold text-[#1b263b]">
                 ${(marketData.marketSize / 1000000).toFixed(0)}M
               </p>
             </div>
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Annual Growth Rate</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpAnnualGrowth")}</p>
               <p className="text-xl font-bold text-[#63d51d]">+{marketData.growthRate}%</p>
             </div>
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Competition Level</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpCompetition")}</p>
               <p className="text-lg font-medium capitalize text-[#ff8600]">{marketData.competitionLevel}</p>
             </div>
           </div>
@@ -368,16 +362,14 @@ export default function BusinessPlanPage() {
 
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#150578]" />
-            Target Market
-          </h3>
+            <Users className="w-5 h-5 text-[#150578]" />{t("dashboard","bpTargetMarket")}</h3>
           <div className="space-y-3">
             <div>
-              <p className="text-sm text-[#778da9] mb-1">Primary Demographic</p>
+              <p className="text-sm text-[#778da9] mb-1">{t("dashboard","bpPrimaryDemo")}</p>
               <p className="text-lg font-medium text-[#1b263b]">{marketData.targetDemographic}</p>
             </div>
             <div>
-              <p className="text-sm text-[#778da9] mb-2">Key Segments</p>
+              <p className="text-sm text-[#778da9] mb-2">{t("dashboard","bpKeySegments")}</p>
               <div className="space-y-2">
                 {marketData.keySegments.map((segment, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -397,16 +389,12 @@ export default function BusinessPlanPage() {
           onClick={handleCreateNew}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
         >
-          <Plus className="w-5 h-5" />
-          Create New Plan
-        </button>
+          <Plus className="w-5 h-5" />{t("dashboard","bpCreateNew")}</button>
         <button
           onClick={() => setCurrentView('templates')}
           className="flex items-center justify-center gap-2 px-6 py-3 border border-[#150578] text-[#150578] rounded-lg hover:bg-[#150578] hover:text-white transition-colors"
         >
-          <Lightbulb className="w-5 h-5" />
-          Browse Templates
-        </button>
+          <Lightbulb className="w-5 h-5" />{t("dashboard","bpBrowse")}</button>
       </div>
 
       {/* Business Plans Grid */}

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { BackupSettings, BackupEntry } from './types';
 import { Cloud, Download, RefreshCw, Calendar, Clock, CheckCircle, AlertCircle, Trash2, Upload } from 'lucide-react';
 import Switch from './Switch';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface BackupRecoveryProps {
   settings: BackupSettings;
@@ -11,6 +12,7 @@ interface BackupRecoveryProps {
 }
 
 export default function BackupRecovery({ settings, onSettingsChange }: BackupRecoveryProps) {
+  const { t } = useLanguage();
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [selectedRestorePoint, setSelectedRestorePoint] = useState<BackupEntry | null>(null);
@@ -95,25 +97,19 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#1b263b] mb-2 flex items-center gap-2">
-          <Cloud className="w-6 h-6 text-[#150578]" />
-          Backup & Recovery
-        </h2>
-        <p className="text-sm text-[#778da9]">
-          Configure automatic backups and manage your data recovery options
-        </p>
+          <Cloud className="w-6 h-6 text-[#150578]" />{t("dashboard","spBackupRecovery")}</h2>
+        <p className="text-sm text-[#778da9]">{t("dashboard","spBackupDesc")}</p>
       </div>
 
       <div className="space-y-8">
         {/* Auto Backup Settings */}
         <div className="bg-gray-50 p-6 rounded-lg">
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Automatic Backups</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spAutoBackups")}</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Enable automatic backups</p>
-                <p className="text-sm text-[#778da9]">
-                  Schedule regular backups of your account data
-                </p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spEnableAuto")}</p>
+                <p className="text-sm text-[#778da9]">{t("dashboard","spScheduleRegular")}</p>
               </div>
               <Switch
                 checked={settings.autoBackup}
@@ -128,7 +124,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
             {settings.autoBackup && (
               <div className="pl-4 space-y-4">
                 <div>
-                  <p className="font-medium text-[#1b263b] mb-2">Backup Frequency</p>
+                  <p className="font-medium text-[#1b263b] mb-2">{t("dashboard","spBackupFreq")}</p>
                   <div className="flex gap-3">
                     {['daily', 'weekly', 'monthly'].map((frequency) => (
                       <label key={frequency} className="flex items-center gap-2 cursor-pointer">
@@ -151,7 +147,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                   </div>
                 </div>
                 <div>
-                  <p className="font-medium text-[#1b263b] mb-2">Retention Period</p>
+                  <p className="font-medium text-[#1b263b] mb-2">{t("dashboard","spRetention")}</p>
                   <div className="flex items-center gap-3">
                     <select
                       value={settings.backupRetention}
@@ -169,7 +165,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                       <option value={180}>180 days</option>
                       <option value={365}>1 year</option>
                     </select>
-                    <span className="text-sm text-[#778da9]">Keep backups for</span>
+                    <span className="text-sm text-[#778da9]">{t("dashboard","spKeepFor")}</span>
                   </div>
                 </div>
               </div>
@@ -179,14 +175,12 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
 
         {/* Manual Backup */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Manual Backup</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spManualBackup")}</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-[#1b263b]">Create instant backup</p>
-                <p className="text-sm text-[#778da9]">
-                  Download a complete backup of your account data now
-                </p>
+                <p className="font-medium text-[#1b263b]">{t("dashboard","spInstantBackup")}</p>
+                <p className="text-sm text-[#778da9]">{t("dashboard","spDownloadBackup")}</p>
               </div>
               <button
                 onClick={handleCreateManualBackup}
@@ -195,14 +189,10 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
               >
                 {isCreatingBackup ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Creating Backup...
-                  </>
+                    <RefreshCw className="w-4 h-4 animate-spin" />{t("dashboard","spCreatingBackup")}</>
                 ) : (
                   <>
-                    <Upload className="w-4 h-4" />
-                    Create Backup
-                  </>
+                    <Upload className="w-4 h-4" />{t("dashboard","spCreateBackup")}</>
                 )}
               </button>
             </div>
@@ -216,11 +206,11 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
 
         {/* Backup History */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Backup History</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spBackupHistory")}</h3>
           {settings.backupHistory.length === 0 ? (
             <div className="text-center py-8 text-[#778da9]">
               <Cloud className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No backup history available</p>
+              <p>{t("dashboard","spNoBackupHistory")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -247,9 +237,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                       <button
                         onClick={() => handleRestoreBackup(backup)}
                         className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                      >
-                        Restore
-                      </button>
+                      >{t("dashboard","invRestore")}</button>
                       <button
                         onClick={() => {
                           // Simulate download
@@ -275,19 +263,15 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
 
         {/* Recovery Options */}
         <div className="bg-blue-50 p-6 rounded-lg">
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Recovery Options</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spRecoveryOptions")}</h3>
           <div className="space-y-4">
             <div>
-              <p className="font-medium text-[#1b263b] mb-2">Account Recovery</p>
-              <p className="text-sm text-[#778da9] mb-3">
-                Set up account recovery options to regain access if you forget your password
-              </p>
+              <p className="font-medium text-[#1b263b] mb-2">{t("dashboard","spAccountRecovery")}</p>
+              <p className="text-sm text-[#778da9] mb-3">{t("dashboard","spSetupRecovery")}</p>
               <div className="bg-white p-4 rounded-lg border border-blue-200">
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-[#1b263b] mb-2">
-                      Recovery Email Address
-                    </label>
+                    <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spRecoveryEmailAddr")}</label>
                     <input
                       type="email"
                       placeholder="recovery@example.com"
@@ -295,9 +279,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#1b263b] mb-2">
-                      Two-Factor Recovery
-                    </label>
+                    <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spTwoFactorRecovery")}</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -306,7 +288,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                           value="app"
                           className="text-[#150578]"
                         />
-                        <span className="text-sm">Authenticator App</span>
+                        <span className="text-sm">{t("dashboard","spAuthApp")}</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -315,14 +297,12 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
                           value="sms"
                           className="text-[#150578]"
                         />
-                        <span className="text-sm">SMS Messages</span>
+                        <span className="text-sm">{t("dashboard","spSmsMessages")}</span>
                       </label>
                     </div>
                   </div>
                 </div>
-                <button className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Save Recovery Settings
-                </button>
+                <button className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">{t("dashboard","spSaveRecovery")}</button>
               </div>
             </div>
           </div>
@@ -334,7 +314,7 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-[#1b263b] mb-2">Restore from Backup</h3>
+              <h3 className="text-lg font-semibold text-[#1b263b] mb-2">{t("dashboard","spRestoreFrom")}</h3>
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                 <p className="text-sm text-yellow-800 mb-2">
                   ⚠️ Restoring will replace all current data with data from:
@@ -351,15 +331,11 @@ export default function BackupRecovery({ settings, onSettingsChange }: BackupRec
               <button
                 onClick={() => setShowRestoreModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
               <button
                 onClick={confirmRestore}
                 className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-              >
-                Yes, Restore
-              </button>
+              >{t("dashboard","spYesRestore")}</button>
             </div>
           </div>
         </div>

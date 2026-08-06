@@ -74,8 +74,15 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
       const { id } = request.params as { id: string };
       const existing = await repo.getById(request.businessId!, id);
       if (!existing) return reply.status(404).send({ success: false, error: 'Invoice not found' });
-      if (existing.status === 'paid') {
-        return reply.status(400).send({ success: false, error: 'A paid invoice cannot be edited.' });
+      // Draft-only. Status transitions have their own routes (/send, /pay,
+      // /cancel), so PATCH is purely a content edit — and editing the amount of
+      // an invoice that already posted to the ledger desyncs Accounts
+      // Receivable. The UI hides the link, but the UI is not the guard.
+      if (existing.status !== 'draft') {
+        return reply.status(400).send({
+          success: false,
+          error: 'Only a draft invoice can be edited. Void this invoice instead.',
+        });
       }
       const updated = await repo.update(request.businessId!, id, (request.body as InvoiceInput) || {});
       return reply.send({ success: true, data: updated });

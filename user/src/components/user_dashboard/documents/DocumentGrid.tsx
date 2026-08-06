@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Document, DocumentCategory, DocumentType } from '@/mockData/documentsMockData';
 import DocumentCard from './DocumentCard';
 import { Grid, List, Search, Filter, Download, Upload, Plus } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface DocumentGridProps {
   documents: Document[];
@@ -34,6 +35,7 @@ export default function DocumentGrid({
   onBulkDelete,
   onUpload
 }: DocumentGridProps) {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | 'all'>('all');
   const [selectedType, setSelectedType] = useState<DocumentType | 'all'>('all');
@@ -114,7 +116,7 @@ export default function DocumentGrid({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#778da9] w-4 h-4" />
             <input
               type="text"
-              placeholder="Search documents..."
+              placeholder={t("dashboard","docSearch")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
@@ -128,11 +130,11 @@ export default function DocumentGrid({
               onChange={(e) => setSelectedCategory(e.target.value as DocumentCategory | 'all')}
               className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
             >
-              <option value="all">All Categories</option>
-              <option value={DocumentCategory.FINANCIAL}>Financial</option>
-              <option value={DocumentCategory.LEGAL}>Legal</option>
-              <option value={DocumentCategory.BUSINESS}>Business</option>
-              <option value={DocumentCategory.PERSONAL}>Personal</option>
+              <option value="all">{t("dashboard","docAllCategories")}</option>
+              <option value={DocumentCategory.FINANCIAL}>{t("dashboard","docFinancial")}</option>
+              <option value={DocumentCategory.LEGAL}>{t("dashboard","docLegalCat")}</option>
+              <option value={DocumentCategory.BUSINESS}>{t("dashboard","docBusiness")}</option>
+              <option value={DocumentCategory.PERSONAL}>{t("dashboard","docPersonal")}</option>
             </select>
 
             {/* Type Filter */}
@@ -141,16 +143,16 @@ export default function DocumentGrid({
               onChange={(e) => setSelectedType(e.target.value as DocumentType | 'all')}
               className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
             >
-              <option value="all">All Types</option>
-              <option value={DocumentType.INVOICE}>Invoice</option>
-              <option value={DocumentType.RECEIPT}>Receipt</option>
-              <option value={DocumentType.CONTRACT}>Contract</option>
-              <option value={DocumentType.REPORT}>Report</option>
-              <option value={DocumentType.TAX_DOCUMENT}>Tax Document</option>
-              <option value={DocumentType.CERTIFICATE}>Certificate</option>
-              <option value={DocumentType.PROPOSAL}>Proposal</option>
-              <option value={DocumentType.PRESENTATION}>Presentation</option>
-              <option value={DocumentType.SPREADSHEET}>Spreadsheet</option>
+              <option value="all">{t("dashboard","docAllTypes")}</option>
+              <option value={DocumentType.INVOICE}>{t("dashboard","invInvoice")}</option>
+              <option value={DocumentType.RECEIPT}>{t("dashboard","docReceipt")}</option>
+              <option value={DocumentType.CONTRACT}>{t("dashboard","docContract")}</option>
+              <option value={DocumentType.REPORT}>{t("dashboard","docReport")}</option>
+              <option value={DocumentType.TAX_DOCUMENT}>{t("dashboard","docTaxDoc")}</option>
+              <option value={DocumentType.CERTIFICATE}>{t("dashboard","docCertificate")}</option>
+              <option value={DocumentType.PROPOSAL}>{t("dashboard","docProposal")}</option>
+              <option value={DocumentType.PRESENTATION}>{t("dashboard","docPresentation")}</option>
+              <option value={DocumentType.SPREADSHEET}>{t("dashboard","docSpreadsheet")}</option>
             </select>
           </div>
         </div>
@@ -162,7 +164,7 @@ export default function DocumentGrid({
             className="flex items-center gap-2 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
           >
             <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Upload</span>
+            <span className="hidden sm:inline">{t("dashboard","docUploadBtn")}</span>
           </button>
 
           {selectedDocuments.length > 0 && (
@@ -181,7 +183,7 @@ export default function DocumentGrid({
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <span className="hidden sm:inline">Delete</span>
+                <span className="hidden sm:inline">{t("demo","deleteTitle")}</span>
               </button>
             </>
           )}
@@ -202,39 +204,31 @@ export default function DocumentGrid({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {/* Sort Options */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-[#778da9]">Sort by:</span>
+            <span className="text-[#778da9]">{t("dashboard","docSortBy")}</span>
             <button
               onClick={() => handleSort('name')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'name' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Name
-            </button>
+            >{t("dashboard","custName")}</button>
             <button
               onClick={() => handleSort('date')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'date' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Date
-            </button>
+            >{t("dashboard","date")}</button>
             <button
               onClick={() => handleSort('size')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'size' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Size
-            </button>
+            >{t("dashboard","docSize")}</button>
             <button
               onClick={() => handleSort('type')}
               className={`px-3 py-1 rounded-md transition-colors ${
                 sortBy === 'type' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-            >
-              Type
-            </button>
+            >{t("dashboard","type")}</button>
           </div>
 
           {/* View Mode Toggle */}
@@ -244,7 +238,7 @@ export default function DocumentGrid({
               className={`p-2 rounded-l-lg transition-colors ${
                 viewMode === 'grid' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-              title="Grid view"
+              title={t("dashboard","docGridView")}
             >
               <Grid className="w-4 h-4" />
             </button>
@@ -253,7 +247,7 @@ export default function DocumentGrid({
               className={`p-2 rounded-r-lg transition-colors ${
                 viewMode === 'list' ? 'bg-[#150578] text-white' : 'text-[#778da9] hover:text-[#150578]'
               }`}
-              title="List view"
+              title={t("dashboard","docListView")}
             >
               <List className="w-4 h-4" />
             </button>
@@ -299,9 +293,7 @@ export default function DocumentGrid({
               onClick={onUpload}
               className="flex items-center gap-2 mx-auto px-6 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Upload Document
-            </button>
+              <Plus className="w-4 h-4" />{t("dashboard","docUploadOne")}</button>
           )}
         </div>
       ) : (

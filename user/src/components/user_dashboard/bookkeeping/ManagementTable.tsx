@@ -7,6 +7,7 @@ import TransactionTypeBadge from './TransactionTypeBadge';
 import AmountDisplay from './AmountDisplay';
 import { formatDate, formatCurrency } from '@/mockData/bookkeepingMockData';
 import BookkeepingModal from './BookkeepingModal';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface TableTransaction {
   id: string | number;
@@ -31,6 +32,7 @@ export default function ManagementTable({
   actionText,
   period = 'Last 30 days'
 }: ManagementTableProps) {
+  const { t } = useLanguage();
   const [selectedPeriod, setSelectedPeriod] = useState(period);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -65,21 +67,11 @@ export default function ManagementTable({
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Detail
-              </th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Amount
-              </th>
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{t("dashboard","date")}</th>
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{t("dashboard","type")}</th>
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{t("dashboard","detail")}</th>
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{t("dashboard","invPrice")}</th>
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{t("dashboard","amount")}</th>
             </tr>
           </thead>
           <tbody className="bg-white">

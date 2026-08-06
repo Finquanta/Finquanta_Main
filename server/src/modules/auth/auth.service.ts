@@ -9,6 +9,7 @@ import { TwoFactorService } from './twofa.service';
 import { sendEmail } from '../../infrastructure/email';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
+import { BusinessesRepository } from '../businesses/businesses.repository';
 
 export interface RegisterData {
   email: string;
@@ -24,6 +25,17 @@ export interface RegisterData {
 }
 
 const MIN_AGE_YEARS = 16;
+
+/**
+ * Placeholder name for the workspace every new account gets. Matches the
+ * ensureSchema() backfill so the two agree.
+ *
+ * ProfileService.updateBusiness renames it once onboarding supplies a real
+ * business name, and compares against this exact string to decide whether the
+ * label is still untouched — so changing this value without changing that check
+ * would leave every new workspace stuck on the old placeholder.
+ */
+export const DEFAULT_BUSINESS_NAME = 'My Business';
 
 /** A verification failure carrying a machine-readable reason for the UI. */
 export type VerificationErrorReason = 'invalid' | 'expired';
@@ -126,6 +138,26 @@ export class AuthService {
       acceptedPrivacy: userData.acceptedPrivacy,
       acceptedRisk: userData.acceptedRisk
     });
+
+    // Give the account the workspace everything else is scoped to.
+    //
+    // Without one, `withBusiness` 409s "No business found for this user" on
+    // every write, so a fresh account can't record a single transaction. Until
+    // now the only things that created a business were the WorkspaceSwitcher's
+    // Create button and the backfill in BusinessesRepository.ensureSchema(),
+    // which runs at BOOT — so anyone who signed up between two restarts had a
+    // broken account. On Render's free tier the server sleeps and restarts often
+    // enough to hide it; against a long-running server it doesn't.
+    //
+    // Non-fatal on purpose: the user row already exists at this point, so
+    // throwing here would fail an otherwise-good signup and strand the account.
+    // `withBusiness` creates one on demand as a second line of defence.
+    try {
+      const businesses = new BusinessesRepository(this.database);
+      await businesses.create(user.id, DEFAULT_BUSINESS_NAME);
+    } catch (error) {
+      console.error('DEFAULT BUSINESS ERROR:', error instanceof Error ? error.message : String(error));
+    }
 
     // Send the "confirm your email" link (non-fatal — signup still succeeds if
     // email delivery fails; the user can resend later).

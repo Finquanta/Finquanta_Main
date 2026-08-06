@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ProfileSettings, SocialLink } from './types';
 import { User, Camera, Mail, MapPin, Phone, Briefcase, Linkedin, Twitter, Github, Globe, Upload, X } from 'lucide-react';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 
 interface AccountProfileProps {
   settings: ProfileSettings;
@@ -11,6 +12,7 @@ interface AccountProfileProps {
 }
 
 export default function AccountProfile({ settings, onSettingsChange }: AccountProfileProps) {
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -72,18 +74,14 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#1b263b] mb-2 flex items-center gap-2">
-          <User className="w-6 h-6 text-[#150578]" />
-          Account & Profile
-        </h2>
-        <p className="text-sm text-[#778da9]">
-          Manage your personal information, professional details, and account settings
-        </p>
+          <User className="w-6 h-6 text-[#150578]" />{t("dashboard","spAccountProfile")}</h2>
+        <p className="text-sm text-[#778da9]">{t("dashboard","spAccountProfileDesc")}</p>
       </div>
 
       <div className="space-y-8">
         {/* Profile Picture */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Profile Picture</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spProfilePicture")}</h3>
           <div className="flex items-center gap-6">
             <div className="relative">
             {settings.avatar ? (
@@ -103,9 +101,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                 onClick={() => document.getElementById('avatar-upload')?.click()}
                 className="px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors flex items-center gap-2"
               >
-                <Camera className="w-4 h-4" />
-                Change Photo
-              </button>
+                <Camera className="w-4 h-4" />{t("dashboard","spChangePhoto")}</button>
             </div>
             <input
               id="avatar-upload"
@@ -121,9 +117,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
         <div className="bg-gray-50 p-6 rounded-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-[#1b263b] flex items-center gap-2">
-              <User className="w-5 h-5 text-[#150578]" />
-              Basic Information
-            </h3>
+              <User className="w-5 h-5 text-[#150578]" />{t("dashboard","spBasicInfo")}</h3>
             <button
               onClick={() => setIsEditing(!isEditing)}
               className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -134,7 +128,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">First Name</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spFirstName")}</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -155,7 +149,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Last Name</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spLastName")}</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -176,7 +170,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Email Address</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spEmailAddress")}</label>
               {isEditing ? (
                 <input
                   type="email"
@@ -197,7 +191,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Phone Number</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spPhoneNumber")}</label>
               {isEditing ? (
                 <input
                   type="tel"
@@ -223,13 +217,11 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
         {/* Professional Details */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-[#150578]" />
-            Professional Details
-          </h3>
+            <Briefcase className="w-5 h-5 text-[#150578]" />{t("dashboard","spProfessional")}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Job Title</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spJobTitle")}</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -240,7 +232,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                       jobTitle: e.target.value
                     });
                   }}
-                  placeholder="e.g., Software Engineer"
+                  placeholder={t("dashboard","spPhJobTitle")}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                 />
               ) : (
@@ -251,7 +243,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Company</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spCompany")}</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -273,7 +265,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1b263b] mb-2">Industry</label>
+              <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("settings","fIndustry")}</label>
               {isEditing ? (
                 <select
                   value={settings.industry || ''}
@@ -285,15 +277,15 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                   }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent"
                 >
-                  <option value="">Select Industry</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Finance">Finance & Banking</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Education">Education</option>
-                  <option value="Retail">Retail & E-commerce</option>
-                  <option value="Manufacturing">Manufacturing</option>
-                  <option value="Consulting">Consulting</option>
-                  <option value="Other">Other</option>
+                  <option value="">{t("dashboard","spSelectIndustry")}</option>
+                  <option value="Technology">{t("dashboard","spTechnology")}</option>
+                  <option value="Finance">{t("dashboard","spFinanceBanking")}</option>
+                  <option value="Healthcare">{t("dashboard","spHealthcare")}</option>
+                  <option value="Education">{t("dashboard","spEducation")}</option>
+                  <option value="Retail">{t("dashboard","spRetail")}</option>
+                  <option value="Manufacturing">{t("dashboard","spManufacturing")}</option>
+                  <option value="Consulting">{t("dashboard","spConsulting")}</option>
+                  <option value="Other">{t("dashboard","spOther")}</option>
                 </select>
               ) : (
                 <p className="px-4 py-2 bg-white border border-gray-200 rounded-lg">
@@ -313,7 +305,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                       bio: e.target.value
                     });
                   }}
-                  placeholder="Tell us about yourself..."
+                  placeholder={t("dashboard","spTellUs")}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent resize-none"
                 />
@@ -329,14 +321,12 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
         {/* Address */}
         <div>
           <h3 className="text-lg font-semibold text-[#1b263b] mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-[#150578]" />
-            Address Information
-          </h3>
+            <MapPin className="w-5 h-5 text-[#150578]" />{t("dashboard","spAddressInfo")}</h3>
 
           <div className="bg-gray-50 p-6 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-[#1b263b] mb-2">Street Address</label>
+                <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spStreetAddress")}</label>
                 <input
                   type="text"
                   value={settings.address?.street || ''}
@@ -359,7 +349,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#1b263b] mb-2">City</label>
+                <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","invCity")}</label>
                 <input
                   type="text"
                   value={settings.address?.city || ''}
@@ -383,7 +373,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-[#1b263b] mb-2">State</label>
+                  <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spState")}</label>
                   <input
                     type="text"
                     value={settings.address?.state || ''}
@@ -406,7 +396,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#1b263b] mb-2">ZIP Code</label>
+                  <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","spZip")}</label>
                   <input
                     type="text"
                     value={settings.address?.zipCode || ''}
@@ -430,7 +420,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#1b263b] mb-2">Country</label>
+                <label className="block text-sm font-medium text-[#1b263b] mb-2">{t("dashboard","invCountry")}</label>
                 <select
                   value={settings.address?.country || ''}
                   onChange={(e) => {
@@ -448,7 +438,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                   disabled={!isEditing}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#150578] focus:border-transparent disabled:bg-gray-100"
                 >
-                  <option value="">Select Country</option>
+                  <option value="">{t("dashboard","spSelectCountry")}</option>
                   <option value="United States">United States</option>
                   <option value="Canada">Canada</option>
                   <option value="United Kingdom">United Kingdom</option>
@@ -463,18 +453,16 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
 
         {/* Social Links */}
         <div>
-          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Social Links</h3>
+          <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spSocialLinks")}</h3>
           <div className="space-y-4">
             {settings.socialLinks?.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <Globe className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-sm text-[#778da9] mb-4">No social links added yet</p>
+                <p className="text-sm text-[#778da9] mb-4">{t("dashboard","spNoSocial")}</p>
                 <button
                   onClick={handleAddSocialLink}
                   className="px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-                >
-                  Add Social Link
-                </button>
+                >{t("dashboard","spAddSocial")}</button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -495,9 +483,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
                       <button
                         onClick={() => window.open(link.url, '_blank')}
                         className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        Visit
-                      </button>
+                      >{t("dashboard","spVisit")}</button>
                       <button
                         onClick={() => handleRemoveSocialLink(index)}
                         className="text-sm text-red-600 hover:text-red-800"
@@ -539,7 +525,7 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-[#1b263b] mb-4">Update Profile Picture</h3>
+            <h3 className="text-lg font-semibold text-[#1b263b] mb-4">{t("dashboard","spUpdatePicture")}</h3>
             <div className="flex justify-center mb-4">
             <Image
             src={tempAvatarUrl}
@@ -553,15 +539,11 @@ export default function AccountProfile({ settings, onSettingsChange }: AccountPr
               <button
                 onClick={handleCancelAvatar}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+              >{t("dashboard","invCancel")}</button>
               <button
                 onClick={handleSaveAvatar}
                 className="flex-1 px-4 py-2 bg-[#150578] text-white rounded-lg hover:bg-[#0d0342] transition-colors"
-              >
-                Save Photo
-              </button>
+              >{t("dashboard","spSavePhoto")}</button>
             </div>
           </div>
         </div>
