@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { deleteUserAccount } from '../shared/delete-user-account';
 
 export interface AdminUserRow {
   id: string;
@@ -198,7 +199,16 @@ export class AdminRepository {
     }
   }
 
+  /**
+   * Permanently deletes a user, their business and its whole financial history.
+   *
+   * Goes through the same teardown as the user's own delete-account: a bare
+   * `DELETE FROM users` here trips the ON DELETE RESTRICT on
+   * `journal_lines.account_id` and surfaces in the admin panel as "Internal
+   * server error" for anyone who has actually posted a transaction. See
+   * `deleteUserAccount`.
+   */
   async deleteUser(id: string): Promise<void> {
-    await this.database.query('DELETE FROM users WHERE id = $1', [id]);
+    await deleteUserAccount(this.database, id);
   }
 }
