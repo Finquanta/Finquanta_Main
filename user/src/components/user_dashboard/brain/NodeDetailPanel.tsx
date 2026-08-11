@@ -35,12 +35,28 @@ export default function NodeDetailPanel({
 }) {
   const { t } = useLanguage();
   const [finding, setFinding] = useState(false);
+  /** What the last run actually did. Without this, "too short", "cap reached"
+   *  and "worked fine" are indistinguishable — the run just appears to do
+   *  nothing, which reads as broken. */
+  const [outcome, setOutcome] = useState<string | null>(null);
 
   const restricted = node.accessOverride === "owners_admins";
 
   const findRelated = async () => {
     setFinding(true);
-    try { await enrichBrainNode(node.id); } finally {
+    setOutcome(null);
+    try {
+      const result = await enrichBrainNode(node.id);
+      // Report the summary decision first — it's the one that costs money and
+      // the one people are waiting on. Linking is reported when nothing else
+      // happened, so a run is never silent.
+      if (result.summarized) setOutcome(t("dashboard", "brainEnrich_summarized"));
+      else if (result.skipped) setOutcome(t("dashboard", `brainEnrich_${result.skipped}`));
+      else if (result.linked > 0) setOutcome(`${result.linked} ${t("dashboard", "brainEnrich_linked")}`);
+      else setOutcome(t("dashboard", "brainEnrich_none"));
+    } catch (e) {
+      setOutcome(e instanceof Error ? e.message : t("dashboard", "brainEnrich_none"));
+    } finally {
       setFinding(false);
       onChanged();
     }
@@ -244,6 +260,8 @@ export default function NodeDetailPanel({
               {t("dashboard", restricted ? "brainRestricted" : "brainRestrictNode")}
             </button>
           )}
+
+          {outcome && <span className={`text-xs ${sub}`}>{outcome}</span>}
         </div>
       </div>
     </div>

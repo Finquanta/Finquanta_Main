@@ -35,11 +35,15 @@ const TYPE_ICON: Record<NodeType, typeof FileText> = {
 };
 
 export default function AddNodeModal({
-  isOpen, isDark, categories, editing, defaultCategoryId, defaultConnectTo, onClose, onSaved,
+  isOpen, isDark, categories, editing, defaultCategoryId, defaultConnectTo,
+  summaryThreshold = null, onClose, onSaved,
 }: {
   isOpen: boolean;
   isDark: boolean;
   categories: BrainCategory[];
+  /** Chars needed before a note gets auto-summarized, or null when summaries
+   *  are off for this workspace (then no countdown is shown at all). */
+  summaryThreshold?: number | null;
   /** null = create a new node. */
   editing: BrainNodeDetail | null;
   /** Pre-select a category (the one currently open). */
@@ -429,6 +433,24 @@ export default function AddNodeModal({
                   className={`${field} min-h-[180px] font-mono text-[13px] leading-relaxed`}
                 />
                 <p className={`text-[11px] mt-1 ${sub}`}>{t("dashboard", "brainWikiLinkHint")}</p>
+
+                {/* Live countdown to the summarization threshold. Only shown
+                    when summaries are actually enabled — otherwise it promises
+                    something that won't happen. The threshold comes from the
+                    server so it can't drift from the value that's enforced. */}
+                {/* Guarded on the type, not on `!== null`: Vercel and Render
+                    deploy independently, so a frontend running ahead of the
+                    backend gets `undefined` here and would render "NaN
+                    characters until…". No threshold means no hint. */}
+                {typeof summaryThreshold === "number" && type !== "link" && (
+                  <p className={`text-[11px] mt-1 ${
+                    content.trim().length >= summaryThreshold ? "text-amber-500" : sub
+                  }`}>
+                    {content.trim().length >= summaryThreshold
+                      ? t("dashboard", "brainWillSummarize")
+                      : `${summaryThreshold - content.trim().length} ${t("dashboard", "brainCharsUntilSummary")}`}
+                  </p>
+                )}
               </div>
             </div>
 

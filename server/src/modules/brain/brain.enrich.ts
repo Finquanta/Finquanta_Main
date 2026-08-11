@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { Database } from '../../infrastructure/database';
 import { AiUsageRepository } from '../ai-usage/ai-usage.repository';
-import { BrainRepository } from './brain.repository';
+import { BrainRepository, MIN_SUMMARY_CHARS } from './brain.repository';
 
 /**
  * Background enrichment for the Company Brain (spec §7).
@@ -32,8 +32,18 @@ const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 160;
 /** Long enough that typing a paragraph is one run, short enough to feel live. */
 const DEBOUNCE_MS = 8000;
-/** Hard stop across every business on the platform, per day. */
-const GLOBAL_DAILY_CEILING = 2000;
+/**
+ * Hard stop across every business on the platform, per day.
+ *
+ * Deliberately low while the Anthropic balance is small: at worst-case note
+ * size a summary costs about $0.002, so 100/day caps a runaway at roughly 20c
+ * rather than a whole prepaid balance. A ceiling that sits above the account's
+ * total credit isn't a safety net.
+ *
+ * RAISE THIS before onboarding real users — with the per-business cap at 50,
+ * only two workspaces can reach their own limit in a day at this value.
+ */
+const GLOBAL_DAILY_CEILING = 100;
 const MAX_SUGGESTED_LINKS = 5;
 
 const hashOf = (title: string, content: string | null) =>
@@ -119,7 +129,7 @@ export class BrainEnrichService {
       skipped = 'summaries_off';
     } else if (!process.env.ANTHROPIC_API_KEY) {
       skipped = 'no_api_key';
-    } else if ((node.content ?? '').trim().length < 120) {
+    } else if ((node.content ?? '').trim().length < MIN_SUMMARY_CHARS) {
       // A two-line note is its own summary. Paying to shorten it is waste.
       skipped = 'too_short';
     } else {

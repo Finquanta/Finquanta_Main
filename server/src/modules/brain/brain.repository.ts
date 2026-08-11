@@ -74,6 +74,16 @@ export interface BrainNode {
   updatedAt: string;
 }
 
+/**
+ * Shortest note worth paying to summarize — below this a note is already about
+ * as short as its own summary would be.
+ *
+ * Lives here rather than in brain.enrich.ts so it can be returned to the client
+ * on the settings payload: the Add Node modal counts down to it live, and a
+ * second hardcoded copy in the frontend would drift the moment this changes.
+ */
+export const MIN_SUMMARY_CHARS = 100;
+
 /** Per-business controls for the background enrichment in spec §7. */
 export interface BrainSettings {
   /** Costs an AI call per changed note. Off until deliberately enabled. */
@@ -81,6 +91,8 @@ export interface BrainSettings {
   /** Pure Postgres similarity — no vendor, no cost, so on by default. */
   autoLink: boolean;
   dailySummaryCap: number;
+  /** Read-only echo of MIN_SUMMARY_CHARS, so the client never hardcodes it. */
+  minSummaryChars: number;
 }
 
 export const NODE_STATUSES = ['active', 'archived'] as const;
@@ -1252,6 +1264,7 @@ export class BrainRepository {
       autoSummarize: row?.auto_summarize === true,
       autoLink: row ? row.auto_link === true : true,
       dailySummaryCap: Number(row?.daily_summary_cap) || 50,
+      minSummaryChars: MIN_SUMMARY_CHARS,
     };
   }
 
@@ -1273,7 +1286,7 @@ export class BrainRepository {
              updated_at = NOW()`,
       [businessId, next.autoSummarize, next.autoLink, cap]
     );
-    return { ...next, dailySummaryCap: cap };
+    return { ...next, dailySummaryCap: cap, minSummaryChars: MIN_SUMMARY_CHARS };
   }
 
   /**

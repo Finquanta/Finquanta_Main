@@ -131,6 +131,8 @@ export interface BrainSettings {
   /** Postgres similarity only, so it's free and on by default. */
   autoLink: boolean;
   dailySummaryCap: number;
+  /** Server-owned: shortest note worth summarizing. Never hardcode this. */
+  minSummaryChars: number;
 }
 
 export interface BrainAccessMember {

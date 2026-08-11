@@ -27,6 +27,7 @@ import {
   createBrainCategory, updateBrainCategory, removeBrainCategory, flattenCategories,
   archiveBrainNode, unarchiveBrainNode, deleteBrainNode,
   ResolvedEntity, readEntityRef, resolveBrainEntities,
+  BrainSettings, getBrainSettings,
 } from "@/lib/api/brain";
 
 const TYPE_ICON: Record<NodeType, typeof FileText> = {
@@ -70,6 +71,8 @@ export default function CompanyBrainPage() {
   const [openNode, setOpenNode] = useState<BrainNodeDetail | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Drives the Add Node modal's countdown to the summarization threshold. */
+  const [brainSettings, setBrainSettings] = useState<BrainSettings | null>(null);
   const [editingNode, setEditingNode] = useState<BrainNodeDetail | null>(null);
   const [connectTo, setConnectTo] = useState<BrainNode | null>(null);
 
@@ -145,6 +148,13 @@ export default function CompanyBrainPage() {
   useEffect(() => {
     getBrainPins([...PIN_KEYS]).then(setPins).catch(() => setPins([]));
   }, []);
+
+  // Enrichment settings, for the Add Node countdown. Re-read whenever the
+  // settings modal closes so toggling summaries updates the hint immediately.
+  const loadBrainSettings = useCallback(() => {
+    getBrainSettings().then(setBrainSettings).catch(() => setBrainSettings(null));
+  }, []);
+  useEffect(() => { loadBrainSettings(); }, [loadBrainSettings]);
 
   /**
    * Resolve the reference nodes on screen, in one request for the whole page.
@@ -761,7 +771,7 @@ export default function CompanyBrainPage() {
         isOpen={settingsOpen}
         isDark={isDark}
         canManageAccess={isOwnerAdmin}
-        onClose={() => { setSettingsOpen(false); refreshAll(); }}
+        onClose={() => { setSettingsOpen(false); loadBrainSettings(); refreshAll(); }}
       />
 
       <AddNodeModal
@@ -771,6 +781,9 @@ export default function CompanyBrainPage() {
         editing={editingNode}
         defaultCategoryId={typeof selectedId === "string" ? selectedId : null}
         defaultConnectTo={connectTo}
+        summaryThreshold={
+          brainSettings?.autoSummarize ? brainSettings.minSummaryChars : null
+        }
         onClose={() => { setModalOpen(false); setEditingNode(null); setConnectTo(null); }}
         onSaved={() => {
           refreshAll();
