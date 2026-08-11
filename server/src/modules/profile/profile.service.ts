@@ -10,8 +10,8 @@ export interface ProfileRepositoryPort {
   updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile>;
   updateSettings(userId: string, data: UserSettingsPayload): Promise<UserSettingsPayload>;
   updateName(userId: string, data: { firstName?: string; lastName?: string }): Promise<{ firstName: string; lastName: string }>;
-  getBusiness(userId: string): Promise<BusinessProfile>;
-  upsertBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile>;
+  getBusiness(businessId: string): Promise<BusinessProfile>;
+  upsertBusiness(businessId: string, userId: string, data: BusinessProfile): Promise<BusinessProfile>;
   getPasswordHash(userId: string): Promise<string | null>;
   deleteAccount(userId: string): Promise<boolean>;
 }
@@ -56,12 +56,12 @@ export class ProfileService {
     return this.repository.updateProfile(userId, data);
   }
 
-  async getBusiness(userId: string): Promise<BusinessProfile> {
-    return this.repository.getBusiness(userId);
+  async getBusiness(businessId: string): Promise<BusinessProfile> {
+    return this.repository.getBusiness(businessId);
   }
 
-  async updateBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile> {
-    const profile = await this.repository.upsertBusiness(userId, data);
+  async updateBusiness(businessId: string, userId: string, data: BusinessProfile): Promise<BusinessProfile> {
+    const profile = await this.repository.upsertBusiness(businessId, userId, data);
 
     // Registration creates the workspace before anyone has said what the
     // business is called, so it starts as a placeholder. This is the first
@@ -71,13 +71,17 @@ export class ProfileService {
     //
     // Only the untouched placeholder is renamed: a name set deliberately in the
     // workspace switcher must survive a later onboarding edit.
+    //
+    // Now that profiles are per workspace, this renames the workspace being
+    // edited rather than whichever one happens to be first — otherwise naming
+    // your second business would relabel your first.
     if (this.database && profile.businessName?.trim()) {
       try {
         const businesses = new BusinessesRepository(this.database);
         const owned = await businesses.listForUser(userId);
-        const primary = owned[0];
-        if (primary && primary.name === DEFAULT_BUSINESS_NAME) {
-          await businesses.rename(primary.id, profile.businessName.trim());
+        const active = owned.find((b) => b.id === businessId);
+        if (active && active.name === DEFAULT_BUSINESS_NAME) {
+          await businesses.rename(active.id, profile.businessName.trim());
         }
       } catch {
         /* the profile is what must be saved; a stale workspace label is cosmetic */

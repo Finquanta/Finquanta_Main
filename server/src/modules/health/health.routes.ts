@@ -38,7 +38,9 @@ export async function healthRoutes(fastify: FastifyInstance, options: { database
         repo.snapshot(businessId, iso(today), PERIOD_DAYS),
         // The same picture a month ago — this is what the trend arrows compare to.
         repo.snapshot(businessId, iso(monthAgo), PERIOD_DAYS),
-        profiles.getBusiness(request.user!.id),
+        // Per workspace: the score's context (industry, maturity, debt, goal)
+        // must describe the business being scored, not the account's first one.
+        profiles.getBusiness(businessId),
       ]);
 
       // Only meaningful once there's history to compare against.

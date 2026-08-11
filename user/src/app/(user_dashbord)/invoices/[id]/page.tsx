@@ -13,6 +13,7 @@ import { BusinessProfile, getBusinessProfile } from "@/lib/api/business";
 import { Customer, getCustomer } from "@/lib/api/customers";
 import InvoiceTemplate from "@/components/user_dashboard/invoices/InvoiceTemplate";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
+import AddToBrainButton from "@/components/user_dashboard/brain/AddToBrainButton";
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -123,6 +124,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
             <Printer className="h-4 w-4" />{t("dashboard","invPrintPdf")}</button>
           <button onClick={emailInvoice} className={btn}>
             <Mail className="h-4 w-4" />{t("dashboard","invEmail")}</button>
+          {/* Files a pointer to this invoice in the Brain and opens it, so the
+              reasoning about it gets written while it's still fresh. */}
+          <AddToBrainButton
+            isDark={isDark} entityType="invoice" entityId={invoice.id}
+            title={customer?.name ? `${invoice.number} — ${customer.name}` : invoice.number}
+          />
 
           {canSend && (
             <button onClick={() => act(() => markInvoiceSent(invoice.id))} disabled={busy}

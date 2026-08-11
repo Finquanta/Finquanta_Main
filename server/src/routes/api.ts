@@ -43,6 +43,8 @@ import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
 import { GroupsRepository } from '../modules/groups/groups.repository';
+import { brainRoutes } from '../modules/brain/brain.routes';
+import { BrainRepository } from '../modules/brain/brain.repository';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 import { aiUsageRoutes } from '../modules/ai-usage/ai-usage.routes';
 import { AiUsageRepository } from '../modules/ai-usage/ai-usage.repository';
@@ -307,6 +309,16 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure groups schema');
   }
   await fastify.register(groupsRoutes, { database });
+
+  // Company Brain — the business's knowledge graph: categories, notes and the
+  // connections between them, plus read-only pins onto live financial data.
+  // Registered after groups and accounting because its pins read from both.
+  try {
+    await new BrainRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure brain schema');
+  }
+  await fastify.register(brainRoutes, { database });
 
   // AI (Finna/Claude) daily usage caps, so a single user or anonymous IP can't
   // run up unbounded Anthropic spend.

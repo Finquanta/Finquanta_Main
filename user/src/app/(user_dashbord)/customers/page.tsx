@@ -9,6 +9,7 @@ import {
   Customer, CustomerInput, listCustomers, createCustomer, updateCustomer, deleteCustomer,
 } from "@/lib/api/customers";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
+import AddToBrainButton from "@/components/user_dashboard/brain/AddToBrainButton";
 
 const EMPTY: CustomerInput = {
   name: "", email: "", phone: "",
@@ -139,6 +140,10 @@ export default function CustomersPage() {
                         {money(c.outstandingBalance)}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <AddToBrainButton
+                          isDark={isDark} entityType="customer" entityId={c.id} title={c.name}
+                          variant="icon" className="mr-3"
+                        />
                         <button onClick={() => startEdit(c)} className={`mr-3 ${sub} hover:text-blue-500`} title="Edit">
                           <Pencil className="h-4 w-4 inline" />
                         </button>

@@ -5,6 +5,7 @@ import { Layers, Plus, Trash2, Archive, TrendingUp, TrendingDown, Pencil, Check,
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
+import AddToBrainButton from "@/components/user_dashboard/brain/AddToBrainButton";
 import {
   GROUP_COLORS, Group, GroupItem, GroupReportRow,
   archiveGroup, assignToGroup, createGroup, deleteGroup, getGroupItems, getGroupReport, getGroups, updateGroup,
@@ -235,6 +236,12 @@ export default function GroupsPage() {
                     <span className="text-base font-bold" style={{ color: r.net > 0 ? "#10b981" : r.net < 0 ? "#ef4444" : (isDark ? "#9ca3af" : "#6b7280") }}>
                       {money(r.net)}
                     </span>
+                    {r.groupId && (
+                      <AddToBrainButton
+                        isDark={isDark} entityType="group" entityId={r.groupId} title={r.name}
+                        variant="icon" className="p-1 rounded"
+                      />
+                    )}
                     {r.groupId && (
                       <button onClick={() => archive(r)} className={`p-1 rounded ${sub} hover:text-amber-500`} title={t("dashboard","grpArchive")}>
                         <Archive className="h-4 w-4" />

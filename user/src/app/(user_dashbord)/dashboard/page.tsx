@@ -579,6 +579,12 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex flex-col gap-2" data-tour="sidebar">
+          {/* Keep this list in step with NAV in DashboardSidebar.tsx — this page
+              builds its own sidebar instead of using DashboardShell, so a link
+              added there does not appear here. */}
+          <Link href="/brain" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            {t('dashboard', 'brainTitle')}
+          </Link>
           <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
             {t('dashboard', 'title')}
           </Link>

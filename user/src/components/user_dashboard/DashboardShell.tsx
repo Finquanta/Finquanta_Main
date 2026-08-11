@@ -5,7 +5,9 @@ import { Menu, Globe, ChevronDown, LogOut } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from "@/hooks/context/LanguageContext";
 import { logoutAndRedirect } from "@/lib/auth";
+import AccountNameChip from "./AccountNameChip";
 import DashboardSidebar from "./DashboardSidebar";
+import NotificationBell from "./NotificationBell";
 import ReferralIdChip from "./ReferralIdChip";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
@@ -40,6 +42,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className={`flex items-center justify-between gap-2 px-4 py-3 border-b ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+          {/* Same order and spacing as the Dashboard page's own bar:
+              hamburger, avatar + editable name, workspace switcher. */}
           <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -48,11 +52,24 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             >
               <Menu className="h-5 w-5" />
             </button>
+            <AccountNameChip isDark={isDark} />
             <WorkspaceSwitcher isDark={isDark} />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-3">
             <ReferralIdChip isDark={isDark} />
+
+            {/* Bell and search were only ever on the Dashboard page's own bar,
+                so they disappeared on every other tab. Both live here now. */}
+            <NotificationBell isDark={isDark} />
+
+            <input
+              type="text"
+              placeholder={t("dashboard", "search")}
+              className={`hidden md:block border rounded-lg px-3 py-1 text-sm w-48 ${
+                isDark ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+              }`}
+            />
 
             <div className="relative">
               <button

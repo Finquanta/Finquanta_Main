@@ -26,6 +26,10 @@ export interface BusinessProfile {
   businessEmail?: string;
   businessPhone?: string;
   website?: string;
+  // Company Brain overview card. Not asked at onboarding — edited on the card.
+  /** YYYY-MM-DD. */
+  foundedDate?: string;
+  description?: string;
   onboardingCompleted?: boolean;
 }
 
@@ -35,10 +39,19 @@ export async function uploadBusinessLogo(file: File): Promise<BusinessProfile> {
   form.append('file', file);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  // X-Business-Id matters: the profile is per workspace now, and without this
+  // header the server falls back to the account's EARLIEST business — so a logo
+  // uploaded from any other workspace silently landed on the first one.
+  // apiFetch adds this automatically; this call bypasses it to send multipart.
+  const businessId = typeof window !== 'undefined' ? localStorage.getItem('activeBusinessId') : null;
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (businessId) headers['X-Business-Id'] = businessId;
+
   const res = await fetchWithRetry(serverApiUrl('/v1/me/business/logo'), {
     method: 'POST',
     // Don't set Content-Type — the browser adds the multipart boundary itself.
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers,
     body: form,
   });
 

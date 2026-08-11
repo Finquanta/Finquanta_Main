@@ -118,25 +118,107 @@ export class ProfileRepository {
     // Section 9 — signup questions that feed the Health Score and Finna.
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS has_debt VARCHAR(20)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS primary_goal VARCHAR(60)`);
+    // Company Brain overview card — when the business started, and how it
+    // describes itself. Neither was asked at onboarding, so both are edited in
+    // place on the card and stay null until the user fills them in.
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS founded_date DATE`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS description TEXT`);
+
+    // ---- Re-key from one profile per USER to one per BUSINESS ----------------
+    //
+    // The table was keyed by user_id, so an account with several workspaces had
+    // a single shared profile: switching workspace kept the same name, industry
+    // and logo, and editing one changed all of them. Every other business fact
+    // in the product is scoped by business_id; this now matches.
+    //
+    // user_id is deliberately KEPT and still populated. The admin panel and the
+    // members list join on it, and dropping it would break both.
+    await this.database.query(
+      `ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_id UUID
+         REFERENCES businesses(id) ON DELETE CASCADE`
+    );
+
+    // Existing rows adopt that owner's earliest workspace — the one their data
+    // was actually describing.
+    await this.database.query(`
+      UPDATE business_profiles bp
+         SET business_id = (
+           SELECT b.id FROM businesses b
+            WHERE b.owner_id = bp.user_id
+            ORDER BY b.created_at LIMIT 1
+         )
+       WHERE bp.business_id IS NULL
+    `);
+
+    // One row per user was enforced by the primary key; it now has to allow
+    // several, one per workspace.
+    await this.database.query(`ALTER TABLE business_profiles DROP CONSTRAINT IF EXISTS business_profiles_pkey`);
+    await this.database.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_business_profiles_business
+         ON business_profiles(business_id) WHERE business_id IS NOT NULL`
+    );
+    await this.database.query(
+      `CREATE INDEX IF NOT EXISTS idx_business_profiles_user ON business_profiles(user_id)`
+    );
+
+    // Give every other workspace its own copy of the owner's profile, so the
+    // split is invisible until someone edits one: nothing suddenly looks blank,
+    // and nobody gets bounced back into onboarding because their second
+    // workspace has no `onboarding_completed`.
+    await this.database.query(`
+      INSERT INTO business_profiles (
+        business_id, user_id, business_name, business_type, industry, niche, entity_type,
+        maturity_stage, revenue_range, employee_count, financial_goals, country,
+        incorporation_location, onboarding_completed, logo_url, address_line1, address_line2,
+        city, region, postal_code, business_email, business_phone, website,
+        has_debt, primary_goal, founded_date, description, created_at, updated_at
+      )
+      SELECT b.id, src.user_id, src.business_name, src.business_type, src.industry, src.niche,
+             src.entity_type, src.maturity_stage, src.revenue_range, src.employee_count,
+             src.financial_goals, src.country, src.incorporation_location, src.onboarding_completed,
+             src.logo_url, src.address_line1, src.address_line2, src.city, src.region,
+             src.postal_code, src.business_email, src.business_phone, src.website,
+             src.has_debt, src.primary_goal, src.founded_date, src.description, NOW(), NOW()
+        FROM businesses b
+        CROSS JOIN LATERAL (
+          SELECT * FROM business_profiles p
+           WHERE p.user_id = b.owner_id
+           ORDER BY p.business_id NULLS LAST
+           LIMIT 1
+        ) src
+       WHERE NOT EXISTS (SELECT 1 FROM business_profiles x WHERE x.business_id = b.id)
+    `);
   }
 
-  async getBusiness(userId: string): Promise<BusinessProfile> {
-    const result = await this.database.query('SELECT * FROM business_profiles WHERE user_id = $1', [userId]);
+  /**
+   * The profile for one workspace, and only that workspace.
+   *
+   * There is deliberately NO fallback to another of the user's rows. An earlier
+   * version fell back to "any profile this user owns" as a safety net for
+   * businesses that missed the backfill, and that was itself the leak: a
+   * workspace with no profile of its own — a newly created one, say — displayed
+   * another workspace's name, industry and logo, which then got saved back onto
+   * it. A workspace without a profile is simply blank, which is the truth.
+   */
+  async getBusiness(businessId: string): Promise<BusinessProfile> {
+    const result = await this.database.query(
+      'SELECT * FROM business_profiles WHERE business_id = $1', [businessId]
+    );
     return result.rows[0] ? this.mapBusiness(result.rows[0]) : {};
   }
 
-  async upsertBusiness(userId: string, data: BusinessProfile): Promise<BusinessProfile> {
+  async upsertBusiness(businessId: string, userId: string, data: BusinessProfile): Promise<BusinessProfile> {
     const query = `
       INSERT INTO business_profiles (
-        user_id, business_name, business_type, industry, niche, entity_type,
+        business_id, user_id, business_name, business_type, industry, niche, entity_type,
         maturity_stage, revenue_range, employee_count, financial_goals,
         country, incorporation_location,
         logo_url, address_line1, address_line2, city, region, postal_code,
         business_email, business_phone, website,
         has_debt, primary_goal,
-        onboarding_completed, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW(),NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
+        onboarding_completed, founded_date, description, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,NOW(),NOW())
+      ON CONFLICT (business_id) WHERE business_id IS NOT NULL DO UPDATE SET
         business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
         business_type = COALESCE(EXCLUDED.business_type, business_profiles.business_type),
         industry = COALESCE(EXCLUDED.industry, business_profiles.industry),
@@ -160,10 +242,13 @@ export class ProfileRepository {
         has_debt = COALESCE(EXCLUDED.has_debt, business_profiles.has_debt),
         primary_goal = COALESCE(EXCLUDED.primary_goal, business_profiles.primary_goal),
         onboarding_completed = business_profiles.onboarding_completed OR EXCLUDED.onboarding_completed,
+        founded_date = COALESCE(EXCLUDED.founded_date, business_profiles.founded_date),
+        description = COALESCE(EXCLUDED.description, business_profiles.description),
         updated_at = NOW()
       RETURNING *
     `;
     const result = await this.database.query(query, [
+      businessId,
       userId,
       data.businessName ?? null,
       data.businessType ?? null,
@@ -187,7 +272,10 @@ export class ProfileRepository {
       data.website ?? null,
       data.hasDebt ?? null,
       data.primaryGoal ?? null,
-      data.onboardingCompleted ?? false
+      data.onboardingCompleted ?? false,
+      // An empty string would fail the DATE cast; treat "cleared" as null.
+      data.foundedDate || null,
+      data.description ?? null
     ]);
     return this.mapBusiness(result.rows[0]);
   }
@@ -216,6 +304,11 @@ export class ProfileRepository {
       businessEmail: row.business_email ?? undefined,
       businessPhone: row.business_phone ?? undefined,
       website: row.website ?? undefined,
+      // pg returns DATE as a Date object; the client wants a plain YYYY-MM-DD.
+      foundedDate: row.founded_date
+        ? new Date(row.founded_date).toISOString().slice(0, 10)
+        : undefined,
+      description: row.description ?? undefined,
       onboardingCompleted: row.onboarding_completed ?? false
     };
   }

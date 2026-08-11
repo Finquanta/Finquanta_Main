@@ -15,7 +15,10 @@ export class ProfileController {
 
   async getBusiness(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      return reply.send({ success: true, data: await this.service.getBusiness(request.user!.id) });
+      return reply.send({
+        success: true,
+        data: await this.service.getBusiness(request.businessId!),
+      });
     } catch (error) {
       return this.handleError(error, reply);
     }
@@ -23,7 +26,10 @@ export class ProfileController {
 
   async updateBusiness(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      return reply.send({ success: true, data: await this.service.updateBusiness(request.user!.id, request.body as any) });
+      return reply.send({
+        success: true,
+        data: await this.service.updateBusiness(request.businessId!, request.user!.id, request.body as any),
+      });
     } catch (error) {
       return this.handleError(error, reply);
     }

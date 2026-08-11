@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import { Database } from '../../infrastructure/database';
 import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
+import { withBusiness } from '../shared/business-context';
 import { ProfileController } from './profile.controller';
 import { ProfileRepository } from './profile.repository';
 import { ProfileService } from './profile.service';
@@ -17,8 +18,11 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
   fastify.get('/v1/me', { preHandler: [authenticate] }, controller.getMe.bind(controller) as any);
   fastify.patch('/v1/me', { preHandler: [authenticate] }, controller.updateName.bind(controller) as any);
   fastify.patch('/v1/me/profile', { preHandler: [authenticate] }, controller.updateProfile.bind(controller) as any);
-  fastify.get('/v1/me/business', { preHandler: [authenticate] }, controller.getBusiness.bind(controller) as any);
-  fastify.put('/v1/me/business', { preHandler: [authenticate] }, controller.updateBusiness.bind(controller) as any);
+  // The business profile is per workspace now, so these three need the active
+  // business resolved onto the request — `authenticate` alone is not enough.
+  const withBiz = [authenticate, withBusiness(options.database)];
+  fastify.get('/v1/me/business', { preHandler: withBiz }, controller.getBusiness.bind(controller) as any);
+  fastify.put('/v1/me/business', { preHandler: withBiz }, controller.updateBusiness.bind(controller) as any);
   fastify.patch('/v1/me/settings', { preHandler: [authenticate] }, controller.updateSettings.bind(controller) as any);
   fastify.delete('/v1/me', { preHandler: [authenticate] }, controller.deleteAccount.bind(controller) as any);
 
@@ -29,7 +33,7 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
    * file on disk — a logo is small, it needs no separate serving route, and it
    * survives a redeploy (Render's filesystem is ephemeral).
    */
-  fastify.post('/v1/me/business/logo', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  fastify.post('/v1/me/business/logo', { preHandler: withBiz }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const file = await (request as any).file();
       if (!file) return reply.status(400).send({ success: false, error: 'No file uploaded' });
@@ -53,7 +57,8 @@ export async function profileRoutes(fastify: FastifyInstance, options: { databas
 
       const mime = file.mimetype === 'image/jpg' ? 'image/jpeg' : file.mimetype;
       const logoUrl = `data:${mime};base64,${buffer.toString('base64')}`;
-      const saved = await repository.upsertBusiness(request.user!.id, { logoUrl });
+      // Scoped to the active workspace, so each business can carry its own logo.
+      const saved = await repository.upsertBusiness(request.businessId!, request.user!.id, { logoUrl });
       return reply.send({ success: true, data: saved });
     } catch (error) {
       request.log.error(error);

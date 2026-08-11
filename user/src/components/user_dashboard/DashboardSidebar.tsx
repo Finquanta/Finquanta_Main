@@ -21,6 +21,7 @@ const NAV: SidebarNavItem[] = [
   // `label` is the English fallback the renderer uses when labelKey is absent —
   // every item carries a key now, so the sidebar translates like the rest of the
   // dashboard instead of staying English in all ten languages.
+  { href: "/brain", labelKey: "brainTitle", label: "Company Brain" },
   { href: "/dashboard", labelKey: "title", label: "Dashboard" },
   { href: "/invoices", labelKey: "invoices", label: "Invoices" },
   { href: "/customers", labelKey: "customers", label: "Customers" },
