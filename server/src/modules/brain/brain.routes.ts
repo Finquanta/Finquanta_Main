@@ -14,6 +14,9 @@ import { BrainEnrichService } from './brain.enrich';
 import {
   ACCESS_LEVELS, BrainAccessService, canRead, canWrite, isAccessLevel, isNodeOverride,
 } from './brain.access';
+import {
+  BrainAdvisorService, GUIDED_CATEGORIES, isGuidedCategory, isThreadStatus,
+} from './brain.advisor';
 
 /**
  * Company Brain — categories, nodes, edges and live data pins.
@@ -28,6 +31,7 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
   const entities = new BrainEntitiesService(options.database);
   const enrich = new BrainEnrichService(options.database);
   const accessService = new BrainAccessService(options.database);
+  const advisor = new BrainAdvisorService(options.database);
   const pre = [authenticate, withBusiness(options.database)];
 
   /**
@@ -265,7 +269,7 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
   fastify.post('/v1/brain/nodes', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const body = (request.body as {
-        title?: string; content?: string | null; type?: string;
+        title?: string; content?: string | null; type?: string; source?: string;
         categoryId?: string | null; payload?: Record<string, unknown> | null;
         connectToNodeId?: string | null; connectToCategoryId?: string | null;
         connections?: { nodeId?: string | null; categoryId?: string | null }[];
@@ -287,6 +291,9 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
           // 'unassigned' and null both mean the floating bucket.
           categoryId: body.categoryId === 'unassigned' ? null : body.categoryId ?? null,
           payload: body.payload ?? {},
+          // 'council' is never accepted from a client — only the Council's own
+          // server-side code may claim it, so provenance can't be spoofed.
+          source: body.source === 'system' ? 'system' : 'manual',
         },
         // `connections` is the list form; the singular fields stay accepted so
         // an older client (or the graph's "+" on a node) still works.
@@ -572,6 +579,197 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Could not update Brain access.' });
+    }
+  }) as any);
+
+  /**
+   * Guided-category advisor context (spec §6b).
+   *
+   * Everything the Marketing/Sales advisor needs to be briefed, in one request:
+   * the answers so far, what's still unanswered, how specific the brief is, the
+   * notes already in the category, and the live pin. Deterministic — the AI call
+   * happens in the Next.js chat route, using this as context.
+   */
+  fastify.get('/v1/brain/advisor/context', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { category, threadId } = request.query as { category?: string; threadId?: string };
+      if (!isGuidedCategory(category)) {
+        return reply.status(400).send({
+          success: false,
+          error: `category must be one of: ${GUIDED_CATEGORIES.join(', ')}`,
+        });
+      }
+      return reply.send({
+        success: true,
+        data: await advisor.getContext(
+          request.businessId!, category, await restrictFor(request), threadId ?? null
+        ),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not load the advisor.' });
+    }
+  }) as any);
+
+  /**
+   * Saved advisor conversations (§6b).
+   *
+   * One business can be advertising several things at once — a trading platform
+   * and an NFT drop are different budgets and different stages — so each subject
+   * gets its own resumable thread rather than one endless chat.
+   */
+  fastify.get('/v1/brain/advisor/threads', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { category, status } = request.query as { category?: string; status?: string };
+      if (!isGuidedCategory(category)) {
+        return reply.status(400).send({
+          success: false,
+          error: `category must be one of: ${GUIDED_CATEGORIES.join(', ')}`,
+        });
+      }
+      return reply.send({
+        success: true,
+        data: await advisor.listThreads(
+          request.businessId!, category, isThreadStatus(status) ? status : 'active'
+        ),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not load your conversations.' });
+    }
+  }) as any);
+
+  fastify.post('/v1/brain/advisor/threads', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const body = (request.body as {
+        category?: unknown; title?: unknown;
+        stage?: string | null; budget?: string | null; situation?: string | null;
+      }) || {};
+      if (!isGuidedCategory(body.category)) {
+        return reply.status(400).send({
+          success: false,
+          error: `category must be one of: ${GUIDED_CATEGORIES.join(', ')}`,
+        });
+      }
+      const title = typeof body.title === 'string' ? body.title.trim() : '';
+      if (!title) return reply.status(400).send({ success: false, error: 'A name is required.' });
+
+      return reply.status(201).send({
+        success: true,
+        data: await advisor.createThread(request.businessId!, body.category, {
+          title, stage: body.stage, budget: body.budget, situation: body.situation,
+        }),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not start that conversation.' });
+    }
+  }) as any);
+
+  /** The full transcript, for resuming a conversation. */
+  fastify.get('/v1/brain/advisor/threads/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const thread = await advisor.getThread(request.businessId!, id);
+      if (!thread) return reply.status(404).send({ success: false, error: 'Conversation not found.' });
+      return reply.send({ success: true, data: thread });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not load that conversation.' });
+    }
+  }) as any);
+
+  fastify.patch('/v1/brain/advisor/threads/:id', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = (request.body as {
+        title?: string; stage?: string | null; budget?: string | null;
+        situation?: string | null; status?: string;
+      }) || {};
+      if (body.status !== undefined && !isThreadStatus(body.status)) {
+        return reply.status(400).send({ success: false, error: 'status must be active or archived.' });
+      }
+      const updated = await advisor.updateThread(request.businessId!, id, {
+        ...body, status: isThreadStatus(body.status) ? body.status : undefined,
+      });
+      if (!updated) return reply.status(404).send({ success: false, error: 'Conversation not found.' });
+      return reply.send({ success: true, data: updated });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save that conversation.' });
+    }
+  }) as any);
+
+  /** Append the latest exchange, so the thread can be left and picked back up. */
+  fastify.post('/v1/brain/advisor/threads/:id/messages', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = (request.body as { messages?: unknown }) || {};
+      if (!Array.isArray(body.messages)) {
+        return reply.status(400).send({ success: false, error: 'messages must be an array.' });
+      }
+      await advisor.appendMessages(request.businessId!, id, body.messages as any);
+      return reply.send({ success: true, data: { ok: true } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save that message.' });
+    }
+  }) as any);
+
+  /**
+   * Save the whole conversation into the Brain as one node, so the reasoning
+   * is readable months later. Deterministic formatting of the stored
+   * transcript — no AI call, so this costs nothing.
+   */
+  fastify.post('/v1/brain/advisor/threads/:id/save-note', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const saved = await advisor.saveThreadAsNote(request.businessId!, id, request.user?.id ?? null);
+      if (!saved) return reply.status(404).send({ success: false, error: 'Conversation not found.' });
+      return reply.status(201).send({ success: true, data: saved });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save that to your Brain.' });
+    }
+  }) as any);
+
+  fastify.delete('/v1/brain/advisor/threads/:id', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const gone = await advisor.deleteThread(request.businessId!, id);
+      if (!gone) return reply.status(404).send({ success: false, error: 'Conversation not found.' });
+      return reply.send({ success: true, data: { id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not delete that conversation.' });
+    }
+  }) as any);
+
+  /** Save one or more profiling answers. Merges, so a partial save never wipes. */
+  fastify.patch('/v1/brain/advisor/profile', { preHandler: writePre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const body = (request.body as { category?: unknown; answers?: unknown }) || {};
+      if (!isGuidedCategory(body.category)) {
+        return reply.status(400).send({
+          success: false,
+          error: `category must be one of: ${GUIDED_CATEGORIES.join(', ')}`,
+        });
+      }
+      if (!body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers)) {
+        return reply.status(400).send({ success: false, error: 'answers must be an object.' });
+      }
+      return reply.send({
+        success: true,
+        data: await advisor.saveAnswers(
+          request.businessId!,
+          body.category,
+          body.answers as Record<string, string>,
+          request.user?.id ?? null
+        ),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save your answers.' });
     }
   }) as any);
 

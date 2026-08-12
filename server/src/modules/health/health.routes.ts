@@ -5,7 +5,7 @@ import { withBusiness } from '../shared/business-context';
 import { AccountingRepository } from '../accounting/accounting.repository';
 import { ProfileRepository } from '../profile/profile.repository';
 import { HealthRepository } from './health.repository';
-import { computeHealthScore, PERIOD_DAYS } from './health.service';
+import { computeHealthScore, computeRunway, PERIOD_DAYS } from './health.service';
 import { HealthContext } from './health.types';
 
 /**
@@ -61,6 +61,37 @@ export async function healthRoutes(fastify: FastifyInstance, options: { database
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Could not compute your health score.' });
+    }
+  }) as any);
+
+  /**
+   * GET /v1/health-score/runway → burn rate and months of cash left.
+   *
+   * Its own route rather than a field on the score because Finna asks for it
+   * on its own, and the score is a heavier computation (two snapshots and a
+   * profile read) than a runway question needs.
+   */
+  fastify.get('/v1/health-score/runway', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const businessId = request.businessId!;
+      await ledger.resyncBookkeeping(businessId);
+
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const [daysOfData, snapshot, balances] = await Promise.all([
+        repo.daysOfData(businessId),
+        repo.snapshot(businessId, iso(new Date()), PERIOD_DAYS),
+        ledger.getBalances(businessId),
+      ]);
+
+      const cash = balances.find((b: any) => b.code === 'CASH')?.balance ?? snapshot.cash;
+
+      return reply.send({
+        success: true,
+        data: computeRunway(snapshot, Number(cash) || 0, daysOfData, PERIOD_DAYS),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not work out your runway.' });
     }
   }) as any);
 }

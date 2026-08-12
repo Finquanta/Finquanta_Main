@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, Globe, ChevronDown, LogOut } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from "@/hooks/context/LanguageContext";
 import { logoutAndRedirect } from "@/lib/auth";
+import { isFinnaHidden, setFinnaHidden } from "@/lib/finnaVisibility";
 import AccountNameChip from "./AccountNameChip";
 import DashboardSidebar from "./DashboardSidebar";
 import NotificationBell from "./NotificationBell";
@@ -30,6 +31,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const isDark = theme === "dark";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  /** Read after mount — localStorage doesn't exist during the server render. */
+  const [finnaHidden, setFinnaHiddenState] = useState(false);
+  useEffect(() => { setFinnaHiddenState(isFinnaHidden()); }, []);
 
   const currentLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
   const buttonBg = isDark
@@ -98,6 +102,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </div>
               )}
             </div>
+
+            {/* Show or hide the floating Finna widget. Sits between language
+                and theme because it's the same kind of thing: a per-person
+                display preference, not a feature switch. */}
+            <button
+              onClick={() => { const next = !finnaHidden; setFinnaHidden(next); setFinnaHiddenState(next); }}
+              title={t("dashboard", finnaHidden ? "finnaOff" : "finnaOn")}
+              className={`px-3 py-1 rounded-lg text-xs font-medium border ${buttonBg} ${
+                finnaHidden ? "opacity-50" : ""
+              }`}
+            >
+              {t("dashboard", finnaHidden ? "finnaOff" : "finnaOn")}
+            </button>
 
             <button onClick={toggleTheme} className={`px-3 py-1 rounded-lg text-xs font-medium border ${buttonBg}`}>
               {isDark ? t("dashboard", "dark") : t("dashboard", "light")}

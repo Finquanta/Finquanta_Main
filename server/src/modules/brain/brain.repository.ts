@@ -24,6 +24,14 @@ import { BrainEntitiesService, EntityRef, ResolvedEntity, readEntityRef } from '
  * figures are resolved live on read. See brain.entities.ts for why it is a
  * pointer rather than a copy.
  */
+/**
+ * Where a node came from (spec §11), so the UI can show provenance — e.g. a
+ * note the guided advisor drafted rather than one the user wrote by hand.
+ * 'council' is reserved for the Finna Council (spec 07).
+ */
+export const NODE_SOURCES = ['manual', 'council', 'system'] as const;
+export type NodeSource = (typeof NODE_SOURCES)[number];
+
 export const NODE_TYPES = ['note', 'task', 'link', 'pin', 'entity_ref'] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -140,6 +148,8 @@ export interface NodeInput {
   title: string;
   content?: string | null;
   payload?: Record<string, unknown> | null;
+  /** Provenance (spec §11). Defaults to 'manual' — a person typed it. */
+  source?: NodeSource;
 }
 
 /**
@@ -303,6 +313,14 @@ export class BrainRepository {
     );
     await this.database.query(
       `ALTER TABLE brain_nodes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE`
+    );
+
+    // Provenance (spec §11). Additive as well as being in CREATE TABLE above:
+    // `brain_nodes` already exists on every deployed environment, so the
+    // CREATE is a no-op there and the column would never appear — every
+    // createNode INSERT would fail on a missing column.
+    await this.database.query(
+      `ALTER TABLE brain_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'manual'`
     );
 
     // Background enrichment (spec §7) and access control (§10).
@@ -1060,12 +1078,13 @@ export class BrainRepository {
       const categoryId = await this.resolveCategory(client, businessId, input.categoryId);
 
       const result = await client.query(
-        `INSERT INTO brain_nodes (business_id, category_id, type, title, content, payload, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO brain_nodes (business_id, category_id, type, title, content, payload, created_by, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
         [
           businessId, categoryId, input.type ?? 'note', input.title,
           input.content ?? null, JSON.stringify(input.payload ?? {}), userId,
+          input.source ?? 'manual',
         ]
       );
       const node = this.mapNode(result.rows[0]);

@@ -171,6 +171,13 @@ export interface NodeInput {
   connectToCategoryId?: string | null;
   /** Several connections at once — each entry targets a node or a department. */
   connections?: { nodeId?: string | null; categoryId?: string | null }[];
+  /**
+   * Provenance. 'system' marks a node the product wrote on the user's behalf —
+   * an answer saved out of the Finna chat, an advisor note. The server only
+   * accepts 'manual' or 'system' from a client; 'council' is server-side only,
+   * so a client can't claim a Decision came from the Council.
+   */
+  source?: 'manual' | 'system';
 }
 
 // ---- Graph ----------------------------------------------------------------
@@ -316,6 +323,117 @@ export const getBrainPins = (keys?: PinKey[]) =>
   apiFetch<BrainPin[]>(`/v1/brain/pins${keys?.length ? `?keys=${keys.join(',')}` : ''}`);
 
 // ---- Enrichment settings + access (spec §7.1, §10) ------------------------
+
+/** Guided categories only — Marketing and Sales (Company Brain spec §6b). */
+export type GuidedCategory = 'marketing' | 'sales';
+
+/** How much the advisor has to work with; drives how specific it's allowed to be. */
+export type AdvisorSpecificity = 'none' | 'thin' | 'partial' | 'rich';
+
+export interface AdvisorQuestion {
+  /** Stable storage key. Answers are keyed on this, so it never changes. */
+  id: string;
+  /** i18n key — the question text is translated client-side. */
+  promptKey: string;
+}
+
+/**
+ * One saved advisor conversation. A business promoting two different things
+ * needs two threads — different budget, different stage, different advice.
+ */
+export type ThreadStatus = 'active' | 'archived';
+
+export interface AdvisorThread {
+  id: string;
+  category: GuidedCategory;
+  title: string;
+  stage: string | null;
+  budget: string | null;
+  situation: string | null;
+  /** Archived threads stay readable but drop out of the default list. */
+  status: ThreadStatus;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdvisorMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AdvisorThreadDetail extends AdvisorThread {
+  messages: AdvisorMessage[];
+}
+
+export const listAdvisorThreads = (category: GuidedCategory, status: ThreadStatus = 'active') =>
+  apiFetch<AdvisorThread[]>(`/v1/brain/advisor/threads?category=${category}&status=${status}`);
+
+/**
+ * Save the whole conversation into the Brain as one node. Deterministic — the
+ * server formats the stored transcript, so this costs nothing.
+ */
+export const saveAdvisorThreadAsNote = (id: string) =>
+  apiFetch<{ id: string }>(`/v1/brain/advisor/threads/${id}/save-note`, { method: 'POST' });
+
+export const createAdvisorThread = (
+  category: GuidedCategory,
+  data: { title: string; stage?: string | null; budget?: string | null; situation?: string | null }
+) =>
+  apiFetch<AdvisorThread>('/v1/brain/advisor/threads', {
+    method: 'POST',
+    body: JSON.stringify({ category, ...data }),
+  });
+
+export const getAdvisorThread = (id: string) =>
+  apiFetch<AdvisorThreadDetail>(`/v1/brain/advisor/threads/${id}`);
+
+export const updateAdvisorThread = (
+  id: string,
+  data: {
+    title?: string; stage?: string | null; budget?: string | null;
+    situation?: string | null; status?: ThreadStatus;
+  }
+) =>
+  apiFetch<AdvisorThread>(`/v1/brain/advisor/threads/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+
+/** Append the latest exchange so the thread survives leaving the page. */
+export const appendAdvisorMessages = (id: string, messages: AdvisorMessage[]) =>
+  apiFetch<{ ok: boolean }>(`/v1/brain/advisor/threads/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+
+export const deleteAdvisorThread = (id: string) =>
+  apiFetch<{ id: string }>(`/v1/brain/advisor/threads/${id}`, { method: 'DELETE' });
+
+export interface AdvisorContext {
+  category: GuidedCategory;
+  categoryId: string | null;
+  /** Set when the conversation is scoped to a saved thread. */
+  thread: AdvisorThread | null;
+  answers: Record<string, string>;
+  questions: AdvisorQuestion[];
+  /** Question ids with no meaningful answer yet. */
+  unanswered: string[];
+  specificity: AdvisorSpecificity;
+  notes: { id: string; title: string; summary: string | null }[];
+}
+
+export const getAdvisorContext = (category: GuidedCategory, threadId?: string | null) =>
+  apiFetch<AdvisorContext>(
+    `/v1/brain/advisor/context?category=${category}${threadId ? `&threadId=${threadId}` : ''}`
+  );
+
+/** Merges — sending one answer never wipes the others. */
+export const saveAdvisorAnswers = (category: GuidedCategory, answers: Record<string, string>) =>
+  apiFetch<Record<string, string>>('/v1/brain/advisor/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ category, answers }),
+  });
 
 export const getBrainSettings = () => apiFetch<BrainSettings>('/v1/brain/settings');
 

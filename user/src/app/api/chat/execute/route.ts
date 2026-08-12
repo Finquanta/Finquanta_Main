@@ -17,8 +17,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ content: "You need to be signed in to do that." }, { status: 401 });
   }
 
+  // Every PendingAction type must be listed here, or the Confirm button drafts
+  // something the user can never approve.
+  const CONFIRMABLE: PendingAction["type"][] = [
+    "create_invoice",
+    "add_entry",
+    "create_brain_note",
+  ];
+
   const a = action as PendingAction | undefined;
-  if (!a || (a.type !== "create_invoice" && a.type !== "add_entry")) {
+  if (!a || !CONFIRMABLE.includes(a.type)) {
     return NextResponse.json({ content: "There's nothing to confirm." }, { status: 400 });
   }
 

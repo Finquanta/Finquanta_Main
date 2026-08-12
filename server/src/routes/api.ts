@@ -45,6 +45,13 @@ import { groupsRoutes } from '../modules/groups/groups.routes';
 import { GroupsRepository } from '../modules/groups/groups.repository';
 import { brainRoutes } from '../modules/brain/brain.routes';
 import { BrainRepository } from '../modules/brain/brain.repository';
+import { BrainAdvisorService } from '../modules/brain/brain.advisor';
+import { councilRoutes } from '../modules/council/council.routes';
+import { CouncilRepository } from '../modules/council/council.repository';
+import { finnaRoutes } from '../modules/finna/finna.routes';
+import { FinnaRepository } from '../modules/finna/finna.repository';
+import { nudgesRoutes } from '../modules/nudges/nudges.routes';
+import { NudgesService } from '../modules/nudges/nudges.service';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 import { aiUsageRoutes } from '../modules/ai-usage/ai-usage.routes';
 import { AiUsageRepository } from '../modules/ai-usage/ai-usage.repository';
@@ -315,10 +322,37 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Registered after groups and accounting because its pins read from both.
   try {
     await new BrainRepository(database).ensureSchema();
+    await new BrainAdvisorService(database).ensureSchema();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure brain schema');
   }
   await fastify.register(brainRoutes, { database });
+
+  // Finna Council — writes Decision nodes into the Brain, so it registers after
+  // it. Never runs on its own; every session is convened by the user.
+  try {
+    await new CouncilRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure council schema');
+  }
+  await fastify.register(councilRoutes, { database });
+
+  // Saved Finna chats. Storage only — no AI call lives here.
+  try {
+    await new FinnaRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure finna schema');
+  }
+  await fastify.register(finnaRoutes, { database });
+
+  // Proactive Finna (Council spec §9/10). Deterministic triggers only — showing
+  // an offer costs nothing; only engaging with it spends anything.
+  try {
+    await new NudgesService(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure nudges schema');
+  }
+  await fastify.register(nudgesRoutes, { database });
 
   // AI (Finna/Claude) daily usage caps, so a single user or anonymous IP can't
   // run up unbounded Anthropic spend.

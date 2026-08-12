@@ -26,7 +26,7 @@ export interface FinnaAuth {
 
 /** A write Finna has drafted and the user has not yet approved. */
 export interface PendingAction {
-  type: "create_invoice" | "add_entry";
+  type: "create_invoice" | "add_entry" | "create_brain_note";
   /** What the user is being asked to approve, in plain language. */
   summary: string;
   /** The payload /api/chat/execute will send to the backend. */
@@ -47,7 +47,38 @@ async function api<T>(path: string, auth: FinnaAuth): Promise<T> {
 const money = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** The tool list Claude sees. Descriptions matter — they are how it picks. */
+/**
+ * The one tool the guided advisor adds (spec §6b): it records what was
+ * suggested and what the user said back, so the category accumulates a real
+ * history instead of a single answer that goes stale.
+ */
+const PROPOSE_BRAIN_NOTE: Anthropic.Tool = {
+  name: "propose_brain_note",
+  description:
+    "Draft a note capturing a suggestion and the user's response, to save into the Company Brain category you are advising on. Use this once the exchange contains something worth keeping — a suggestion they reacted to, something they tried, or a result. Never use it for small talk or for a question you just asked. The note is only drafted; the user must confirm it.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: {
+        type: "string",
+        description: "Short, specific title. What this note is about, in a few words.",
+      },
+      content: {
+        type: "string",
+        description:
+          "The body: what was suggested, what the user said, and what they decided to try. Write it so it still makes sense in three months.",
+      },
+    },
+    required: ["title", "content"],
+  },
+};
+
+/**
+ * The tool list Claude sees. Descriptions matter — they are how it picks.
+ *
+ * `propose_brain_note` is appended after this array so the same definition
+ * serves both dashboard Finna and the guided advisor — see below.
+ */
 export const FINNA_TOOLS: Anthropic.Tool[] = [
   {
     name: "get_summary",
@@ -68,6 +99,12 @@ export const FINNA_TOOLS: Anthropic.Tool[] = [
     name: "get_health_score",
     description:
       "The Financial Health Score (0-100) and its four ratios: liquidity, profitability, debt risk and cash flow. Use when asked how the business is doing overall, or to explain the score or any of the ratios.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_runway",
+    description:
+      "How fast the business is spending cash and how many months of cash are left at that rate. Use for 'how long can we last', 'what's my burn rate', 'can I afford to hire', or any decision that turns on how much time the money buys. Burn is measured from operating cash flow, so borrowing does not disguise it.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -152,6 +189,31 @@ export const FINNA_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+/**
+ * What the guided advisor can reach (spec §6b).
+ *
+ * Deliberately a small set. The category's live pin and its existing notes are
+ * already injected as context, so these reads exist for the Sales side — who
+ * the customers are, what's still outstanding — rather than to let the advisor
+ * wander the whole ledger. Every extra tool is another possible round trip.
+ */
+export const ADVISOR_TOOLS: Anthropic.Tool[] = [
+  PROPOSE_BRAIN_NOTE,
+  ...FINNA_TOOLS.filter((t) =>
+    ["get_summary", "list_customers", "list_invoices"].includes(t.name)
+  ),
+];
+
+/**
+ * Dashboard Finna can write to the Company Brain too.
+ *
+ * Pushed on after the array literal rather than declared inside it because
+ * ADVISOR_TOOLS above filters FINNA_TOOLS by name, and a note tool in that
+ * source list would be picked up twice. Same draft-then-confirm rule as the
+ * money tools: nothing reaches the Brain until the user presses save.
+ */
+FINNA_TOOLS.push(PROPOSE_BRAIN_NOTE);
+
 function periodRange(period?: string): { startDate: string; endDate: string } {
   const now = new Date();
   const end = today();
@@ -229,6 +291,30 @@ export async function runTool(
             insight: r.insight,
           })),
         }),
+      };
+    }
+
+    case "get_runway": {
+      const r = await api<{
+        monthlyBurn: number | null; runwayMonths: number | null; cash: number;
+        basedOnDays: number; status: string;
+      }>("/v1/health-score/runway", auth);
+
+      // Returned as a sentence rather than raw JSON so the model can't
+      // misread a null as zero and tell someone they have no runway when the
+      // truth is that they aren't burning at all.
+      if (r.status === "insufficient_data") {
+        return {
+          result: `Not enough history to work out a burn rate — only ${r.basedOnDays} days recorded, and at least 30 are needed. Cash on hand is $${r.cash}. Do not estimate a runway.`,
+        };
+      }
+      if (r.status === "profitable") {
+        return {
+          result: `The business is NOT burning cash — operations were cash-positive over the last ${r.basedOnDays} days. Cash on hand is $${r.cash}. There is no runway figure to give; say that rather than inventing one.`,
+        };
+      }
+      return {
+        result: `Monthly burn is $${r.monthlyBurn} of operating cash. With $${r.cash} on hand that is about ${r.runwayMonths} months of runway, averaged over the last ${r.basedOnDays} days. This excludes borrowing and lending, so a loan would not extend it.`,
       };
     }
 
@@ -353,6 +439,35 @@ export async function runTool(
       };
     }
 
+    case "propose_brain_note": {
+      // The advisor's record of what was suggested and what the user said back
+      // (spec §6b). Drafted, never written directly — same rule as the money
+      // tools, so the Brain can't fill up with notes the user didn't want.
+      const title = String(input.title ?? "").trim().slice(0, 300);
+      const content = String(input.content ?? "").trim();
+      if (!title || !content) {
+        return { result: "A note needs both a title and a body. Draft them before proposing." };
+      }
+
+      return {
+        result: `Draft prepared and shown to the user for confirmation. It has NOT been saved. Tell them what it captures and that they need to confirm.`,
+        pending: {
+          type: "create_brain_note",
+          summary: title,
+          payload: {
+            type: "note",
+            title,
+            content,
+            // Left null on purpose. The chat route stamps the category the
+            // advisor is actually running in, so the model can't file a note
+            // into a category it wasn't invited to.
+            categoryId: null,
+            source: "system",
+          },
+        },
+      };
+    }
+
     default:
       return { result: `Unknown tool: ${name}` };
   }
@@ -364,7 +479,12 @@ export async function executeAction(action: PendingAction, auth: FinnaAuth): Pro
   if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
   if (auth.businessId) headers["X-Business-Id"] = auth.businessId;
 
-  const path = action.type === "create_invoice" ? "/v1/invoices" : "/v1/financial/transactions";
+  const path =
+    action.type === "create_invoice"
+      ? "/v1/invoices"
+      : action.type === "create_brain_note"
+        ? "/v1/brain/nodes"
+        : "/v1/financial/transactions";
 
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
@@ -375,7 +495,12 @@ export async function executeAction(action: PendingAction, auth: FinnaAuth): Pro
   if (!res.ok) throw new Error(json?.error || "That didn't work.");
 
   const data = json?.data ?? json;
-  return action.type === "create_invoice"
-    ? `Done — invoice ${data?.number ?? ""} created as a draft. Open it from the Invoices tab to send it.`
-    : `Done — recorded in your books.`;
+  switch (action.type) {
+    case "create_invoice":
+      return `Done — invoice ${data?.number ?? ""} created as a draft. Open it from the Invoices tab to send it.`;
+    case "create_brain_note":
+      return `Saved to your Company Brain.`;
+    default:
+      return `Done — recorded in your books.`;
+  }
 }

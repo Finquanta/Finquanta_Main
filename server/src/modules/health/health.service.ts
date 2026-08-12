@@ -276,6 +276,80 @@ function buildSummary(score: number, ratios: Ratio[], ctx: HealthContext): strin
   return `${standing} Your ${best.label.toLowerCase()} is the strongest part of the picture, while ${worst.label.toLowerCase()} is holding you back. ${advice[worst.key]}${goalNudge}`;
 }
 
+/**
+ * Burn rate and cash runway.
+ *
+ * Neither was computed anywhere in Finquanta, which left the Council's CFO
+ * unable to answer the one question it exists to ask — "can we afford this?".
+ * Both are derivable from the ledger the health score already reads, so nothing
+ * new is tracked; this just does the arithmetic.
+ *
+ * Burn is measured from OPERATING cash flow, not profit and not the change in
+ * the bank balance. Loan proceeds landing in the account would otherwise read
+ * as "not burning" right up until the money ran out — the exact failure
+ * Finquanta exists to prevent (see the ledger rules: OCF excludes borrowing and
+ * lending). A business with positive operating cash flow is not burning, and
+ * dividing by a negative number to invent a runway would be nonsense, so
+ * `runwayMonths` is null there rather than a large or negative figure.
+ */
+export interface Runway {
+  /** Cash consumed by operations per month. null when not burning. */
+  monthlyBurn: number | null;
+  /** Months of cash left at the current burn. null when not burning. */
+  runwayMonths: number | null;
+  cash: number;
+  /** Days of history the burn figure is averaged over. */
+  basedOnDays: number;
+  status: 'burning' | 'profitable' | 'insufficient_data';
+}
+
+export function computeRunway(
+  snapshot: FinancialSnapshot,
+  cash: number,
+  daysOfData: number,
+  periodDays: number = PERIOD_DAYS
+): Runway {
+  const round = (n: number) => Math.round(n * 100) / 100;
+
+  // Averaging a fortnight of trading into a monthly rate produces a confident
+  // number built on noise. Say there isn't enough history instead.
+  if (daysOfData < DAYS_REQUIRED) {
+    return {
+      monthlyBurn: null,
+      runwayMonths: null,
+      cash: round(cash),
+      basedOnDays: daysOfData,
+      status: 'insufficient_data',
+    };
+  }
+
+  // The window is however much history exists, capped at the score's period —
+  // a 45-day-old business must not have its figures divided by 90.
+  const window = Math.max(1, Math.min(daysOfData, periodDays));
+  const monthlyOperatingCashFlow = (snapshot.operatingCashFlow / window) * 30;
+
+  if (monthlyOperatingCashFlow >= 0) {
+    return {
+      monthlyBurn: null,
+      runwayMonths: null,
+      cash: round(cash),
+      basedOnDays: window,
+      status: 'profitable',
+    };
+  }
+
+  const monthlyBurn = Math.abs(monthlyOperatingCashFlow);
+  return {
+    monthlyBurn: round(monthlyBurn),
+    // Guard the divide: a burning business with no cash has zero runway, not
+    // an infinity.
+    runwayMonths: monthlyBurn > 0 ? round(Math.max(cash, 0) / monthlyBurn) : null,
+    cash: round(cash),
+    basedOnDays: window,
+    status: 'burning',
+  };
+}
+
 export function computeHealthScore(
   snapshot: FinancialSnapshot,
   previous: FinancialSnapshot | null,

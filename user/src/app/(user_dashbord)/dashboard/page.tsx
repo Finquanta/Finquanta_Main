@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
+import { isFinnaHidden, setFinnaHidden } from '@/lib/finnaVisibility';
 import BookkeepingModal, { BookkeepingEditing, DebtAction } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
 import BookkeepingCard from '@/components/user_dashboard/bookkeeping/BookkeepingCard';
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
@@ -40,6 +41,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export default function DashboardPage() {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  /** Read after mount — localStorage doesn't exist during the server render. */
+  const [finnaHidden, setFinnaHiddenState] = useState(false);
+  useEffect(() => { setFinnaHiddenState(isFinnaHidden()); }, []);
   const router = useRouter();
 
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
@@ -617,7 +621,10 @@ export default function DashboardPage() {
             Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs">
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          <p className={colors.subtext}>{t('dashboard', 'version')} 1.3.0</p>
+          {/* Duplicated from DashboardSidebar.tsx — keep the two in step until
+              this inline copy is finally removed, or the version a user sees
+              depends on which page they happen to be on. */}
+          <p className={colors.subtext}>{t('dashboard', 'version')} 2.0.0</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -796,6 +803,18 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* Show/hide Finna. Duplicated from DashboardShell.tsx — this page
+                still builds its own bar, so the two must be kept in step. */}
+            <button
+              onClick={() => { const next = !finnaHidden; setFinnaHidden(next); setFinnaHiddenState(next); }}
+              title={t('dashboard', finnaHidden ? 'finnaOff' : 'finnaOn')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium border ${colors.buttonBg} ${
+                finnaHidden ? 'opacity-50' : ''
+              }`}
+            >
+              {t('dashboard', finnaHidden ? 'finnaOff' : 'finnaOn')}
+            </button>
 
             {/* Dark Mode Toggle */}
             <button

@@ -27,8 +27,9 @@ import {
   createBrainCategory, updateBrainCategory, removeBrainCategory, flattenCategories,
   archiveBrainNode, unarchiveBrainNode, deleteBrainNode,
   ResolvedEntity, readEntityRef, resolveBrainEntities,
-  BrainSettings, getBrainSettings,
+  BrainSettings, getBrainSettings, GuidedCategory,
 } from "@/lib/api/brain";
+import AdvisorPanel from "@/components/user_dashboard/brain/AdvisorPanel";
 
 const TYPE_ICON: Record<NodeType, typeof FileText> = {
   note: FileText, task: CheckSquare, link: Link2, pin: Link2, entity_ref: Database,
@@ -363,6 +364,17 @@ export default function CompanyBrainPage() {
     ? pins.find((p) => p.key === (selectedCategory.slug as PinKey))
     : undefined;
 
+  /**
+   * Only Marketing and Sales get the advisor (§6b). Matched on slug, not name,
+   * so a user who renames the category to "Growth" keeps the advisor.
+   * Subcategories don't get their own — the advice belongs to the department.
+   */
+  const guidedCategory: GuidedCategory | null =
+    selectedCategory && !selectedCategory.parentCategoryId &&
+    (selectedCategory.slug === "marketing" || selectedCategory.slug === "sales")
+      ? selectedCategory.slug
+      : null;
+
   const headerTitle = showArchived
     ? t("dashboard", "brainArchived")
     : query.trim().length >= 2
@@ -663,6 +675,18 @@ export default function CompanyBrainPage() {
                     </div>
 
                     {activePin && !showArchived && <PinCard isDark={isDark} pin={activePin} />}
+
+                    {/* Marketing and Sales are guided categories (§6b): Finna
+                        advises here instead of the category being a silent
+                        notebook. Hidden in the Archive, which is a record, not
+                        a place to take new advice. */}
+                    {guidedCategory && !showArchived && (
+                      <AdvisorPanel
+                        isDark={isDark}
+                        category={guidedCategory}
+                        onNoteSaved={refreshAll}
+                      />
+                    )}
 
                     {nodesLoading ? (
                       <p className={`text-sm ${sub}`}>{t("dashboard", "brainLoading")}</p>

@@ -22,6 +22,9 @@ const NAV: SidebarNavItem[] = [
   // every item carries a key now, so the sidebar translates like the rest of the
   // dashboard instead of staying English in all ten languages.
   { href: "/brain", labelKey: "brainTitle", label: "Company Brain" },
+  // The Council is deliberately NOT here — it lives inside the Finna widget,
+  // which is reachable from every product page. /council still exists as the
+  // full-transcript destination the widget links to.
   { href: "/dashboard", labelKey: "title", label: "Dashboard" },
   { href: "/invoices", labelKey: "invoices", label: "Invoices" },
   { href: "/customers", labelKey: "customers", label: "Customers" },
@@ -111,7 +114,11 @@ export default function DashboardSidebar({
             Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs pt-6">
           {accountId && <p className={`mt-4 ${colors.subtext}`}>{t("dashboard", "finquantaId")}: {accountId}</p>}
-          <p className={colors.subtext}>{t("dashboard", "version")} 1.3.0</p>
+          {/* 2.0.0 (2026-08-11) — a major bump because the product changed shape,
+              not just improved: the Company Brain arrived as a new pillar above
+              Dashboard, the UI gained 10 languages, and auth gained 2FA. The
+              admin panel tracks its own number and stays on 1.3.0. */}
+          <p className={colors.subtext}>{t("dashboard", "version")} 2.0.0</p>
           <a href={FEEDBACK_FORM} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 mt-1 font-medium text-green-600 hover:text-green-700 hover:underline">
             <MessageSquare className="h-3.5 w-3.5" />
