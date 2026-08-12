@@ -39,6 +39,32 @@ const GLOBAL_KEY = 'global';
 const ANON_GLOBAL_DAILY_LIMIT = envLimit('AI_ANON_GLOBAL_DAILY_LIMIT', 100);
 const ANON_GLOBAL_KEY = 'global:anon';
 
+/**
+ * The address Render actually observed, for keying the anonymous cap.
+ *
+ * Proxies APPEND to X-Forwarded-For, so the rightmost entry is the one our own
+ * proxy wrote and everything left of it is caller-supplied. `request.ip` reads
+ * the LEFTMOST entry (the app sets `trustProxy: true`), which a caller can
+ * invent — letting one machine mint a fresh 20-request counter per request just
+ * by rotating a header, and walk straight through the anonymous cap.
+ *
+ * Read locally rather than by changing `trustProxy` app-wide: that setting also
+ * feeds the `remoteip` sent to Cloudflare Turnstile on every login, and
+ * verifyTurnstile fails closed. Getting it wrong there locks people out of
+ * their accounts. This cap does not justify that risk, so the narrow fix stays
+ * narrow. If the hop count is ever confirmed against production logs, this
+ * helper is the thing to delete.
+ *
+ * Falls back to `request.ip` when the header is absent (direct connection, or
+ * local development).
+ */
+function observedAddress(request: FastifyRequest): string {
+  const header = request.headers['x-forwarded-for'];
+  const raw = Array.isArray(header) ? header.join(',') : header ?? '';
+  const hops = raw.split(',').map((h) => h.trim()).filter(Boolean);
+  return hops[hops.length - 1] ?? request.ip;
+}
+
 export async function aiUsageRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new AiUsageRepository(options.database);
 
@@ -62,7 +88,7 @@ export async function aiUsageRoutes(fastify: FastifyInstance, options: { databas
       key = `user:${userId}`;
       limit = AUTHED_DAILY_LIMIT;
     } catch {
-      key = `ip:${request.ip}`;
+      key = `ip:${observedAddress(request)}`;
       limit = ANON_DAILY_LIMIT;
       anonymous = true;
     }
