@@ -32,4 +32,20 @@ export class AiUsageRepository {
     );
     return Number.parseInt(r.rows[0].count, 10);
   }
+
+  /**
+   * Today's count WITHOUT advancing it.
+   *
+   * The shared ceilings must only be charged for spend that was actually
+   * authorized. A caller already over its own limit still has to be measured
+   * against the global cap, but bumping it would let anyone exhaust the whole
+   * platform's budget with rejected requests.
+   */
+  async peek(key: string): Promise<number> {
+    const r = await this.database.query(
+      `SELECT count FROM ai_usage WHERE usage_key = $1 AND day = CURRENT_DATE`,
+      [key]
+    );
+    return r.rows[0] ? Number.parseInt(r.rows[0].count, 10) : 0;
+  }
 }

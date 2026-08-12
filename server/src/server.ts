@@ -19,9 +19,21 @@ const server: FastifyInstance = Fastify({
       },
     } : undefined,
   },
-  // Render (and Vercel proxying) sit in front of us; trust X-Forwarded-For so
-  // rate limiting and logging key on the real client IP, not the proxy's.
-  trustProxy: true,
+  /**
+   * Render (and Vercel proxying) sit in front of us, so X-Forwarded-For is how
+   * we see a real client IP rather than the proxy's.
+   *
+   * A HOP COUNT, not `true`. `true` trusts the entire chain, which means the
+   * address we key on is the LEFTMOST entry — the one the caller wrote
+   * themselves. Every per-IP limit in the app then keys on an attacker-supplied
+   * string: the anonymous Finna cap, the 300/min global limiter, and the login
+   * throttles all become one spoofed header away from useless. `1` trusts only
+   * our own proxy, so the address is the one Render actually observed.
+   *
+   * If another proxy layer is ever put in front (a CDN, a WAF), this number has
+   * to grow to match, or real client IPs collapse onto that layer's address.
+   */
+  trustProxy: Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '', 10) || 1,
   // apiRoutes runs ~20 sequential ensureSchema() migrations against Neon at
   // boot; a cold serverless compute can push that past Fastify's 10s default,
   // aborting an otherwise-healthy boot. Give it real headroom.
