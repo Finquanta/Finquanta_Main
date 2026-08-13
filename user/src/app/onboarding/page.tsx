@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { postAuthDestination } from "@/lib/pendingInvite";
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -90,7 +91,10 @@ export default function OnboardingPage() {
     setSaving(true);
     try {
       await saveBusinessProfile({ ...form, onboardingCompleted: true });
-      router.push("/dashboard");
+      // An invitee signs up because someone sent them a link. Onboarding still
+      // runs — they get their own workspace like anyone else — but the invite
+      // is what they came for, so it is where they land.
+      router.push(postAuthDestination());
     } catch (e) {
       setError(e instanceof Error ? e.message : t("onboarding", "saveError"));
     } finally {
@@ -123,7 +127,7 @@ export default function OnboardingPage() {
       {/* Top bar: logo + skip */}
       <div className="flex items-center justify-between px-6 py-4">
         <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-24 h-auto" />
-        <button onClick={() => { if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1"); router.push("/dashboard"); }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+        <button onClick={() => { if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1"); router.push(postAuthDestination()); }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
           {t("onboarding", "skip")}
         </button>
       </div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { InviteInfo, getInviteInfo, acceptInvite } from "@/lib/api/businesses";
+import { clearPendingInvite, setPendingInvite } from "@/lib/pendingInvite";
 
 export default function JoinPage() {
   const params = useParams<{ token: string }>();
@@ -18,12 +19,22 @@ export default function JoinPage() {
 
   useEffect(() => {
     setLoggedIn(typeof window !== "undefined" && !!localStorage.getItem("accessToken"));
-    if (typeof window !== "undefined" && token) {
-      localStorage.setItem("pendingInvite", token); // so they can return after login
-    }
+    // Remembered so logging in or signing up comes back here instead of
+    // dropping them on their own dashboard with no way to reach the invite.
+    if (token) setPendingInvite(token);
+
     getInviteInfo(token)
-      .then(setInfo)
-      .catch((e) => setError(e instanceof Error ? e.message : "Invite not found"))
+      .then((data) => {
+        setInfo(data);
+        // A dead invite must not stay remembered. Otherwise it would be
+        // restored on every future login and bounce them straight back to this
+        // page forever — the redirect turning into a trap.
+        if (data.expired) clearPendingInvite();
+      })
+      .catch((e) => {
+        clearPendingInvite();
+        setError(e instanceof Error ? e.message : "Invite not found");
+      })
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -31,8 +42,15 @@ export default function JoinPage() {
     setError(null);
     setBusy(true);
     try {
-      await acceptInvite(token, password.trim() || undefined);
-      localStorage.removeItem("pendingInvite");
+      const joined = await acceptInvite(token, password.trim() || undefined);
+      clearPendingInvite();
+      // Land them IN the workspace they just joined. `activeBusinessId` is what
+      // sets the X-Business-Id header; without this the default is the OLDEST
+      // workspace they belong to, so a new member would arrive at their own
+      // empty books and reasonably conclude that joining had not worked.
+      if (typeof window !== "undefined" && joined?.businessId) {
+        localStorage.setItem("activeBusinessId", joined.businessId);
+      }
       router.push("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not join. Please try again.");

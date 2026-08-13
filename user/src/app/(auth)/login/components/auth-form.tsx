@@ -11,6 +11,7 @@ import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { Turnstile } from "@/components/auth/Turnstile";
 import { verifyTwoFactorLogin } from "@/lib/api/twofa";
+import { postAuthDestination } from "@/lib/pendingInvite";
  
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
  
@@ -93,7 +94,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       }
     });
     ui.toast("success", `Welcome back, ${data.user.firstName || data.user.email}!`, 4000);
-    router.push('/dashboard');
+    // Back to the invite if one brought them here, otherwise the dashboard.
+    // This runs for the 2FA path too — both finish through this function.
+    router.push(postAuthDestination());
   };
 
   const handleTwoFactorSubmit = async (e: React.FormEvent) => {
