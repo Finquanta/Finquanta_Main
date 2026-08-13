@@ -70,6 +70,19 @@ export class BusinessesRepository {
     // For pre-existing invite tables (CREATE TABLE IF NOT EXISTS won't add it).
     await this.database.query(`ALTER TABLE business_invites ADD COLUMN IF NOT EXISTS single_use BOOLEAN NOT NULL DEFAULT false`);
 
+    /**
+     * Workspace-level restriction, set from the admin panel. Mirrors
+     * `users.status` — 'active' | 'suspended' — and is enforced in
+     * `withBusiness`, so one guard covers every business-scoped route.
+     *
+     * Additive because `CREATE TABLE IF NOT EXISTS` above is a no-op on the
+     * existing table. Defaulting to 'active' means every current workspace
+     * keeps working the moment this ships.
+     */
+    await this.database.query(
+      `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`
+    );
+
     // Backfill: every user gets a default business (named from onboarding) + Owner membership.
     await this.database.query(`
       INSERT INTO businesses (owner_id, name)
@@ -158,6 +171,23 @@ export class BusinessesRepository {
       [businessId, userId]
     );
     return result.rows[0]?.role ?? null;
+  }
+
+  /**
+   * Has an admin restricted this workspace? Read by `withBusiness` on every
+   * business-scoped request.
+   *
+   * A missing row reads as NOT suspended: the caller has already resolved this
+   * id, so absence here means a race, and refusing every route on a lookup miss
+   * would lock people out of a working workspace. The row not existing is not
+   * evidence of restriction.
+   */
+  async isSuspended(businessId: string): Promise<boolean> {
+    const result = await this.database.query(
+      'SELECT status FROM businesses WHERE id = $1',
+      [businessId]
+    );
+    return result.rows[0]?.status === 'suspended';
   }
 
   async listMembers(businessId: string): Promise<BusinessMember[]> {

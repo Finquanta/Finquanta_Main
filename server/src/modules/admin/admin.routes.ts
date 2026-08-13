@@ -89,7 +89,9 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
   fastify.patch('/v1/admin/users/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean };
+      // businessName / country are gone from here on purpose — they describe a
+      // workspace, not a person, and are edited on the Businesses tab.
+      const body = request.body as { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; emailVerified?: boolean };
       const callerRole = request.user!.role;
       const isSelf = id === request.user!.id;
 
@@ -110,10 +112,9 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
           return reply.status(403).send({ success: false, error: 'You do not have permission to assign this role.' });
         }
       }
-      // Profile fields (name, DOB, business name, country, verification) share the edit gate.
+      // Profile fields (name, DOB, verification) share the edit gate.
       const editsProfile = body.firstName !== undefined || body.lastName !== undefined
-        || body.dateOfBirth !== undefined || body.businessName !== undefined || body.country !== undefined
-        || body.emailVerified !== undefined;
+        || body.dateOfBirth !== undefined || body.emailVerified !== undefined;
       if (editsProfile && !isSelf && !canEditName(callerRole, target.role)) {
         return reply.status(403).send({ success: false, error: 'You do not have permission to edit this account.' });
       }
@@ -132,8 +133,6 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         role: body.role,
         status: body.status,
         dateOfBirth: body.dateOfBirth,
-        businessName: body.businessName,
-        country: body.country,
         emailVerified: body.emailVerified,
       });
 
@@ -145,8 +144,6 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       const profileFields: string[] = [];
       if (body.firstName !== undefined || body.lastName !== undefined) profileFields.push('name');
       if (body.dateOfBirth !== undefined) profileFields.push('DOB');
-      if (body.businessName !== undefined) profileFields.push('business name');
-      if (body.country !== undefined) profileFields.push('country');
       if (profileFields.length) changes.push(`edited ${profileFields.join(', ')}`);
       await repo.addAuditLog({
         actorId: request.user!.id,
@@ -181,6 +178,117 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         action: 'Deleted user',
         targetId: id,
         targetEmail: target.email,
+      });
+      return reply.send({ success: true, data: { id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  /**
+   * Workspaces. Business-shaped data lives here rather than on the user list,
+   * where joining it duplicated every multi-workspace owner.
+   *
+   * These reuse the SAME capability gates as the user routes, applied to the
+   * workspace OWNER's role — otherwise deleting someone's workspace would be a
+   * softer path to destroying the same financial history that deleting their
+   * account is carefully gated on.
+   */
+  fastify.get('/v1/admin/businesses', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await repo.listBusinesses() });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  // Edit a workspace: name and country.
+  fastify.patch('/v1/admin/businesses/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = (request.body as { name?: string; country?: string }) || {};
+      const target = await repo.getBusinessById(id);
+      if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
+
+      if (!canEditName(request.user!.role, target.ownerRole)) {
+        return reply.status(403).send({ success: false, error: 'You do not have permission to edit this workspace.' });
+      }
+      if (body.name !== undefined && !body.name.trim()) {
+        return reply.status(400).send({ success: false, error: 'Business name cannot be empty.' });
+      }
+
+      await repo.updateBusiness(id, {
+        name: body.name !== undefined ? body.name.trim() : undefined,
+        country: body.country,
+      });
+
+      const fields: string[] = [];
+      if (body.name !== undefined) fields.push('name');
+      if (body.country !== undefined) fields.push('country');
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: `Updated workspace "${target.name}"${fields.length ? ` (edited ${fields.join(', ')})` : ''}`,
+        targetId: id,
+        targetEmail: target.ownerEmail,
+      });
+      return reply.send({ success: true, data: { id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  // Restrict or reactivate a workspace. Enforced in `withBusiness`.
+  fastify.patch('/v1/admin/businesses/:id/status', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = (request.body as { status?: string }) || {};
+      if (!['active', 'suspended'].includes(body.status ?? '')) {
+        return reply.status(400).send({ success: false, error: 'Invalid status.' });
+      }
+      const target = await repo.getBusinessById(id);
+      if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
+
+      if (!canRestrict(request.user!.role, target.ownerRole)) {
+        return reply.status(403).send({ success: false, error: 'You do not have permission to restrict this workspace.' });
+      }
+
+      await repo.setBusinessStatus(id, body.status as 'active' | 'suspended');
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: `${body.status === 'suspended' ? 'Restricted' : 'Reactivated'} workspace "${target.name}"`,
+        targetId: id,
+        targetEmail: target.ownerEmail,
+      });
+      return reply.send({ success: true, data: { id } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
+  // Delete a workspace and its entire financial history. Irreversible.
+  fastify.delete('/v1/admin/businesses/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const target = await repo.getBusinessById(id);
+      if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
+
+      if (!canDelete(request.user!.role, target.ownerRole)) {
+        return reply.status(403).send({ success: false, error: 'You do not have permission to delete this workspace.' });
+      }
+
+      await repo.deleteBusiness(id);
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: `Deleted workspace "${target.name}" and its financial history`,
+        targetId: id,
+        targetEmail: target.ownerEmail,
       });
       return reply.send({ success: true, data: { id } });
     } catch (error) {

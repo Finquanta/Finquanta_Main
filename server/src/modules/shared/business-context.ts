@@ -54,6 +54,29 @@ export function withBusiness(database: Database) {
       reply.status(409).send({ success: false, error: 'No business found for this user' });
       return;
     }
+
+    /**
+     * Workspace restricted by an admin — refuse every business-scoped route at
+     * once. This is the only place it needs to happen: invoices, brain,
+     * council, groups and the rest all run this preHandler.
+     *
+     * Checked AFTER resolution, deliberately. Skipping a restricted workspace
+     * during lookup would silently fall through to the user's *next* business,
+     * so they'd carry on working and write real records into the wrong books —
+     * the same cross-workspace leak `getBusiness` had to be fixed for. Better
+     * to name the workspace and refuse it.
+     *
+     * Admin routes don't use `withBusiness`, so the admin panel stays reachable
+     * and the restriction can always be lifted.
+     */
+    if (await repo.isSuspended(businessId)) {
+      reply.status(403).send({
+        success: false,
+        error: 'This workspace has been restricted. Contact support.',
+      });
+      return;
+    }
+
     req.businessId = businessId;
   };
 }

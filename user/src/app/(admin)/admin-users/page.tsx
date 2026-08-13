@@ -16,7 +16,7 @@ export default function AdminUsersPage() {
   const [busyId, setBusyId] = useState<string>("");
   const [openMenuId, setOpenMenuId] = useState<string>("");
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
-  const [form, setForm] = useState({ first: "", last: "", dob: "", business: "", country: "" });
+  const [form, setForm] = useState({ first: "", last: "", dob: "" });
 
   const bounceToLogin = (msg: string) => {
     if (/admin access|authentication|session|401|403/i.test(msg)) { router.replace("/admin-login"); return true; }
@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
-    return users.filter((u) => [u.name, u.email, u.company, u.country, u.industry, u.role].some((f) => (f || "").toLowerCase().includes(q)));
+    return users.filter((u) => [u.name, u.email, u.role].some((f) => (f || "").toLowerCase().includes(q)));
   }, [users, query]);
 
   const act = async (fn: () => Promise<void>, id: string) => {
@@ -67,7 +67,7 @@ export default function AdminUsersPage() {
 
   const startEdit = (u: AdminUser) => {
     const [first, ...rest] = u.name.split(" ");
-    setForm({ first: first || "", last: rest.join(" "), dob: u.dateOfBirth || "", business: u.company || "", country: u.country || "" });
+    setForm({ first: first || "", last: rest.join(" "), dob: u.dateOfBirth || "" });
     setEditUser(u);
     setOpenMenuId("");
   };
@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
     if (!editUser) return;
     act(() => updateAdminUser(editUser.id, {
       firstName: form.first.trim(), lastName: form.last.trim(),
-      dateOfBirth: form.dob || null, businessName: form.business.trim(), country: form.country.trim(),
+      dateOfBirth: form.dob || null,
     }).then(() => setEditUser(null)), editUser.id);
   };
   const setRole = (id: string, role: string) => act(() => updateAdminUser(id, { role }), id);
@@ -151,7 +151,10 @@ export default function AdminUsersPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ textAlign: "left", color: d.muted, background: d.head }}>
-                  {["Name", "Email", "Company", "Country", "Role", "Status", "Verified", "Joined", "DOB", ""].map((h, i) => (
+                  {/* Company/Country moved to the Businesses tab — they belong
+                      to a workspace, and joining them here duplicated any user
+                      who owns more than one. */}
+                  {["Name", "Email", "Role", "Status", "Verified", "Joined", "DOB", ""].map((h, i) => (
                     <th key={i} style={{ padding: "10px 12px", fontWeight: 600, borderBottom: `0.5px solid ${d.border}`, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -173,8 +176,6 @@ export default function AdminUsersPage() {
                         {u.name}{isSelf && <span style={{ color: d.muted, fontWeight: 400 }}> (you)</span>}
                       </td>
                       <td style={{ padding: "10px 12px", color: d.muted, opacity: dim }}>{u.email}</td>
-                      <td style={{ padding: "10px 12px", opacity: dim }}>{u.company || "—"}</td>
-                      <td style={{ padding: "10px 12px", opacity: dim }}>{u.country || "—"}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>{roleBadge(u.role)}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>
                         <span style={{ color: u.status === "suspended" ? "#dc2626" : "#16a34a", fontWeight: 600, fontSize: 12 }}>{u.status === "suspended" ? "restricted" : "active"}</span>
@@ -236,12 +237,8 @@ export default function AdminUsersPage() {
               <label style={{ fontSize: 12, color: d.muted }}>Date of birth
                 <input type="date" max={new Date().toISOString().slice(0, 10)} value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
               </label>
-              <label style={{ fontSize: 12, color: d.muted }}>Business name
-                <input value={form.business} onChange={(e) => setForm({ ...form, business: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
-              </label>
-              <label style={{ fontSize: 12, color: d.muted }}>Country
-                <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }} />
-              </label>
+              {/* Business name and country are edited on the Businesses tab —
+                  a user with several workspaces has no single answer here. */}
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                 <button disabled={busyId === editUser.id} onClick={saveEdit} style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: busyId === editUser.id ? 0.6 : 1 }}>{busyId === editUser.id ? "Saving…" : "Save"}</button>
                 <button onClick={() => setEditUser(null)} style={{ background: d.input, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</button>

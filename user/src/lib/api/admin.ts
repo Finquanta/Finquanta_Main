@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
 
+/** A user. Business fields moved to `AdminBusiness` — see listAdminBusinesses. */
 export interface AdminUser {
   id: string;
   name: string;
@@ -9,10 +10,20 @@ export interface AdminUser {
   joinedAt: string | null;
   dateOfBirth: string | null;
   emailVerified: boolean;
-  company: string;
+}
+
+export interface AdminBusiness {
+  id: string;
+  name: string;
+  ownerName: string;
+  ownerEmail: string;
+  memberCount: number;
+  /** 'Freemium' for everyone until spec 08 ships entitlements. */
+  plan: string;
   country: string;
   industry: string;
-  incorporation: string;
+  status: string;
+  createdAt: string | null;
 }
 
 /** List all users (admin only — 403 if the caller isn't an admin). */
@@ -28,13 +39,36 @@ export async function checkAdmin(): Promise<{ id: string; email: string; role: s
 /** Edit a user: name, role (owner only), and/or status ('active' | 'suspended'). */
 export async function updateAdminUser(
   id: string,
-  data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean }
+  data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; emailVerified?: boolean }
 ): Promise<void> {
   await apiFetch(`/v1/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
 export async function deleteAdminUser(id: string): Promise<void> {
   await apiFetch(`/v1/admin/users/${id}`, { method: 'DELETE' });
+}
+
+/** Every workspace, one row each (admin only). */
+export async function listAdminBusinesses(): Promise<AdminBusiness[]> {
+  return apiFetch<AdminBusiness[]>('/v1/admin/businesses');
+}
+
+/** Edit a workspace's name and/or country. */
+export async function updateAdminBusiness(
+  id: string,
+  data: { name?: string; country?: string }
+): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+/** Restrict ('suspended') or reactivate ('active') a workspace. */
+export async function setAdminBusinessStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+/** Irreversible — takes the workspace's entire financial history with it. */
+export async function deleteAdminBusiness(id: string): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}`, { method: 'DELETE' });
 }
 
 /** Set a user's password directly (admin-only, subject to role hierarchy). */

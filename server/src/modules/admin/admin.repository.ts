@@ -1,6 +1,15 @@
 import { Database } from '../../infrastructure/database';
 import { deleteUserAccount } from '../shared/delete-user-account';
+import { deleteBusinessCascade } from '../shared/delete-business';
+import { planForBusiness } from './admin.plan';
 
+/**
+ * A user, and only a user. Business name / country deliberately do NOT live
+ * here any more: `business_profiles` is one row per BUSINESS since the
+ * 2026-08-10 migration, so joining it into a user list fanned every
+ * multi-workspace owner out into several rows. That data has its own tab now —
+ * see `AdminBusinessRow`.
+ */
 export interface AdminUserRow {
   id: string;
   name: string;
@@ -10,10 +19,19 @@ export interface AdminUserRow {
   joinedAt: string | null;
   dateOfBirth: string | null;
   emailVerified: boolean;
-  company: string;
+}
+
+export interface AdminBusinessRow {
+  id: string;
+  name: string;
+  ownerName: string;
+  ownerEmail: string;
+  memberCount: number;
+  plan: string;
   country: string;
   industry: string;
-  incorporation: string;
+  status: string;
+  createdAt: string | null;
 }
 
 export interface AdminTargetUser {
@@ -149,13 +167,22 @@ export class AdminRepository {
     return result.rowCount ?? 0;
   }
 
-  /** All users with their business profile info, newest first. Admin-only. */
+  /**
+   * All users, newest first. Admin-only. ONE ROW PER USER.
+   *
+   * This used to `LEFT JOIN business_profiles ON bp.user_id = u.id` to show a
+   * company and country column. That join is why the list showed 29 rows for 26
+   * users and repeated a four-workspace owner four times: `business_profiles`
+   * is one row per BUSINESS since the 2026-08-10 migration, and still carries
+   * `user_id`, so it multiplies rather than decorates.
+   *
+   * There is no join to narrow now — business data moved to `listBusinesses`,
+   * where one row per business is the point rather than a bug.
+   */
   async listUsers(): Promise<AdminUserRow[]> {
     const result = await this.database.query(`
-      SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.status, u.created_at, u.date_of_birth, u.email_verified,
-             bp.business_name, bp.country, bp.industry, bp.incorporation_location
+      SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.status, u.created_at, u.date_of_birth, u.email_verified
       FROM users u
-      LEFT JOIN business_profiles bp ON bp.user_id = u.id
       ORDER BY u.created_at DESC NULLS LAST
     `);
     return result.rows.map((r: any) => ({
@@ -167,11 +194,108 @@ export class AdminRepository {
       joinedAt: r.created_at ? new Date(r.created_at).toISOString() : null,
       dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth).toISOString().slice(0, 10) : null,
       emailVerified: !!r.email_verified,
-      company: r.business_name ?? '',
+    }));
+  }
+
+  /**
+   * Every workspace, newest first, one row each.
+   *
+   * The profile join here is `bp.business_id = b.id` — the per-business key.
+   * Joining `business_profiles` on `user_id` is exactly the mistake that broke
+   * the user list; on a business list it would silently duplicate every
+   * workspace belonging to a multi-workspace owner.
+   *
+   * `member_count` is a plain COUNT because the owner gets an `Owner` row in
+   * `business_members` both on create and via the backfill — no +1 needed.
+   */
+  async listBusinesses(): Promise<AdminBusinessRow[]> {
+    const result = await this.database.query(`
+      SELECT b.id, b.name, b.created_at, b.status,
+             u.email AS owner_email, u.first_name, u.last_name,
+             bp.country, bp.industry,
+             (SELECT COUNT(*) FROM business_members m WHERE m.business_id = b.id) AS member_count
+      FROM businesses b
+      JOIN users u ON u.id = b.owner_id
+      LEFT JOIN business_profiles bp ON bp.business_id = b.id
+      ORDER BY b.created_at DESC NULLS LAST
+    `);
+    return result.rows.map((r: any) => ({
+      id: r.id,
+      name: r.name ?? '',
+      ownerName: `${r.first_name ?? ''} ${r.last_name ?? ''}`.trim() || r.owner_email,
+      ownerEmail: r.owner_email,
+      memberCount: Number(r.member_count) || 0,
+      // Not a column — see admin.plan.ts. Spec 08 makes this real.
+      plan: planForBusiness(r.id),
       country: r.country ?? '',
       industry: r.industry ?? '',
-      incorporation: r.incorporation_location ?? '',
+      status: r.status ?? 'active',
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
     }));
+  }
+
+  /** Name and country for one workspace. Country lives on its profile row. */
+  async updateBusiness(
+    id: string,
+    data: { name?: string; country?: string }
+  ): Promise<void> {
+    if (data.name !== undefined) {
+      await this.database.query(
+        `UPDATE businesses SET name = $2, updated_at = NOW() WHERE id = $1`,
+        [id, data.name]
+      );
+    }
+    if (data.country !== undefined) {
+      // Keyed on business_id, the column the migration made unique. A profile
+      // row can legitimately not exist yet for a workspace whose owner never
+      // finished onboarding, so this is an upsert rather than a bare UPDATE.
+      await this.database.query(
+        `INSERT INTO business_profiles (user_id, business_id, country)
+         SELECT b.owner_id, b.id, $2 FROM businesses b WHERE b.id = $1
+         ON CONFLICT (business_id) WHERE business_id IS NOT NULL
+         DO UPDATE SET country = EXCLUDED.country, updated_at = NOW()`,
+        [id, data.country]
+      );
+    }
+  }
+
+  /** Restrict or reactivate a workspace. Enforced in `withBusiness`. */
+  async setBusinessStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
+    await this.database.query(
+      `UPDATE businesses SET status = $2, updated_at = NOW() WHERE id = $1`,
+      [id, status]
+    );
+  }
+
+  /**
+   * One workspace plus its owner's ROLE — the routes gate business actions on
+   * the owner's role, so returning it here keeps that a single query instead of
+   * a lookup-by-email round trip.
+   */
+  async getBusinessById(id: string): Promise<{
+    id: string; name: string; ownerId: string; ownerEmail: string; ownerRole: string; status: string;
+  } | null> {
+    const result = await this.database.query(
+      `SELECT b.id, b.name, b.status, b.owner_id, u.email AS owner_email, u.role AS owner_role
+       FROM businesses b JOIN users u ON u.id = b.owner_id WHERE b.id = $1`,
+      [id]
+    );
+    const r = result.rows[0];
+    return r
+      ? {
+          id: r.id,
+          name: r.name,
+          ownerId: r.owner_id,
+          ownerEmail: r.owner_email,
+          ownerRole: r.owner_role ?? 'user',
+          status: r.status ?? 'active',
+        }
+      : null;
+  }
+
+  /** Irreversible. Ordering lives in the shared cascade, not here. */
+  async deleteBusiness(id: string): Promise<boolean> {
+    return deleteBusinessCascade(this.database, id);
   }
 
   async getById(id: string): Promise<AdminTargetUser | null> {
@@ -187,7 +311,7 @@ export class AdminRepository {
    */
   async updateUser(
     id: string,
-    data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; businessName?: string; country?: string; emailVerified?: boolean }
+    data: { firstName?: string; lastName?: string; role?: string; status?: string; dateOfBirth?: string | null; emailVerified?: boolean }
   ): Promise<void> {
     const set: string[] = [];
     const values: any[] = [];
@@ -204,18 +328,18 @@ export class AdminRepository {
       await this.database.query(`UPDATE users SET ${set.join(', ')} WHERE id = $${i}`, values);
     }
 
-    // Business name / country live on business_profiles (one row per user).
-    if (data.businessName !== undefined || data.country !== undefined) {
-      await this.database.query(
-        `INSERT INTO business_profiles (user_id, business_name, country)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (user_id) DO UPDATE SET
-           business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
-           country = COALESCE(EXCLUDED.country, business_profiles.country),
-           updated_at = NOW()`,
-        [id, data.businessName ?? null, data.country ?? null]
-      );
-    }
+    /*
+     * Business name / country are NOT edited here any more — they belong to a
+     * workspace, not a person, and `updateBusiness` owns them.
+     *
+     * What used to be here was `INSERT ... ON CONFLICT (user_id) DO UPDATE`.
+     * The 2026-08-10 migration left `user_id` with a plain non-unique index and
+     * moved the unique index onto `business_id`; Postgres can only infer a
+     * conflict target from a unique index, so that statement raised 42P10 and
+     * admin edits to business name or country had been failing outright. It
+     * could not be repaired in place either, because for an owner with several
+     * workspaces there was no answer to "which one does this write to".
+     */
   }
 
   /**
