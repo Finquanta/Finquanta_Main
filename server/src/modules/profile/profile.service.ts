@@ -109,9 +109,19 @@ export class ProfileService {
     if (data.firstName !== undefined && !data.firstName.trim()) {
       throw new Error('Invalid first name');
     }
-    if (data.lastName !== undefined && !data.lastName.trim()) {
-      throw new Error('Invalid last name');
-    }
+    /*
+     * An empty last name is allowed, and rejecting it was a real bug.
+     *
+     * The name editor in the top bar is ONE field. It splits what you type on
+     * whitespace: the first word becomes firstName, the rest lastName. Type a
+     * single word — a mononym, or just your first name — and lastName is '',
+     * which this used to reject as 'Invalid last name'. Both editors swallowed
+     * the error silently, so the name simply snapped back with no explanation.
+     *
+     * Only firstName is required. Plenty of people go by one name, and someone
+     * removing their surname has to be able to send an empty one to clear it —
+     * omitting the field instead would leave the old surname in place.
+     */
     if (data.firstName === undefined && data.lastName === undefined) {
       throw new Error('Invalid name update');
     }

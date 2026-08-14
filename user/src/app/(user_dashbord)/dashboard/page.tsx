@@ -72,6 +72,7 @@ export default function DashboardPage() {
   const [verifyResent, setVerifyResent] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [goalPromptOpen, setGoalPromptOpen] = useState(false);
 
   // Bookkeeping recently-deleted + undo
@@ -485,6 +486,7 @@ export default function DashboardPage() {
 
   const startEditName = () => {
     setNameDraft(me ? `${me.firstName} ${me.lastName}`.trim() : '');
+    setNameError(null);
     setEditingName(true);
   };
   const saveName = async () => {
@@ -492,11 +494,16 @@ export default function DashboardPage() {
     const firstName = parts.shift() || '';
     const lastName = parts.join(' ');
     if (!firstName) { setEditingName(false); return; }
+    setNameError(null);
     try {
       await updateName({ firstName, lastName });
       setMe((prev) => (prev ? { ...prev, firstName, lastName } : prev));
-    } catch { /* keep previous name */ }
-    setEditingName(false);
+      setEditingName(false);
+    } catch (e) {
+      // Stay open and say why. Swallowing this made a rejected save look
+      // identical to the feature being broken — the name just snapped back.
+      setNameError(e instanceof Error ? e.message : 'Could not save your name.');
+    }
   };
 
   const displayName = me ? `${me.firstName} ${me.lastName}`.trim() || 'User' : 'User';
@@ -660,18 +667,22 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
               {editingName ? (
-                <div className="flex items-center gap-1">
+                <div className="relative flex items-center gap-1">
                   <input
                     autoFocus
                     value={nameDraft}
                     onChange={(e) => setNameDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
-                    className={`text-sm font-medium rounded px-2 py-0.5 w-40 outline-none border ${colors.input}`}
+                    className={`text-sm font-medium rounded px-2 py-0.5 w-40 outline-none border ${nameError ? 'border-red-500' : colors.input}`}
                     placeholder={t('dashboard', 'yourName')}
                   />
                   <button onClick={saveName} className="text-green-500 hover:text-green-600" title={t('dashboard', 'saveChanges')}>
                     <Check className="h-4 w-4" />
                   </button>
+                  {/* Absolute so a failed save can't push the nav bar around. */}
+                  {nameError && (
+                    <span className="absolute top-full left-0 mt-1 whitespace-nowrap text-xs text-red-500">{nameError}</span>
+                  )}
                 </div>
               ) : (
                 <button

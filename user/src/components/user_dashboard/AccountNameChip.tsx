@@ -20,6 +20,7 @@ export default function AccountNameChip({ isDark }: { isDark: boolean }) {
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
@@ -29,6 +30,7 @@ export default function AccountNameChip({ isDark }: { isDark: boolean }) {
 
   const startEdit = () => {
     setDraft(me ? `${me.firstName} ${me.lastName}`.trim() : "");
+    setError(null);
     setEditing(true);
   };
 
@@ -37,11 +39,21 @@ export default function AccountNameChip({ isDark }: { isDark: boolean }) {
     const firstName = parts.shift() || "";
     const lastName = parts.join(" ");
     if (!firstName) { setEditing(false); return; }
+    setError(null);
     try {
       await updateName({ firstName, lastName });
       setMe((prev) => (prev ? { ...prev, firstName, lastName } : prev));
-    } catch { /* keep the previous name */ }
-    setEditing(false);
+      setEditing(false);
+    } catch (e) {
+      /*
+       * Say what went wrong and stay open.
+       *
+       * This used to swallow the error and close, so a rejected save was
+       * indistinguishable from the feature being broken — the name just snapped
+       * back. Closing also threw away what they typed.
+       */
+      setError(e instanceof Error ? e.message : "Could not save your name.");
+    }
   };
 
   const input = isDark
@@ -52,18 +64,22 @@ export default function AccountNameChip({ isDark }: { isDark: boolean }) {
     <div className="flex items-center gap-2">
       <div className="w-8 h-8 bg-gray-300 rounded-full flex-shrink-0" />
       {editing ? (
-        <div className="flex items-center gap-1">
+        <div className="relative flex items-center gap-1">
           <input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-            className={`text-sm font-medium rounded px-2 py-0.5 w-40 outline-none border ${input}`}
+            className={`text-sm font-medium rounded px-2 py-0.5 w-40 outline-none border ${error ? "border-red-500" : input}`}
             placeholder={t("dashboard", "yourName")}
           />
           <button onClick={save} className="text-green-500 hover:text-green-600" title={t("dashboard", "saveChanges")}>
             <Check className="h-4 w-4" />
           </button>
+          {/* Absolute so a failed save can't push the nav bar around. */}
+          {error && (
+            <span className="absolute top-full left-0 mt-1 whitespace-nowrap text-xs text-red-500">{error}</span>
+          )}
         </div>
       ) : (
         <button
