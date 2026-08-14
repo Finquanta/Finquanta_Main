@@ -9,6 +9,7 @@ import { NavBarComponent } from "@/components/navbar";
 import Footer from "@/components/layout/Footer";
 import { useState } from "react";
 import ContactUsModal from "@/components/contactUs";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,6 +38,13 @@ export default function RootLayout({
           isOpen={isContactModalOpen}
           onClose={() => setContactModalOpen(false)}
         />
+      </ClientOnly>
+      {/* Finna for visitors who have no account yet. `variant="landing"` is what
+          keeps it out of the books: no tools, no Council, no nudges, and the
+          marketing system prompt. The /api/chat route already caps anonymous
+          use by IP, so this cannot be driven into unbounded spend. */}
+      <ClientOnly>
+        <ChatbotWidget variant="landing" />
       </ClientOnly>
     </>
   );

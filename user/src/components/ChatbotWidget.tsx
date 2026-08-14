@@ -117,7 +117,20 @@ const getFallbackReply = (text: string, isDashboard: boolean) => {
   return "Finquanta is an AI-powered platform that automates bookkeeping and financial operations for businesses. Would you like to know more?";
 };
 
-export default function ChatbotWidget() {
+/**
+ * `landing` = the marketing site, where Finna answers questions about
+ * Finquanta itself and has no access to anyone's books. `product` = signed-in
+ * pages, where it reads the user's real data and can convene the Council.
+ *
+ * Declared by the layout that mounts this rather than inferred from the path.
+ * Inference is what broke it last time: the mode came from a hardcoded route
+ * allowlist that went stale every time a tab shipped, so Invoices, Customers,
+ * Activity, Groups, Referrals and Needs all silently fell outside it. A layout
+ * always knows which side of the product it is.
+ */
+type Variant = "product" | "landing";
+
+export default function ChatbotWidget({ variant = "product" }: { variant?: Variant }) {
   const pathname = usePathname();
   // `t` is only used for the proactive-nudge copy below. The rest of this
   // widget's chrome is still hardcoded English — worth translating one day,
@@ -170,21 +183,23 @@ export default function ChatbotWidget() {
   const isHidden = HIDDEN_PATHS.some((p) => pathname?.startsWith(p));
 
   /**
-   * This widget only ever mounts from the dashboard layout, so every path it
-   * sees is already a product page.
+   * Three states, not two.
    *
-   * It used to test against a hardcoded allowlist of routes, which went stale
-   * every time a tab shipped: Invoices, Customers, Activity, Groups, Referrals
-   * and Needs were all added afterwards and silently fell outside it. On those
-   * pages the launcher button below never rendered — Finna was mounted but had
-   * no way to be opened — and `useTools` was false, so even reaching it would
-   * have given a Finna with no access to the user's books.
+   * `isDashboard` means "this Finna can see the user's books" — it drives the
+   * system prompt, tool access, Council, nudges and saved chats. On the
+   * marketing site none of that applies: there is no session, so it must be
+   * false there or an anonymous visitor would get a Finna that tries to read
+   * accounts they don't have and calls authenticated endpoints.
    *
-   * Inverting it means new tabs are included by default and only the explicit
-   * exceptions above have to be maintained.
+   * HIDDEN_PATHS only ever match product routes, so `!isHidden` alone was
+   * enough while this mounted from one layout. Now that it mounts from two,
+   * the variant is what separates them.
    */
-  const isDashboard = !isHidden;
+  const isLanding = variant === "landing";
+  const isDashboard = !isLanding && !isHidden;
   const isSettings = isHidden;
+  /** Anywhere the launcher bubble should appear at all. */
+  const isVisible = isDashboard || isLanding;
 
   /**
    * External open/close hook: anything on the page can toggle Finna by setting
@@ -1049,8 +1064,9 @@ export default function ChatbotWidget() {
         </div>
       )}
 
-      {/* Dashboard-only trigger */}
-      {isDashboard && (
+      {/* The launcher. Renders on the marketing site too — without this the
+          widget mounts there but has no way to be opened. */}
+      {isVisible && (
         <button
           data-tour="finna"
           onPointerDown={onBubblePointerDown}
