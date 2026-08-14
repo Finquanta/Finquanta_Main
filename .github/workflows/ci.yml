@@ -1,0 +1,96 @@
+name: CI
+
+# Nothing ran typecheck or tests on push before this, so anything that compiled
+# on the author's machine reached production unchecked. Both of the P0s that
+# made it to main would have been caught here.
+#
+# Deliberately just typecheck + tests: fast enough to actually be waited for.
+# It is not a build, so it will not catch build-only failures (a dependency in
+# devDependencies that Render needs at build time, for instance).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push makes an in-flight run pointless. Cancel it rather than queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server — typecheck + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Must match "packageManager" in server/package.json and
+          # user/package.json. There is no workspace root for the action to
+          # read it from, so it is stated here and has to be kept in step.
+          version: 10.18.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      # NOT --frozen-lockfile, deliberately, and this should be revisited.
+      #
+      # Each project carries BOTH a package-lock.json and a pnpm-lock.yaml, so
+      # which one governs an install depends on what the platform picks. They
+      # have already drifted: as of 2026-08-14 server/pnpm-lock.yaml still
+      # pinned fastify 4 and typescript 5 while package.json (and the installed
+      # tree) were on fastify 5 and typescript 6, and it had not been committed
+      # since 2026-06-05 whereas package-lock.json was current to 2026-08-02.
+      #
+      # Turning on --frozen-lockfile before that is settled would make CI red on
+      # its first run for a reason unrelated to any code change, which is the
+      # fastest way to teach everyone to ignore it. Pick one lockfile per
+      # project, delete the other, then add the flag here.
+      - run: pnpm install
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      # No database service needed: every suite mocks the pool
+      # (tests/mocks/database.mock.ts), and tests/setup.ts overrides
+      # DATABASE_URL before anything can connect. The three suites needing real
+      # infrastructure (redis, integration, schema) are skipped in the source.
+      - name: Tests
+        run: pnpm test
+
+  web:
+    name: web — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: user
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: user/pnpm-lock.yaml
+
+      # See the note in the server job on why this is not --frozen-lockfile.
+      - run: pnpm install
+
+      # No .next/ on a fresh checkout, so the generated route types this
+      # tsconfig includes simply do not match — which is cleaner than running
+      # locally, where a half-written .next/dev/types file can report phantom
+      # syntax errors in code nobody wrote.
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
