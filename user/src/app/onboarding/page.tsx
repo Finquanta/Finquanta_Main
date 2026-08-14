@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { postAuthDestination } from "@/lib/pendingInvite";
+import { DEFAULT_BUSINESS_NAME } from "@/lib/businessDefaults";
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -90,7 +91,15 @@ export default function OnboardingPage() {
     }
     setSaving(true);
     try {
-      await saveBusinessProfile({ ...form, onboardingCompleted: true });
+      // The business-name step is required, so this is a backstop rather than
+      // the usual path — but an empty name would leave the workspace showing
+      // the placeholder forever, since ProfileService only renames when a real
+      // name arrives. Falling back keeps that label meaningful either way.
+      await saveBusinessProfile({
+        ...form,
+        businessName: form.businessName?.trim() || DEFAULT_BUSINESS_NAME,
+        onboardingCompleted: true,
+      });
       // An invitee signs up because someone sent them a link. Onboarding still
       // runs — they get their own workspace like anyone else — but the invite
       // is what they came for, so it is where they land.

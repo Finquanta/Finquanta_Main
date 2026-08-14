@@ -3,7 +3,7 @@ import { BusinessProfile, CurrentUserResponse, UserProfile, UserSettingsPayload 
 import { ensureGoalForPrimaryGoal } from './onboarding-goal';
 import { PasswordManager } from '../auth/password';
 import { BusinessesRepository } from '../businesses/businesses.repository';
-import { DEFAULT_BUSINESS_NAME } from '../auth/auth.service';
+import { PLACEHOLDER_BUSINESS_NAMES } from '../auth/auth.service';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
@@ -80,7 +80,9 @@ export class ProfileService {
         const businesses = new BusinessesRepository(this.database);
         const owned = await businesses.listForUser(userId);
         const active = owned.find((b) => b.id === businessId);
-        if (active && active.name === DEFAULT_BUSINESS_NAME) {
+        // Membership, not equality: accounts created before the default became
+        // 'My Finances' still hold 'My Business', and they must keep renaming.
+        if (active && PLACEHOLDER_BUSINESS_NAMES.includes(active.name)) {
           await businesses.rename(active.id, profile.businessName.trim());
         }
       } catch {

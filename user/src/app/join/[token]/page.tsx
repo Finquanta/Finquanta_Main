@@ -38,6 +38,22 @@ export default function JoinPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  /**
+   * "Not for me." Forgets the invite and moves on.
+   *
+   * Deliberately local: it does NOT consume or cancel the invite server-side.
+   * A 7-day link is usually sent to several people, so one person declining
+   * must not break it for everyone else, and burning a single-use link on a
+   * decline would leave the owner wondering why their invite stopped working.
+   * Declining means "stop asking me", which is exactly what clearing the
+   * remembered token does — without this the invite would keep pulling them
+   * back here on every login for the next 24 hours.
+   */
+  const decline = () => {
+    clearPendingInvite();
+    router.push(loggedIn ? "/dashboard" : "/home");
+  };
+
   const join = async () => {
     setError(null);
     setBusy(true);
@@ -66,10 +82,19 @@ export default function JoinPage() {
 
         {loading ? (
           <p className="text-gray-500">Loading invite…</p>
-        ) : !info ? (
-          <p className="text-red-500">{error || "This invite is invalid."}</p>
-        ) : info.expired ? (
-          <p className="text-red-500">This invite has expired. Ask the owner for a new link.</p>
+        ) : !info || info.expired ? (
+          /* Both dead ends get a way out. Without a link here the page is a
+             cul-de-sac — nothing on it navigates anywhere. */
+          <>
+            <p className="text-red-500">
+              {!info
+                ? error || "This invite is invalid."
+                : "This invite has expired. Ask the owner for a new link."}
+            </p>
+            <Link href="/home" className="inline-block mt-4 text-sm text-gray-500 hover:text-gray-700 hover:underline">
+              Go to Finquanta
+            </Link>
+          </>
         ) : (
           <>
             <h1 className="text-xl font-bold text-gray-900 mb-1">Join {info.businessName}</h1>
@@ -82,7 +107,10 @@ export default function JoinPage() {
                   <Link href="/login" className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg text-sm">Log in</Link>
                   <Link href="/signup" className="border border-gray-300 text-gray-700 font-medium px-5 py-2.5 rounded-lg text-sm">Sign up</Link>
                 </div>
-                <p className="text-xs text-gray-400">After signing in, open this link again to finish joining.</p>
+                <p className="text-xs text-gray-400">We&apos;ll bring you back here once you&apos;re signed in.</p>
+                <button onClick={decline} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                  No thanks, I don&apos;t want to join
+                </button>
               </div>
             ) : (
               <>
@@ -97,6 +125,11 @@ export default function JoinPage() {
                 {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
                 <button onClick={join} disabled={busy} className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm">
                   {busy ? "Joining…" : "Join workspace"}
+                </button>
+                {/* Secondary by design: declining is a real choice, but it
+                    shouldn't compete with the action they were invited to take. */}
+                <button onClick={decline} disabled={busy} className="w-full mt-2 border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60 font-medium py-2.5 rounded-lg text-sm">
+                  Decline invite
                 </button>
               </>
             )}

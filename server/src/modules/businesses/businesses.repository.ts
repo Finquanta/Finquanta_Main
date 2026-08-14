@@ -3,6 +3,34 @@ import { Database } from '../../infrastructure/database';
 export const BUSINESS_ROLES = ['Owner', 'Admin', 'Accountant', 'Bookkeeper', 'Manager', 'Viewer', 'Other'] as const;
 export type BusinessRole = (typeof BUSINESS_ROLES)[number];
 
+/**
+ * Placeholder name for the workspace every new account gets — what someone
+ * sees if they skip past naming their business during onboarding.
+ *
+ * Defined here, not in auth.service, because auth.service imports THIS file:
+ * declaring it there and importing it back would be a cycle, and a cycle in
+ * const exports resolves to `undefined` at module-init time depending on which
+ * side loads first. auth.service re-exports both names so existing importers
+ * are unaffected.
+ */
+export const DEFAULT_BUSINESS_NAME = 'My Finances';
+
+/**
+ * Every name that means "nobody has named this workspace yet".
+ *
+ * A LIST rather than just the constant above because the default was once
+ * 'My Business' and existing workspaces still carry it. ProfileService renames
+ * a workspace when onboarding finally supplies a real name, but only if the
+ * label still looks untouched — so comparing against the current default alone
+ * would strand every older account on its old name permanently.
+ *
+ * Only ever append to this. Removing a name orphans the accounts holding it.
+ */
+export const PLACEHOLDER_BUSINESS_NAMES: readonly string[] = [
+  DEFAULT_BUSINESS_NAME,
+  'My Business',
+];
+
 export interface Business {
   id: string;
   name: string;
@@ -84,13 +112,14 @@ export class BusinessesRepository {
     );
 
     // Backfill: every user gets a default business (named from onboarding) + Owner membership.
-    await this.database.query(`
-      INSERT INTO businesses (owner_id, name)
-      SELECT u.id, COALESCE(NULLIF(bp.business_name, ''), 'My Business')
-      FROM users u
-      LEFT JOIN business_profiles bp ON bp.user_id = u.id
-      WHERE NOT EXISTS (SELECT 1 FROM businesses b WHERE b.owner_id = u.id)
-    `);
+    await this.database.query(
+      `INSERT INTO businesses (owner_id, name)
+       SELECT u.id, COALESCE(NULLIF(bp.business_name, ''), $1)
+       FROM users u
+       LEFT JOIN business_profiles bp ON bp.user_id = u.id
+       WHERE NOT EXISTS (SELECT 1 FROM businesses b WHERE b.owner_id = u.id)`,
+      [DEFAULT_BUSINESS_NAME]
+    );
     await this.database.query(`
       INSERT INTO business_members (business_id, user_id, role)
       SELECT b.id, b.owner_id, 'Owner'

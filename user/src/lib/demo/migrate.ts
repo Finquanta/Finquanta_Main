@@ -31,6 +31,7 @@ import { createInvoice, markInvoicePaid, markInvoiceSent } from '@/lib/api/invoi
 import { runWorkflow } from '@/lib/api/accounting';
 import { createLoan, recordLoanPayment } from '@/lib/api/loans';
 import { createGroup } from '@/lib/api/groups';
+import { DEFAULT_BUSINESS_NAME, PLACEHOLDER_BUSINESS_NAMES } from '@/lib/businessDefaults';
 import { createBusiness, listBusinesses, renameBusiness } from '@/lib/api/businesses';
 
 const PENDING_KEY = 'finquanta_demo_pending';
@@ -43,7 +44,12 @@ const ACTIVE_BUSINESS_KEY = 'activeBusinessId';
  * DEFAULT_BUSINESS_NAME in server/src/modules/auth/auth.service.ts — a workspace
  * still called this has never been named by its owner.
  */
-const PLACEHOLDER_BUSINESS_NAME = 'My Business';
+/**
+ * If the placeholder list only held the CURRENT default, a returning user whose
+ * workspace still says 'My Business' would not be recognised as unnamed, and
+ * the migration would create a SECOND workspace beside it.
+ */
+const PLACEHOLDER_BUSINESS_NAME = DEFAULT_BUSINESS_NAME;
 
 /**
  * How long a stash stays replayable. Long enough to cover signup plus email
@@ -262,7 +268,7 @@ async function ensureActiveBusiness(demoName: string): Promise<string | null> {
 
     if (!business) {
       business = await createBusiness(wanted || PLACEHOLDER_BUSINESS_NAME);
-    } else if (wanted && wanted !== business.name && business.name === PLACEHOLDER_BUSINESS_NAME) {
+    } else if (wanted && wanted !== business.name && PLACEHOLDER_BUSINESS_NAMES.includes(business.name)) {
       // Registration hands every account a placeholder workspace, so there's
       // almost always one waiting here. Reuse it — creating a second would leave
       // the user with two workspaces — but take the name the visitor gave their

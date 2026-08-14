@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Database } from '../../infrastructure/database';
 import { AuthenticatedRequest } from './authenticate';
-import { BusinessesRepository } from '../businesses/businesses.repository';
+import { BusinessesRepository, DEFAULT_BUSINESS_NAME } from '../businesses/businesses.repository';
 
 /**
  * Resolves the active business for the request and attaches it as
@@ -35,7 +35,7 @@ export function withBusiness(database: Database) {
     // of reporting it. Registration is the normal path — this is the net.
     if (!businessId) {
       try {
-        await repo.create(userId, 'My Business');
+        await repo.create(userId, DEFAULT_BUSINESS_NAME);
       } catch (error) {
         request.log?.error({ err: error, userId }, 'failed to create default business');
       }

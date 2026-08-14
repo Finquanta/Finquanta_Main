@@ -9,7 +9,9 @@ import { TwoFactorService } from './twofa.service';
 import { sendEmail } from '../../infrastructure/email';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
-import { BusinessesRepository } from '../businesses/businesses.repository';
+import {
+  BusinessesRepository, DEFAULT_BUSINESS_NAME, PLACEHOLDER_BUSINESS_NAMES,
+} from '../businesses/businesses.repository';
 
 export interface RegisterData {
   email: string;
@@ -27,15 +29,12 @@ export interface RegisterData {
 const MIN_AGE_YEARS = 16;
 
 /**
- * Placeholder name for the workspace every new account gets. Matches the
- * ensureSchema() backfill so the two agree.
- *
- * ProfileService.updateBusiness renames it once onboarding supplies a real
- * business name, and compares against this exact string to decide whether the
- * label is still untouched — so changing this value without changing that check
- * would leave every new workspace stuck on the old placeholder.
+ * The default workspace name and the set of names that count as "never named"
+ * now live in businesses.repository — this file imports that one, so defining
+ * them here and importing them back would be a cycle. Re-exported so existing
+ * `from '../auth/auth.service'` importers keep working.
  */
-export const DEFAULT_BUSINESS_NAME = 'My Business';
+export { DEFAULT_BUSINESS_NAME, PLACEHOLDER_BUSINESS_NAMES };
 
 /** A verification failure carrying a machine-readable reason for the UI. */
 export type VerificationErrorReason = 'invalid' | 'expired';

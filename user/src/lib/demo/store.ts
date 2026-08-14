@@ -22,7 +22,7 @@ function emptyState(): DemoState {
       invoiceSeq: 1,
       invoicePreviewedAt: null,
     },
-    business: { name: 'My Business' },
+    business: { name: 'My Finances' },
     customers: [],
     transactions: [],
     invoices: [],
@@ -55,7 +55,7 @@ function normalize(state: DemoState): DemoState {
   state.ledger.entries ??= [];
   state.finna ??= { messagesUsed: 0, messages: [] };
   state.finna.messages ??= [];
-  state.business ??= { name: 'My Business' };
+  state.business ??= { name: 'My Finances' };
   state.meta.dismissedTriggers ??= {};
   // A session predating the counter gets it from the highest number it already
   // handed out, so resuming one can't reissue a number that's already in use.
