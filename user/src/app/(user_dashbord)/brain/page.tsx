@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Plus, FileText, CheckSquare, Link2, Pencil, Trash2, Menu, Share2, List,
   ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen,
-  Network, Archive, ArchiveRestore, Database, Settings, Eye,
+  Network, Archive, ArchiveRestore, Database, Settings, Eye, Lightbulb,
 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { useLanguage } from "@/hooks/context/LanguageContext";
@@ -33,6 +33,8 @@ import AdvisorPanel from "@/components/user_dashboard/brain/AdvisorPanel";
 
 const TYPE_ICON: Record<NodeType, typeof FileText> = {
   note: FileText, task: CheckSquare, link: Link2, pin: Link2, entity_ref: Database,
+  // Written by the server, never by a person — see brain.insights.ts.
+  insight: Lightbulb,
 };
 
 /**
@@ -92,7 +94,8 @@ export default function CompanyBrainPage() {
     showLabels: false, nodeSize: 100, linkThickness: 100, showArrows: false,
   });
   const [graphFilters, setGraphFilters] = useState<GraphFilters>({
-    note: true, task: true, link: true, pin: true, entity_ref: true, category: true, orphan: true,
+    note: true, task: true, link: true, pin: true, entity_ref: true, insight: true,
+    category: true, orphan: true,
   });
 
   const flatCategories = useMemo(

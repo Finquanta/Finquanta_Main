@@ -54,7 +54,12 @@ jobs:
       # its first run for a reason unrelated to any code change, which is the
       # fastest way to teach everyone to ignore it. Pick one lockfile per
       # project, delete the other, then add the flag here.
-      - run: pnpm install
+      # --frozen-lockfile: fail rather than silently resolve a different tree.
+      # The lockfiles had drifted badly (pnpm-lock said fastify 4, the manifest
+      # wanted 5, node_modules had 5.12) and nothing caught it, because a plain
+      # install just fixes the lockfile up and carries on. This makes CI the
+      # thing that notices.
+      - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
         run: pnpm exec tsc --noEmit
@@ -86,7 +91,12 @@ jobs:
           cache-dependency-path: user/pnpm-lock.yaml
 
       # See the note in the server job on why this is not --frozen-lockfile.
-      - run: pnpm install
+      # --frozen-lockfile: fail rather than silently resolve a different tree.
+      # The lockfiles had drifted badly (pnpm-lock said fastify 4, the manifest
+      # wanted 5, node_modules had 5.12) and nothing caught it, because a plain
+      # install just fixes the lockfile up and carries on. This makes CI the
+      # thing that notices.
+      - run: pnpm install --frozen-lockfile
 
       # No .next/ on a fresh checkout, so the generated route types this
       # tsconfig includes simply do not match — which is cleaner than running

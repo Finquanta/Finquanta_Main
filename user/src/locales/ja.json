@@ -244,6 +244,7 @@
     "brainTitle": "カンパニーブレイン",
     "brainTypeLink": "リンク",
     "brainTypeRecord": "レコード",
+    "brainTypeInsight": "インサイト",
     "brainSettings": "Brain の設定",
     "brainAutoLink": "関連ノートを提案",
     "brainAutoLinkHint": "似た内容のノートを見つけて自動でリンクします。無料 — AI クレジットは使いません。",
@@ -966,8 +967,7 @@
     "updateGoals": "目標を更新",
     "version": "バージョン",
     "viewReceipt": "領収書を見る",
-    "workspace": "ワークスペース",
-    "wsCreateBusiness": "ビジネスを作成",
+    "wsCreateBusiness": "ワークスペースを作成",
     "wsInviteMember": "チームメンバーを招待",
     "wsLinkExpiry": "リンクの有効期限",
     "wsLoadingTeam": "チームを読み込み中…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "チームから削除",
     "wsShareLink": "このリンクをチームメンバーと共有してください（役割：",
     "wsViewTeam": "チームを見る",
-    "wsYourBusinesses": "あなたのビジネス",
-    "yourName": "お名前"
+    "wsYourBusinesses": "あなたのワークスペース",
+    "yourName": "お名前",
+    "businessLabel": "ワークスペース"
   },
   "demo": {
     "acAp": "買掛金",
@@ -1274,7 +1275,8 @@
     "newsletter": "ニュースレター",
     "scheduleDemo": "デモをスケジュール",
     "signUp": "サインアップ",
-    "tryDemo": "デモを試す"
+    "tryDemo": "デモを試す",
+    "pricing": "料金"
   },
   "newsletter": {
     "description": "Finquanta AIニュースレターに登録して最新情報を取得。",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "成長企業向けの詳細な財務分析、従業員福利厚生の計画、高度な投資機会。",
-    "pBizYear": "または年額 $990.99（10% 割引）",
+    "pBizYear": "または年額 $999.95（2か月無料）",
     "pBlogAll": "すべて見る",
     "pBlogSub": "Finquanta AI チームからの知見と最新情報。",
     "pBlogTitle": "ブログから",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "5 ユーザーを超えるチーム向けのカスタムソリューション。",
     "pCorporate": "コーポレート",
     "pEntDesc": "起業家向けの高度なツール。包括的な財務計画と個別の投資アドバイスを提供します。",
-    "pEntYear": "または年額 $490.99（11% 割引）",
+    "pEntYear": "または年額 $499.95（2か月無料）",
     "pEntrepreneur": "起業家",
     "pFeatures": "機能",
     "pFree": "無料",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "お支払い情報は最高水準のセキュリティと機密性で取り扱われます。Finquanta でスムーズなお支払いをご体験ください。",
     "pRecCorp": "大企業・投資家におすすめ",
     "pRecSmall": "小規模企業におすすめ",
-    "pRequestDemo": "チーム向けデモをリクエスト",
+    "pRequestDemo": "デモを試す",
     "pSeeCompare": "機能比較表をご覧ください",
     "pSeePricing": "料金をご覧ください",
     "pTitle": "今のあなたに合った FINQUANTA プランを見つけましょう。",
@@ -1367,7 +1369,29 @@
     "pfPlan": "事業計画の作成と検証",
     "pfProposal": "提案書の作成と検証",
     "pfStatements": "財務諸表",
-    "pfTaxes": "税務"
+    "pfTaxes": "税務",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "カンパニーブレイン",
+    "pfComingSoon": "開発中 — 近日公開",
+    "pPerSeat": "1ユーザーあたり",
+    "pfSecCore": "基本",
+    "pfSecBrain": "カンパニーブレイン",
+    "pfSecLimits": "利用上限",
+    "pfSecSoon": "近日公開",
+    "pfSeats": "ユーザー数",
+    "pfFinnaMsgs": "Finna メッセージ / 月",
+    "pfCouncilSessions": "カウンシル セッション / 月",
+    "pfGroups": "ビジネスグループ",
+    "pfBrainNotes": "ノート・カテゴリ・ライブデータ",
+    "pfBrainGraph": "グラフ表示（2D・3D）",
+    "pfBrainBacklinks": "バックリンク",
+    "pfBrainAuto": "AI要約と自動リンク",
+    "pfBank": "銀行連携",
+    "pfDocImport": "書類の取り込み",
+    "pfForecasting": "キャッシュフロー予測",
+    "pfMultiCurrency": "多通貨対応",
+    "pfUnlimited": "無制限",
+    "pfPerSeatCell": "1ユーザーあたり"
   },
   "settings": {
     "bizProfile": "ビジネスプロフィール",
@@ -1442,6 +1466,7 @@
     "today": "今日:",
     "twelveHour": "12時間（午前/午後）",
     "twentyFourHour": "24時間",
-    "weekStartsOn": "週の始まり:"
+    "weekStartsOn": "週の始まり:",
+    "billing": "請求"
   }
 }

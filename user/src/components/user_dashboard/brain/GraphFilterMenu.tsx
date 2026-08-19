@@ -48,6 +48,7 @@ export default function GraphFilterMenu({
     { key: "task", label: t("dashboard", "brainTypeTask") },
     { key: "link", label: t("dashboard", "brainTypeLink") },
     { key: "entity_ref", label: t("dashboard", "brainTypeRecord") },
+    { key: "insight", label: t("dashboard", "brainTypeInsight") },
     { key: "category", label: t("dashboard", "brainGraphCategories") },
     { key: "orphan", label: t("dashboard", "brainGraphOrphans") },
   ];

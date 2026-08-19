@@ -9,6 +9,10 @@ const navLinks = [
   { href: "/faq", label: "FAQs" },
   { href: "/newsletter", label: "Newsletter" },
   { href: "/community", label: "Community" },
+  // Kept in step with the desktop nav in components/navbar.tsx — this list is
+  // separate, so a link added there is invisible on mobile until it is added
+  // here too.
+  { href: "/pricing", label: "Pricing" },
   { href: "/blog", label: "Blog" },
 ];
 

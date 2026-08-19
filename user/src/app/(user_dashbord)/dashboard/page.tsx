@@ -27,6 +27,9 @@ import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
+import PlanChip from '@/components/user_dashboard/PlanChip';
+import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
+import PhoneChip from '@/components/user_dashboard/PhoneChip';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
 
@@ -589,36 +592,36 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-2" data-tour="sidebar">
+        <nav className="flex flex-col gap-1" data-tour="sidebar">
           {/* Keep this list in step with NAV in DashboardSidebar.tsx — this page
               builds its own sidebar instead of using DashboardShell, so a link
               added there does not appear here. */}
-          <Link href="/brain" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/brain" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'brainTitle')}
           </Link>
-          <Link href="/dashboard" className="text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
+          <Link href="/dashboard" className="text-[13px] font-semibold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
-          <Link href="/invoices" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/invoices" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'invoices')}
           </Link>
-          <Link href="/customers" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/customers" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'customers')}
           </Link>
-          <Link href="/activity" data-tour="activity" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/activity" data-tour="activity" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'activity')}
           </Link>
-          <Link href="/groups" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/groups" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'groups')}
           </Link>
-          <Link href="/referrals" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/referrals" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'referAB')}
           </Link>
-          <Link href="/profile-settings" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <Link href="/profile-settings" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'settings')}
           </Link>
           {isAdmin && (
-            <Link href="/admin-users" className={`text-sm font-medium px-3 py-2 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <Link href="/admin-users" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
               {t('dashboard', 'adminPanel')}
             </Link>
           )}
@@ -627,6 +630,18 @@ export default function DashboardPage() {
         {/* The legal documents used to sit loose down here. They now live under
             Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs">
+          {/* Also duplicated from DashboardSidebar.tsx. This page builds its own
+              sidebar rather than using DashboardShell, so anything added there
+              is invisible on /dashboard until it is added here too — which is
+              exactly how the plan chip came to show on every page EXCEPT the
+              dashboard. */}
+          <div className="mb-1">
+            <PlanChip isDark={isDark} />
+            {/* Only rendered for unverified accounts; silent otherwise. */}
+            <VerifyEmailChip isDark={isDark} />
+            {/* Also self-hiding: gone once a number is on file. */}
+            <PhoneChip isDark={isDark} />
+          </div>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
           {/* Duplicated from DashboardSidebar.tsx — keep the two in step until
               this inline copy is finally removed, or the version a user sees

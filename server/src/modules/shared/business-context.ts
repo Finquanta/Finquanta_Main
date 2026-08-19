@@ -72,7 +72,7 @@ export function withBusiness(database: Database) {
     if (await repo.isSuspended(businessId)) {
       reply.status(403).send({
         success: false,
-        error: 'This workspace has been restricted. Contact support.',
+        error: 'This business has been restricted. Contact support.',
       });
       return;
     }

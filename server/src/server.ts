@@ -37,10 +37,19 @@ const server: FastifyInstance = Fastify({
    * spend cap — now derives its key independently. See ai-usage.routes.ts.
    */
   trustProxy: true,
-  // apiRoutes runs ~20 sequential ensureSchema() migrations against Neon at
-  // boot; a cold serverless compute can push that past Fastify's 10s default,
-  // aborting an otherwise-healthy boot. Give it real headroom.
-  pluginTimeout: 30000,
+  /**
+   * apiRoutes runs ~20 sequential ensureSchema() migrations against Neon at
+   * boot. A cold serverless compute already pushed that past Fastify's 10s
+   * default; 30s then proved too tight as well, on a loaded machine sharing the
+   * database with a test run — the boot aborts with FST_ERR_PLUGIN_TIMEOUT and
+   * nodemon parks until a file changes, which reads as "the server is down"
+   * with no obvious cause.
+   *
+   * This is a ceiling on a healthy boot, not a deadline anybody is waiting on:
+   * nothing serves traffic until it finishes regardless, so a generous value
+   * costs nothing and a tight one turns slowness into an outage.
+   */
+  pluginTimeout: 120000,
 });
 
 // Enable CORS

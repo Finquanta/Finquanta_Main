@@ -4,6 +4,8 @@ import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
 import { CouncilRepository } from './council.repository';
 import { COUNCIL_MEMBERS, CouncilQuotaError, CouncilService } from './council.service';
+import { requireFeature } from '../billing/require-feature';
+import { UsageService } from '../billing/usage.service';
 
 /**
  * Finna Council (spec 07).
@@ -15,6 +17,7 @@ import { COUNCIL_MEMBERS, CouncilQuotaError, CouncilService } from './council.se
 export async function councilRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new CouncilRepository(options.database);
   const service = new CouncilService(options.database);
+  const usage = new UsageService(options.database);
   const pre = [authenticate, withBusiness(options.database)];
 
   /** The roster and today's remaining quota — drives the UI before convening. */
@@ -39,7 +42,10 @@ export async function councilRoutes(fastify: FastifyInstance, options: { databas
    * Convene. This is the only route that spends money, and the only one the
    * user can trigger — there is no scheduled or background path to it.
    */
-  fastify.post('/v1/council/sessions', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  // Council is Business and above (spec 07 §5, "Gate by plan"). The gate sits
+  // on convening only — reading a past session costs nothing and stays open, so
+  // a workspace that downgrades keeps the decisions it already paid for.
+  fastify.post('/v1/council/sessions', { preHandler: [...pre, requireFeature(options.database, 'council')] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const body = (request.body as { question?: unknown }) || {};
       const question = typeof body.question === 'string' ? body.question.trim() : '';
@@ -47,6 +53,26 @@ export async function councilRoutes(fastify: FastifyInstance, options: { databas
         return reply.status(400).send({
           success: false,
           error: 'Give the Council a real question — at least a sentence.',
+        });
+      }
+
+      /**
+       * The PLAN allowance, checked before the daily cost cap below.
+       *
+       * Two different limits and both must pass: this one is what the customer
+       * bought (monthly, per business), the one below protects the prepaid
+       * Anthropic balance (daily, platform-wide). Checked in this order so a
+       * customer who is simply out of their monthly sessions is told that,
+       * rather than being shown a platform message about tomorrow.
+       */
+      const planQuota = await usage.check(request.businessId!, 'council_sessions');
+      if (!planQuota.allowed) {
+        return reply.status(402).send({
+          success: false,
+          error: planQuota.limit === 0
+            ? 'Your plan does not include Council sessions. Available on Entrepreneur and above.'
+            : `You've used all ${planQuota.limit} Council sessions on your plan this month. They reset on the 1st.`,
+          data: { usage: planQuota },
         });
       }
 
@@ -63,11 +89,14 @@ export async function councilRoutes(fastify: FastifyInstance, options: { databas
         });
       }
 
+      // Recorded only once the session actually exists — a convene that fails
+      // must not cost the customer one of their monthly allowance.
       const session = await service.convene(
         request.businessId!,
         request.user?.id ?? null,
         question
       );
+      await usage.record(request.businessId!, 'council_sessions');
       return reply.status(201).send({ success: true, data: session });
     } catch (error) {
       // Lost the race for the last slot. Nothing was spent, so this is a 429

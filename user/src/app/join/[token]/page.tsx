@@ -60,7 +60,7 @@ export default function JoinPage() {
     try {
       const joined = await acceptInvite(token, password.trim() || undefined);
       clearPendingInvite();
-      // Land them IN the workspace they just joined. `activeBusinessId` is what
+      // Land them IN the business they just joined. `activeBusinessId` is what
       // sets the X-Business-Id header; without this the default is the OLDEST
       // workspace they belong to, so a new member would arrive at their own
       // empty books and reasonably conclude that joining had not worked.
@@ -102,7 +102,7 @@ export default function JoinPage() {
 
             {!loggedIn ? (
               <div className="space-y-3">
-                <p className="text-sm text-gray-600">Log in or create an account to join this workspace.</p>
+                <p className="text-sm text-gray-600">Log in or create an account to join this business.</p>
                 <div className="flex gap-3 justify-center">
                   <Link href="/login" className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-5 py-2.5 rounded-lg text-sm">Log in</Link>
                   <Link href="/signup" className="border border-gray-300 text-gray-700 font-medium px-5 py-2.5 rounded-lg text-sm">Sign up</Link>
@@ -124,7 +124,7 @@ export default function JoinPage() {
                 )}
                 {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
                 <button onClick={join} disabled={busy} className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm">
-                  {busy ? "Joining…" : "Join workspace"}
+                  {busy ? "Joining…" : "Join business"}
                 </button>
                 {/* Secondary by design: declining is a real choice, but it
                     shouldn't compete with the action they were invited to take. */}

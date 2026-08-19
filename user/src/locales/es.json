@@ -244,6 +244,7 @@
     "brainTitle": "Cerebro de empresa",
     "brainTypeLink": "Enlace",
     "brainTypeRecord": "Registro",
+    "brainTypeInsight": "Hallazgo",
     "brainSettings": "Ajustes del Brain",
     "brainAutoLink": "Sugerir notas relacionadas",
     "brainAutoLinkHint": "Encuentra notas que se parecen entre si y las enlaza automaticamente. Gratis — no usa creditos de IA.",
@@ -966,8 +967,7 @@
     "updateGoals": "Actualizar objetivos",
     "version": "Version",
     "viewReceipt": "Ver recibo",
-    "workspace": "Espacio de trabajo",
-    "wsCreateBusiness": "Crear empresa",
+    "wsCreateBusiness": "Crear espacio de trabajo",
     "wsInviteMember": "Invitar a un miembro",
     "wsLinkExpiry": "Caducidad del enlace",
     "wsLoadingTeam": "Cargando equipo…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "Quitar del equipo",
     "wsShareLink": "Comparta este enlace con su companero (rol:",
     "wsViewTeam": "Ver equipo",
-    "wsYourBusinesses": "Sus empresas",
-    "yourName": "Tu nombre"
+    "wsYourBusinesses": "Tus espacios de trabajo",
+    "yourName": "Tu nombre",
+    "businessLabel": "Espacio de trabajo"
   },
   "demo": {
     "acAp": "Cuentas por pagar",
@@ -1274,7 +1275,8 @@
     "newsletter": "Boletin",
     "scheduleDemo": "Programar Demo",
     "signUp": "Registrarse",
-    "tryDemo": "Probar demo"
+    "tryDemo": "Probar demo",
+    "pricing": "Precios"
   },
   "newsletter": {
     "description": "Suscribete al boletin de Finquanta AI.",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "Analisis financiero detallado, planificacion de beneficios para empleados y oportunidades de inversion avanzadas para empresas en crecimiento.",
-    "pBizYear": "O $990,99/ano (10 % de descuento)",
+    "pBizYear": "O $999,95/año (2 meses gratis)",
     "pBlogAll": "Ver todo",
     "pBlogSub": "Ideas y novedades del equipo de Finquanta AI.",
     "pBlogTitle": "Del blog",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "Solucion personalizada para equipos de mas de 5 usuarios.",
     "pCorporate": "CORPORATIVO",
     "pEntDesc": "Herramientas avanzadas para emprendedores, con planificacion financiera integral y asesoramiento de inversion personalizado.",
-    "pEntYear": "O $490,99/ano (11 % de descuento)",
+    "pEntYear": "O $499,95/año (2 meses gratis)",
     "pEntrepreneur": "EMPRENDEDOR",
     "pFeatures": "FUNCIONES",
     "pFree": "GRATIS",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "Este tranquilo: sus datos de pago se tratan con la maxima seguridad y confidencialidad. Disfrute de una experiencia de pago sin complicaciones con Finquanta.",
     "pRecCorp": "Recomendado para corporaciones e inversores",
     "pRecSmall": "Recomendado para empresas pequenas",
-    "pRequestDemo": "Solicite una demostracion para su equipo",
+    "pRequestDemo": "Probar la demo",
     "pSeeCompare": "Consulte nuestra tabla comparativa de funciones",
     "pSeePricing": "Consulte nuestros precios",
     "pTitle": "ENCUENTRE EL PLAN FINQUANTA ADECUADO PARA AHORA.",
@@ -1367,7 +1369,29 @@
     "pfPlan": "Creacion y validacion de plan de negocio",
     "pfProposal": "Creacion y validacion de propuestas comerciales",
     "pfStatements": "Estados financieros",
-    "pfTaxes": "Impuestos"
+    "pfTaxes": "Impuestos",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "Cerebro de empresa",
+    "pfComingSoon": "En desarrollo — próximamente",
+    "pPerSeat": "por usuario",
+    "pfSecCore": "Esencial",
+    "pfSecBrain": "Cerebro de empresa",
+    "pfSecLimits": "Límites",
+    "pfSecSoon": "Próximamente",
+    "pfSeats": "Usuarios",
+    "pfFinnaMsgs": "Mensajes de Finna / mes",
+    "pfCouncilSessions": "Sesiones del Consejo / mes",
+    "pfGroups": "Grupos",
+    "pfBrainNotes": "Notas, categorías y datos en vivo",
+    "pfBrainGraph": "Vista de grafo (2D y 3D)",
+    "pfBrainBacklinks": "Retroenlaces",
+    "pfBrainAuto": "Resúmenes IA y enlaces automáticos",
+    "pfBank": "Conexiones bancarias",
+    "pfDocImport": "Importación de documentos",
+    "pfForecasting": "Previsión de caja",
+    "pfMultiCurrency": "Multidivisa",
+    "pfUnlimited": "Ilimitado",
+    "pfPerSeatCell": "Por usuario"
   },
   "settings": {
     "bizProfile": "Perfil de empresa",
@@ -1442,6 +1466,7 @@
     "today": "Hoy:",
     "twelveHour": "12 horas (AM/PM)",
     "twentyFourHour": "24 horas",
-    "weekStartsOn": "La semana comienza el:"
+    "weekStartsOn": "La semana comienza el:",
+    "billing": "Facturación"
   }
 }

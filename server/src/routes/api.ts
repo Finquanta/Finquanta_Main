@@ -46,6 +46,13 @@ import { GroupsRepository } from '../modules/groups/groups.repository';
 import { brainRoutes } from '../modules/brain/brain.routes';
 import { BrainRepository } from '../modules/brain/brain.repository';
 import { BrainAdvisorService } from '../modules/brain/brain.advisor';
+import { BrainInsightsService } from '../modules/brain/brain.insights';
+import { BillingRepository } from '../modules/billing/billing.repository';
+import { billingRoutes } from '../modules/billing/billing.routes';
+import { stripeRoutes } from '../modules/billing/stripe.routes';
+import { stripeWebhookRoutes } from '../modules/billing/webhook.routes';
+import { UsageService } from '../modules/billing/usage.service';
+import { SubscriptionExpenseService } from '../modules/billing/subscription-expense';
 import { councilRoutes } from '../modules/council/council.routes';
 import { CouncilRepository } from '../modules/council/council.repository';
 import { finnaRoutes } from '../modules/finna/finna.routes';
@@ -319,10 +326,31 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Company Brain — the business's knowledge graph: categories, notes and the
   // connections between them, plus read-only pins onto live financial data.
+  /**
+   * Subscriptions and entitlements (spec 08). Registered BEFORE the brain and
+   * council modules, because their routes gate on it — and its ensureSchema
+   * carries the one-time grandfather backfill, which has to have run before any
+   * gate can answer correctly for an existing workspace.
+   */
+  try {
+    await new BillingRepository(database).ensureSchema();
+    await new UsageService(database).ensureSchema();
+    await new SubscriptionExpenseService(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure billing schema');
+  }
+  await fastify.register(billingRoutes, { database });
+  await fastify.register(stripeRoutes, { database });
+  // Registered separately because it replaces the JSON body parser with a raw
+  // string one. Fastify scopes that to the plugin instance, so isolating it
+  // here keeps every other route parsing JSON normally.
+  await fastify.register(stripeWebhookRoutes, { database });
+
   // Registered after groups and accounting because its pins read from both.
   try {
     await new BrainRepository(database).ensureSchema();
     await new BrainAdvisorService(database).ensureSchema();
+    await new BrainInsightsService(database).ensureSchema();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure brain schema');
   }

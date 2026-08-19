@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminUser, listAdminUsers, checkAdmin, updateAdminUser, deleteAdminUser, setAdminUserPassword } from "@/lib/api/admin";
+import {
+  AdminDeletionBlocker, AdminUser, listAdminUsers, checkAdmin, updateAdminUser, deleteAdminUser,
+  getAdminDeletionBlockers, setAdminUserPassword,
+} from "@/lib/api/admin";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 
 export default function AdminUsersPage() {
@@ -14,6 +17,9 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [dark, setDark] = useState(false);
   const [busyId, setBusyId] = useState<string>("");
+  /** The user being deleted, when they own workspaces other people are in. */
+  const [deleting, setDeleting] = useState<{ user: AdminUser; businesses: AdminDeletionBlocker[] } | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [openMenuId, setOpenMenuId] = useState<string>("");
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [form, setForm] = useState({ first: "", last: "", dob: "" });
@@ -55,7 +61,7 @@ export default function AdminUsersPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
-    return users.filter((u) => [u.name, u.email, u.role].some((f) => (f || "").toLowerCase().includes(q)));
+    return users.filter((u) => [u.name, u.email, u.phone, u.role].some((f) => (f || "").toLowerCase().includes(q)));
   }, [users, query]);
 
   const act = async (fn: () => Promise<void>, id: string) => {
@@ -81,7 +87,50 @@ export default function AdminUsersPage() {
   const setRole = (id: string, role: string) => act(() => updateAdminUser(id, { role }), id);
   const toggleStatus = (u: AdminUser) => act(() => updateAdminUser(u.id, { status: u.status === "suspended" ? "active" : "suspended" }), u.id);
   const toggleVerified = (u: AdminUser) => act(() => updateAdminUser(u.id, { emailVerified: !u.emailVerified }), u.id);
-  const remove = (u: AdminUser) => { if (window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) act(() => deleteAdminUser(u.id), u.id); };
+  /**
+   * Deleting a user cascades every business they own and the whole ledger under
+   * each — so for anyone who owns a SHARED workspace, this opens a dialog and
+   * makes the admin decide what happens to it first. A solo account still goes
+   * straight through on a confirm, which is the common case.
+   */
+  const remove = async (u: AdminUser) => {
+    setOpenMenuId("");
+    let shared: AdminDeletionBlocker[] = [];
+    try { shared = await getAdminDeletionBlockers(u.id); } catch { shared = []; }
+
+    if (shared.length > 0) { setDeleting({ user: u, businesses: shared }); return; }
+    if (window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) {
+      act(() => deleteAdminUser(u.id), u.id);
+    }
+  };
+
+  /** Per workspace: a member's id to hand it to, or DESTROY to delete it. */
+  const DESTROY = "__delete__";
+  const confirmSharedDelete = () => {
+    if (!deleting) return;
+    const successors: Record<string, string> = {};
+    const deleteWorkspaces: string[] = [];
+    for (const b of deleting.businesses) {
+      const choice = decisions[b.id];
+      if (!choice) return; // guarded by the disabled button
+      if (choice === DESTROY) deleteWorkspaces.push(b.id);
+      else successors[b.id] = choice;
+    }
+    const doomed = deleteWorkspaces.length;
+    if (!window.confirm(
+      `Delete ${deleting.user.name} (${deleting.user.email})?` +
+      (doomed ? `
+
+${doomed} workspace(s) will be destroyed along with every invoice and ledger entry in them.` : "") +
+      `
+
+This cannot be undone.`
+    )) return;
+    const target = deleting.user.id;
+    setDeleting(null);
+    setDecisions({});
+    act(() => deleteAdminUser(target, { successors, deleteWorkspaces }), target);
+  };
   const setPassword = (u: AdminUser) => {
     setOpenMenuId("");
     const pw = window.prompt(`Set a new password for ${u.name} (${u.email}).\nAt least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.`);
@@ -154,7 +203,7 @@ export default function AdminUsersPage() {
                   {/* Company/Country moved to the Businesses tab — they belong
                       to a workspace, and joining them here duplicated any user
                       who owns more than one. */}
-                  {["Name", "Email", "Role", "Status", "Verified", "Joined", "DOB", ""].map((h, i) => (
+                  {["Name", "Email", "Phone", "Role", "Status", "Verified", "Joined", "DOB", ""].map((h, i) => (
                     <th key={i} style={{ padding: "10px 12px", fontWeight: 600, borderBottom: `0.5px solid ${d.border}`, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -176,6 +225,11 @@ export default function AdminUsersPage() {
                         {u.name}{isSelf && <span style={{ color: d.muted, fontWeight: 400 }}> (you)</span>}
                       </td>
                       <td style={{ padding: "10px 12px", color: d.muted, opacity: dim }}>{u.email}</td>
+                      {/* Personal phone, distinct from the business's own —
+                          that one lives on the Businesses tab. An em dash
+                          rather than blank, so an empty column reads as "not
+                          supplied" instead of a rendering fault. */}
+                      <td style={{ padding: "10px 12px", color: d.muted, opacity: dim }}>{u.phone || "—"}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>{roleBadge(u.role)}</td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>
                         <span style={{ color: u.status === "suspended" ? "#dc2626" : "#16a34a", fontWeight: 600, fontSize: 12 }}>{u.status === "suspended" ? "restricted" : "active"}</span>
@@ -243,6 +297,67 @@ export default function AdminUsersPage() {
                 <button disabled={busyId === editUser.id} onClick={saveEdit} style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: busyId === editUser.id ? 0.6 : 1 }}>{busyId === editUser.id ? "Saving…" : "Save"}</button>
                 <button onClick={() => setEditUser(null)} style={{ background: d.input, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* What happens to the workspaces this account owns.
+          Every row must be answered — there is no default, because both
+          defaults are wrong: silently destroying other people's books, or
+          silently handing a workspace to somebody nobody chose. */}
+      {deleting && (
+        <div onClick={() => { setDeleting(null); setDecisions({}); }} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: d.surface, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 14, padding: 22, width: "min(520px, 92vw)", maxHeight: "86vh", overflowY: "auto" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Delete {deleting.user.name}</h2>
+            <p style={{ margin: "0 0 14px", fontSize: 12, color: d.muted }}>
+              They own {deleting.businesses.length} workspace{deleting.businesses.length === 1 ? "" : "s"} that
+              other people work in. Deleting the account destroys those books unless somebody takes them over.
+            </p>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              {deleting.businesses.map((b) => (
+                <div key={b.id} style={{ border: `0.5px solid ${d.border}`, borderRadius: 10, padding: 12, background: d.input }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{b.name}</div>
+                  <div style={{ fontSize: 12, color: d.muted, marginBottom: 8 }}>
+                    {b.otherMembers} other member{b.otherMembers === 1 ? "" : "s"}
+                  </div>
+                  <select
+                    value={decisions[b.id] ?? ""}
+                    onChange={(e) => setDecisions((p) => ({ ...p, [b.id]: e.target.value }))}
+                    style={{ width: "100%", padding: "8px 10px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.surface, color: d.text, fontSize: 13 }}
+                  >
+                    <option value="">Choose what happens…</option>
+                    {b.candidates.map((c) => (
+                      <option key={c.userId} value={c.userId}>Transfer to {c.name} ({c.role})</option>
+                    ))}
+                    {/* Available, but never the default: a spam workspace
+                        should not need a new owner nominated for it. */}
+                    <option value={DESTROY}>Delete this workspace and all its books</option>
+                  </select>
+                  {decisions[b.id] === DESTROY && (
+                    <p style={{ margin: "6px 0 0", fontSize: 11, color: "#dc2626", fontWeight: 600 }}>
+                      {b.otherMembers} other member{b.otherMembers === 1 ? "" : "s"} will lose everything in this workspace.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={confirmSharedDelete}
+                disabled={deleting.businesses.some((b) => !decisions[b.id])}
+                style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: deleting.businesses.some((b) => !decisions[b.id]) ? 0.5 : 1 }}
+              >
+                Delete account
+              </button>
+              <button
+                onClick={() => { setDeleting(null); setDecisions({}); }}
+                style={{ background: d.input, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

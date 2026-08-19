@@ -5,6 +5,8 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
+  /** Personal phone. Empty until the account supplies one. */
+  phone: string;
   role: string;
   status: string;
   joinedAt: string | null;
@@ -17,13 +19,78 @@ export interface AdminBusiness {
   name: string;
   ownerName: string;
   ownerEmail: string;
+  /** Nobody owns this workspace — the last member left it behind. */
+  ownerless: boolean;
+  /** Who it belonged to, so an accidental departure can be undone knowingly. */
+  previousOwnerEmail: string;
+  /** Seats — billing is per seat and every member occupies one. */
   memberCount: number;
-  /** 'Freemium' for everyone until spec 08 ships entitlements. */
+  /** Display name of the plan being paid for. */
+  /** What the workspace is BILLED. Drives the plan picker and the revenue view. */
   plan: string;
+  planKey: string;
+  /**
+   * What the workspace can USE — the same label the customer sees in their own
+   * business switcher. Differs from `plan` during a trial or early-access
+   * window, which is exactly when showing only one of them is misleading.
+   */
+  effectivePlan: string;
+  effectivePlanKey: string;
+  /**
+   * What the badge says and how it is tinted, decided server-side by the same
+   * rule the dashboard's business switcher uses — so a workspace is never
+   * described one way here and another way to its owner.
+   */
+  badgeLabel: string;
+  badgeTone: string;
+  subscriptionStatus: string;
+  trialEndsAt: string | null;
+  grandfatheredUntil: string | null;
+  /** True while a trial or grandfather window grants more than they pay for. */
+  onFreeWindow: boolean;
   country: string;
   industry: string;
+  /** The business's own phone, separate from any individual's. */
+  businessPhone: string;
   status: string;
   createdAt: string | null;
+}
+
+export interface AdminBillingOverview {
+  distribution: { plan: string; businesses: number; seats: number }[];
+  /** Projected, not real — nothing is charging anyone until Stripe lands. */
+  projectedMrr: number;
+  projectedByPlan: Record<string, number>;
+  plans: { key: string; name: string; monthly: number; annual: number; contactSales: boolean }[];
+}
+
+export async function getAdminBillingOverview(): Promise<AdminBillingOverview> {
+  return apiFetch<AdminBillingOverview>('/v1/admin/billing/overview');
+}
+
+/** Move a workspace to any plan, free through Corporate. Audited server-side. */
+export async function setAdminBusinessPlan(id: string, plan: string): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/plan`, {
+    method: 'PATCH', body: JSON.stringify({ plan }),
+  });
+}
+
+/** Begin a trial. Length follows the owner's verification status (7 or 14 days). */
+export async function startAdminBusinessTrial(id: string): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/trial`, { method: 'POST' });
+}
+
+export async function extendAdminBusinessTrial(id: string, days: number): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/trial`, {
+    method: 'PATCH', body: JSON.stringify({ days }),
+  });
+}
+
+/** Grant early access for `months`, or pass null to remove it. */
+export async function setAdminBusinessGrandfather(id: string, months: number | null): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/grandfather`, {
+    method: 'PATCH', body: JSON.stringify({ months }),
+  });
 }
 
 /** List all users (admin only — 403 if the caller isn't an admin). */
@@ -44,8 +111,40 @@ export async function updateAdminUser(
   await apiFetch(`/v1/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
-export async function deleteAdminUser(id: string): Promise<void> {
-  await apiFetch(`/v1/admin/users/${id}`, { method: 'DELETE' });
+export interface AdminDeletionBlocker {
+  id: string;
+  name: string;
+  otherMembers: number;
+  /** Who this workspace could be handed to instead of destroyed. */
+  candidates: { userId: string; name: string; email: string; role: string }[];
+}
+
+/**
+ * Shared workspaces this user OWNS — what deleting the account would take with
+ * it. Deleting a user cascades their businesses and every ledger beneath them,
+ * so each of these needs a decision first: hand it to a member, or delete it
+ * deliberately.
+ */
+export async function getAdminDeletionBlockers(id: string): Promise<AdminDeletionBlocker[]> {
+  return apiFetch<AdminDeletionBlocker[]>(`/v1/admin/users/${id}/deletion-blockers`);
+}
+
+/**
+ * `successors` maps a workspace to its new owner; `deleteWorkspaces` lists the
+ * ones being destroyed on purpose. The server refuses (409) if any shared
+ * workspace appears in neither.
+ */
+export async function deleteAdminUser(
+  id: string,
+  decisions: { successors?: Record<string, string>; deleteWorkspaces?: string[] } = {}
+): Promise<void> {
+  await apiFetch(`/v1/admin/users/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({
+      successors: decisions.successors ?? {},
+      deleteWorkspaces: decisions.deleteWorkspaces ?? [],
+    }),
+  });
 }
 
 /** Every workspace, one row each (admin only). */
@@ -104,4 +203,63 @@ export interface AuditLog {
 /** Append-only audit trail of admin actions (admin only). */
 export async function getAuditLogs(): Promise<AuditLog[]> {
   return apiFetch<AuditLog[]>('/v1/admin/audit');
+}
+
+/** Headline numbers for the admin Overview tab. */
+export interface AdminOverview {
+  /** The window the dated figures cover. Null on either side = open-ended. */
+  period: { from: string | null; to: string | null };
+  users: { total: number; verified: number; suspended: number; newThisMonth: number; newInPeriod: number; admins: number };
+  businesses: { total: number; suspended: number; multiMember: number; withProfile: number; avgMembers: number; newInPeriod: number };
+  countries: { country: string; businesses: number }[];
+  seats: { billable: number; viewersFree: number };
+  /** Every plan, including tiers nobody is on — an empty tier is information. */
+  plans: {
+    plan: string; name: string; businesses: number; seats: number;
+    monthly: number; contactSales: boolean;
+  }[];
+  churn: {
+    active: number; pastDue: number; cancelling: number; canceled: number;
+    trialing: number; trialsStarted: number; trialsConverted: number;
+    /** Share of everyone who ever subscribed who has since cancelled, as a %. */
+    churnRate: number;
+    startedInPeriod: number;
+    cancelledInPeriod: number;
+  };
+  /** Price x seats over assigned plans — an intention, not money received. */
+  projectedMrr: number;
+  projectedArr: number;
+  byPlan: Record<string, number>;
+}
+
+/**
+ * `from`/`to` are plain YYYY-MM-DD and scope only the DATED figures — signups,
+ * workspaces created, trials started, cancellations. MRR, plan mix and seat
+ * counts are snapshots of today whatever range is asked for, because filtering
+ * a snapshot by a date range produces a number that looks precise and means
+ * nothing.
+ */
+export async function getAdminOverview(
+  period: { from?: string | null; to?: string | null } = {}
+): Promise<AdminOverview> {
+  const q = new URLSearchParams();
+  if (period.from) q.set('from', period.from);
+  if (period.to) q.set('to', period.to);
+  const qs = q.toString();
+  return apiFetch<AdminOverview>(`/v1/admin/overview${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * Give an ownerless workspace an owner. Refused (409) if it already has one —
+ * this is for recovering an abandoned workspace, not for taking a business off
+ * somebody.
+ */
+export async function assignAdminBusinessOwner(
+  businessId: string,
+  who: { userId?: string; email?: string }
+): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${businessId}/owner`, {
+    method: 'PATCH',
+    body: JSON.stringify(who),
+  });
 }

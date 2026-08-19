@@ -244,6 +244,7 @@
     "brainTitle": "公司大脑",
     "brainTypeLink": "链接",
     "brainTypeRecord": "记录",
+    "brainTypeInsight": "洞察",
     "brainSettings": "大脑设置",
     "brainAutoLink": "推荐相关笔记",
     "brainAutoLinkHint": "找出内容相近的笔记并自动关联。免费——不消耗 AI 额度。",
@@ -966,8 +967,7 @@
     "updateGoals": "更新目标",
     "version": "版本",
     "viewReceipt": "查看收据",
-    "workspace": "工作区",
-    "wsCreateBusiness": "创建企业",
+    "wsCreateBusiness": "创建工作区",
     "wsInviteMember": "邀请团队成员",
     "wsLinkExpiry": "链接有效期",
     "wsLoadingTeam": "正在加载团队…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "从团队中移除",
     "wsShareLink": "将此链接分享给团队成员（角色：",
     "wsViewTeam": "查看团队",
-    "wsYourBusinesses": "您的企业",
-    "yourName": "您的姓名"
+    "wsYourBusinesses": "你的工作区",
+    "yourName": "您的姓名",
+    "businessLabel": "工作区"
   },
   "demo": {
     "acAp": "应付账款",
@@ -1274,7 +1275,8 @@
     "newsletter": "新闻通讯",
     "scheduleDemo": "安排演示",
     "signUp": "注册",
-    "tryDemo": "试用演示"
+    "tryDemo": "试用演示",
+    "pricing": "定价"
   },
   "newsletter": {
     "description": "订阅Finquanta AI新闻通讯获取最新信息。",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "为成长型企业提供详细财务分析、员工福利规划与高级投资机会。",
-    "pBizYear": "或 $990.99/年（10% 折扣）",
+    "pBizYear": "或 $999.95/年（免费2个月）",
     "pBlogAll": "查看全部",
     "pBlogSub": "来自 Finquanta AI 团队的洞察与最新动态。",
     "pBlogTitle": "博客文章",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "为超过 5 位用户的团队定制的解决方案。",
     "pCorporate": "集团版",
     "pEntDesc": "为创业者提供的高级工具，包括全面财务规划与个性化投资建议。",
-    "pEntYear": "或 $490.99/年（11% 折扣）",
+    "pEntYear": "或 $499.95/年（免费2个月）",
     "pEntrepreneur": "创业者",
     "pFeatures": "功能",
     "pFree": "免费",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "请放心，您的支付信息将以最高的安全性与保密性处理。在 Finquanta 享受顺畅无忧的支付体验。",
     "pRecCorp": "推荐给企业集团与投资者",
     "pRecSmall": "推荐给小型公司",
-    "pRequestDemo": "为您的团队申请演示",
+    "pRequestDemo": "试用演示",
     "pSeeCompare": "查看我们的功能对比表",
     "pSeePricing": "查看我们的价格",
     "pTitle": "找到当下最适合您的 FINQUANTA 方案。",
@@ -1367,7 +1369,29 @@
     "pfPlan": "商业计划书撰写与验证",
     "pfProposal": "商业提案撰写与验证",
     "pfStatements": "财务报表",
-    "pfTaxes": "税务"
+    "pfTaxes": "税务",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "公司大脑",
+    "pfComingSoon": "开发中 — 即将推出",
+    "pPerSeat": "每个席位",
+    "pfSecCore": "核心",
+    "pfSecBrain": "公司大脑",
+    "pfSecLimits": "额度",
+    "pfSecSoon": "即将推出",
+    "pfSeats": "席位",
+    "pfFinnaMsgs": "Finna 消息 / 月",
+    "pfCouncilSessions": "顾问团会话 / 月",
+    "pfGroups": "业务分组",
+    "pfBrainNotes": "笔记、分类与实时数据",
+    "pfBrainGraph": "图谱视图（2D 和 3D）",
+    "pfBrainBacklinks": "反向链接",
+    "pfBrainAuto": "AI 摘要与自动关联",
+    "pfBank": "银行连接",
+    "pfDocImport": "文档导入",
+    "pfForecasting": "现金流预测",
+    "pfMultiCurrency": "多币种",
+    "pfUnlimited": "无限",
+    "pfPerSeatCell": "每席位"
   },
   "settings": {
     "bizProfile": "企业资料",
@@ -1442,6 +1466,7 @@
     "today": "今天:",
     "twelveHour": "12小时（上午/下午）",
     "twentyFourHour": "24小时",
-    "weekStartsOn": "周开始于:"
+    "weekStartsOn": "周开始于:",
+    "billing": "账单"
   }
 }

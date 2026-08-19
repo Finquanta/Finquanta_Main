@@ -244,6 +244,7 @@
     "brainTitle": "عقل الشركة",
     "brainTypeLink": "رابط",
     "brainTypeRecord": "سجل",
+    "brainTypeInsight": "ملاحظة",
     "brainSettings": "إعدادات الـ Brain",
     "brainAutoLink": "اقتراح الملاحظات المرتبطة",
     "brainAutoLinkHint": "يجد الملاحظات المتشابهة ويربطها تلقائياً. مجاني — لا يستهلك أي رصيد ذكاء اصطناعي.",
@@ -966,8 +967,7 @@
     "updateGoals": "تحديث الأهداف",
     "version": "الإصدار",
     "viewReceipt": "عرض الإيصال",
-    "workspace": "مساحة العمل",
-    "wsCreateBusiness": "إنشاء شركة",
+    "wsCreateBusiness": "إنشاء مساحة عمل",
     "wsInviteMember": "دعوة عضو للفريق",
     "wsLinkExpiry": "انتهاء صلاحية الرابط",
     "wsLoadingTeam": "جارٍ تحميل الفريق…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "إزالة من الفريق",
     "wsShareLink": "شارك هذا الرابط مع عضو فريقك (الدور:",
     "wsViewTeam": "عرض الفريق",
-    "wsYourBusinesses": "شركاتك",
-    "yourName": "اسمك"
+    "wsYourBusinesses": "مساحات العمل الخاصة بك",
+    "yourName": "اسمك",
+    "businessLabel": "مساحة العمل"
   },
   "demo": {
     "acAp": "الذمم الدائنة",
@@ -1274,7 +1275,8 @@
     "newsletter": "النشرة الإخبارية",
     "scheduleDemo": "جدولة عرض",
     "signUp": "التسجيل",
-    "tryDemo": "جرّب العرض التجريبي"
+    "tryDemo": "جرّب العرض التجريبي",
+    "pricing": "الأسعار"
   },
   "newsletter": {
     "description": "اشترك في نشرة Finquanta AI الإخبارية.",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "تحليلات مالية مفصلة وتخطيط مزايا الموظفين وفرص استثمارية متقدمة للشركات النامية.",
-    "pBizYear": "أو 990.99 دولار سنويا (خصم 10%)",
+    "pBizYear": "أو 999.95 $ سنوياً (شهران مجاناً)",
     "pBlogAll": "عرض الكل",
     "pBlogSub": "رؤى وتحديثات من فريق فينكوانتا للذكاء الاصطناعي.",
     "pBlogTitle": "من المدونة",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "حل مخصص للفرق التي تضم أكثر من 5 مستخدمين.",
     "pCorporate": "الشركات",
     "pEntDesc": "أدوات متقدمة لرواد الأعمال تشمل تخطيطا ماليا شاملا ونصائح استثمارية مخصصة.",
-    "pEntYear": "أو 490.99 دولار سنويا (خصم 11%)",
+    "pEntYear": "أو 499.95 $ سنوياً (شهران مجاناً)",
     "pEntrepreneur": "رائد أعمال",
     "pFeatures": "الميزات",
     "pFree": "مجاني",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "اطمئن، تتم معالجة بيانات الدفع الخاصة بك بأقصى درجات الأمان والسرية. استمتع بتجربة دفع سلسة مع فينكوانتا.",
     "pRecCorp": "موصى به للشركات الكبرى والمستثمرين",
     "pRecSmall": "موصى به للشركات الصغيرة",
-    "pRequestDemo": "اطلب عرضا توضيحيا لفريقك",
+    "pRequestDemo": "جرّب العرض التجريبي",
     "pSeeCompare": "اطلع على جدول مقارنة الميزات",
     "pSeePricing": "اطلع على أسعارنا",
     "pTitle": "اختر خطة فينكوانتا المناسبة لك الآن.",
@@ -1367,7 +1369,29 @@
     "pfPlan": "إنشاء خطة العمل والتحقق منها",
     "pfProposal": "إنشاء العروض التجارية والتحقق منها",
     "pfStatements": "القوائم المالية",
-    "pfTaxes": "الضرائب"
+    "pfTaxes": "الضرائب",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "عقل الشركة",
+    "pfComingSoon": "قيد التطوير — قريباً",
+    "pPerSeat": "لكل مستخدم",
+    "pfSecCore": "الأساسيات",
+    "pfSecBrain": "عقل الشركة",
+    "pfSecLimits": "الحدود",
+    "pfSecSoon": "قريباً",
+    "pfSeats": "المستخدمون",
+    "pfFinnaMsgs": "رسائل Finna / شهر",
+    "pfCouncilSessions": "جلسات المجلس / شهر",
+    "pfGroups": "مجموعات الأعمال",
+    "pfBrainNotes": "الملاحظات والفئات والبيانات الحية",
+    "pfBrainGraph": "عرض الرسم البياني (2D و3D)",
+    "pfBrainBacklinks": "الروابط الخلفية",
+    "pfBrainAuto": "ملخصات الذكاء الاصطناعي والربط التلقائي",
+    "pfBank": "ربط البنوك",
+    "pfDocImport": "استيراد المستندات",
+    "pfForecasting": "توقعات التدفق النقدي",
+    "pfMultiCurrency": "تعدد العملات",
+    "pfUnlimited": "غير محدود",
+    "pfPerSeatCell": "لكل مستخدم"
   },
   "settings": {
     "bizProfile": "ملف الشركة",
@@ -1442,6 +1466,7 @@
     "today": "اليوم:",
     "twelveHour": "12 ساعة (صباحا/مساء)",
     "twentyFourHour": "24 ساعة",
-    "weekStartsOn": "تبدأ الأسبوع يوم:"
+    "weekStartsOn": "تبدأ الأسبوع يوم:",
+    "billing": "الفوترة"
   }
 }

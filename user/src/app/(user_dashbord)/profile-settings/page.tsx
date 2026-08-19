@@ -6,12 +6,14 @@ import { restartTour } from '@/components/user_dashboard/tour/TourGuide';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
+import BillingSettings from '@/components/user_dashboard/settings/BillingSettings';
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
-import { deleteAccount } from '@/lib/api/me';
+import { DeletionBlocker, deleteAccount, getDeletionBlockers, getMe, saveMyProfile } from '@/lib/api/me';
+import { BusinessMember, getMembers } from '@/lib/api/businesses';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -23,12 +25,32 @@ const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "
 
 export default function ProfileSettingsPage() {
   const [activeSection, setActiveSection] = useState('profile-settings');
+
+  /**
+   * Allow another page to open this one on a particular section, e.g.
+   * `/profile-settings?section=billing` from the sidebar's Upgrade button.
+   *
+   * Read from `window.location` in an effect rather than with
+   * `useSearchParams`, which would drag this page into needing a Suspense
+   * boundary purely to look at one optional parameter.
+   */
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
   const [menuSearch, setMenuSearch] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  /**
+   * The personal phone — and, unlike its neighbours in this section, it is
+   * actually persisted. `user_profiles.phone` is a real column, read here from
+   * /v1/me and written back with an explicit Save.
+   */
+  const [phone, setPhone] = useState('');
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const [companyEmail, setCompanyEmail] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [dateOfIncorporation, setDateOfIncorporation] = useState('');
@@ -61,6 +83,53 @@ export default function ProfileSettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => { getBusinessProfile().then(setBiz).catch(() => {}); }, []);
+  /**
+   * Load the whole personal profile.
+   *
+   * Every field in this section maps to a real column and none of them were
+   * ever read — Role, Company email, LinkedIn, Date of incorporation and
+   * Country were `useState` and nothing else, so anything typed there vanished
+   * on navigation. This is the read half of fixing that.
+   */
+  useEffect(() => {
+    getMe().then((me) => {
+      const p = me.profile ?? {};
+      setPhone((p.phone as string) ?? '');
+      setRole((p.jobTitle as string) ?? '');
+      setCompanyEmail((p.companyEmail as string) ?? '');
+      setLinkedin((p.linkedin as string) ?? '');
+      setDateOfIncorporation((p.dateOfIncorporation as string) ?? '');
+      setCountry((p.country as string) ?? '');
+    }).catch(() => {});
+  }, []);
+
+  /**
+   * One save for the whole section.
+   *
+   * The phone briefly had its own button, which made sense while it was the
+   * only field here that persisted. Now that they all do, a section where one
+   * input saves itself and five others wait for a button below would be a trap.
+   */
+  const saveProfile = async () => {
+    setPhoneSaving(true);
+    setPhoneSaved(false);
+    try {
+      await saveMyProfile({
+        phone: phone.trim(),
+        jobTitle: role.trim(),
+        companyEmail: companyEmail.trim(),
+        linkedin: linkedin.trim(),
+        dateOfIncorporation: dateOfIncorporation.trim(),
+        country: country.trim(),
+      });
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 2500);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not save your profile.');
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
 
   // Delete account — irreversible, so it's gated behind re-entering the
   // password plus a native confirm() as a second, harder-to-misclick step.
@@ -68,17 +137,60 @@ export default function ProfileSettingsPage() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  /**
+   * Shared workspaces this account owns, and who is nominated to inherit each.
+   *
+   * Deleting an account cascades the businesses it owns and every ledger under
+   * them. For a workspace with colleagues in it, that means one person closing
+   * their account erases everybody's books — so each of these has to be handed
+   * to someone before the delete button will do anything. The server refuses
+   * regardless; this is so the question gets asked here rather than as an error.
+   */
+  const [blockers, setBlockers] = useState<DeletionBlocker[]>([]);
+  const [candidates, setCandidates] = useState<Record<string, BusinessMember[]>>({});
+  const [successors, setSuccessors] = useState<Record<string, string>>({});
+
+  // Asked as soon as the delete panel opens, so the successor pickers are
+  // already on screen when the password is typed.
+  useEffect(() => {
+    if (!deletingAccount) return;
+    getDeletionBlockers()
+      .then(async (list) => {
+        setBlockers(list);
+        const entries = await Promise.all(
+          list.map(async (b) => {
+            const members = await getMembers(b.id).catch(() => [] as BusinessMember[]);
+            return [b.id, members.filter((m) => m.role !== 'Owner')] as const;
+          })
+        );
+        setCandidates(Object.fromEntries(entries));
+      })
+      .catch(() => setBlockers([]));
+  }, [deletingAccount]);
+
+  const unnominated = blockers.filter((b) => !successors[b.id]);
 
   const confirmDeleteAccount = async () => {
     if (!deletePassword.trim() || deleteSubmitting) return;
+    if (unnominated.length > 0) {
+      setDeleteError('Choose who takes over each shared workspace first.');
+      return;
+    }
+    const handovers = blockers.length
+      ? `
+
+${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be handed to the ` +
+        `${blockers.length === 1 ? 'person' : 'people'} you chose, not deleted.`
+      : '';
     const sure = window.confirm(
-      'This permanently deletes your account AND your business’s entire financial history — invoices, bookkeeping, everything. This cannot be undone. Continue?'
+      'This permanently deletes your account AND your business’s entire financial history — invoices, bookkeeping, everything. This cannot be undone. Continue?' +
+      handovers
     );
     if (!sure) return;
     setDeleteError(null);
     setDeleteSubmitting(true);
     try {
-      await deleteAccount(deletePassword.trim());
+      await deleteAccount(deletePassword.trim(), successors);
       logoutAndRedirect('/login');
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : 'Could not delete your account.');
@@ -122,6 +234,7 @@ export default function ProfileSettingsPage() {
           {[
             { id: 'profile-settings', label: t('dashboard', 'profileSettings') },
             { id: 'business-profile', label: t('settings', 'bizProfile') },
+            { id: 'billing', label: t('settings', 'billing') },
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
             { id: 'notifications', label: t('settings', 'notificationSettings') },
@@ -146,6 +259,26 @@ export default function ProfileSettingsPage() {
         <div className="mt-auto px-3">
           {deletingAccount ? (
             <div className="mt-2 space-y-2">
+              {blockers.map((b) => (
+                <div key={b.id} className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-amber-700 bg-amber-900/20' : 'border-amber-300 bg-amber-50'}`}>
+                  <p className={`text-[11px] font-semibold ${theme === 'dark' ? 'text-amber-300' : 'text-amber-800'}`}>
+                    {b.name} has {b.otherMembers} other member{b.otherMembers === 1 ? '' : 's'}
+                  </p>
+                  <p className={`text-[11px] mb-1 ${theme === 'dark' ? 'text-amber-200/80' : 'text-amber-700'}`}>
+                    Hand it over, or their books go with your account.
+                  </p>
+                  <select
+                    value={successors[b.id] ?? ''}
+                    onChange={(e) => setSuccessors((p) => ({ ...p, [b.id]: e.target.value }))}
+                    className={`w-full border rounded-lg px-2 py-1.5 text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                  >
+                    <option value="">Choose the new owner…</option>
+                    {(candidates[b.id] ?? []).map((m) => (
+                      <option key={m.userId} value={m.userId}>{m.name || m.email}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
               <input
                 type="password"
                 value={deletePassword}
@@ -159,13 +292,13 @@ export default function ProfileSettingsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={confirmDeleteAccount}
-                  disabled={deleteSubmitting || !deletePassword.trim()}
+                  disabled={deleteSubmitting || !deletePassword.trim() || unnominated.length > 0}
                   className={`flex-1 text-white text-xs px-4 py-2 rounded-lg disabled:opacity-60 ${theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
                 >
                   {deleteSubmitting ? 'Deleting…' : 'Confirm delete'}
                 </button>
                 <button
-                  onClick={() => { setDeletingAccount(false); setDeletePassword(''); setDeleteError(null); }}
+                  onClick={() => { setDeletingAccount(false); setDeletePassword(''); setDeleteError(null); setSuccessors({}); }}
                   className={`text-xs px-3 py-2 rounded-lg border ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
                 >{t("dashboard","invCancel")}</button>
               </div>
@@ -212,15 +345,23 @@ export default function ProfileSettingsPage() {
                   className={`w-full border rounded-lg px-3 py-2 text-sm ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500'}`}
                 />
               </div>
+              {/* Your own number, not the business's — that one lives under
+                  Business profile. Separate fields on purpose: reaching a
+                  person and reaching a company are different needs, even when
+                  a sole trader answers both with the same digits. */}
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{t('settings', 'companyName')}</label>
-                <input 
-                  type="text" 
-                  placeholder={t('settings', 'enterCompanyName')} 
-                  value={companyName} 
-                  onChange={(e) => setCompanyName(e.target.value)}
+                <label className={`text-sm mb-1 block ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Phone number</label>
+                <input
+                  type="tel"
+                  placeholder="+1 555 123 4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveProfile(); }}
                   className={`w-full border rounded-lg px-3 py-2 text-sm ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500'}`}
                 />
+                <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Used for account security and anything urgent about your books.
+                </p>
               </div>
               <div>
                 <label className={`text-sm mb-1 block ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{t('settings', 'companyEmail')}</label>
@@ -262,8 +403,15 @@ export default function ProfileSettingsPage() {
                   <option>Afghanistan</option><option>Albania</option><option>Algeria</option><option>Andorra</option><option>Angola</option><option>Antigua and Barbuda</option><option>Argentina</option><option>Armenia</option><option>Australia</option><option>Austria</option><option>Azerbaijan</option><option>Bahamas</option><option>Bahrain</option><option>Bangladesh</option><option>Barbados</option><option>Belarus</option><option>Belgium</option><option>Belize</option><option>Benin</option><option>Bhutan</option><option>Bolivia</option><option>Bosnia and Herzegovina</option><option>Botswana</option><option>Brazil</option><option>Brunei</option><option>Bulgaria</option><option>Burkina Faso</option><option>Burundi</option><option>Cabo Verde</option><option>Cambodia</option><option>Cameroon</option><option>Canada</option><option>Central African Republic</option><option>Chad</option><option>Chile</option><option>China</option><option>Colombia</option><option>Comoros</option><option>Congo</option><option>Costa Rica</option><option>Croatia</option><option>Cuba</option><option>Cyprus</option><option>Czech Republic</option><option>Denmark</option><option>Djibouti</option><option>Dominica</option><option>Dominican Republic</option><option>Ecuador</option><option>Egypt</option><option>El Salvador</option><option>Equatorial Guinea</option><option>Eritrea</option><option>Estonia</option><option>Eswatini</option><option>Ethiopia</option><option>Fiji</option><option>Finland</option><option>France</option><option>Gabon</option><option>Gambia</option><option>Georgia</option><option>Germany</option><option>Ghana</option><option>Greece</option><option>Grenada</option><option>Guatemala</option><option>Guinea</option><option>Guinea-Bissau</option><option>Guyana</option><option>Haiti</option><option>Honduras</option><option>Hungary</option><option>Iceland</option><option>India</option><option>Indonesia</option><option>Iran</option><option>Iraq</option><option>Ireland</option><option>Israel</option><option>Italy</option><option>Jamaica</option><option>Japan</option><option>Jordan</option><option>Kazakhstan</option><option>Kenya</option><option>Kiribati</option><option>Kuwait</option><option>Kyrgyzstan</option><option>Laos</option><option>Latvia</option><option>Lebanon</option><option>Lesotho</option><option>Liberia</option><option>Libya</option><option>Liechtenstein</option><option>Lithuania</option><option>Luxembourg</option><option>Madagascar</option><option>Malawi</option><option>Malaysia</option><option>Maldives</option><option>Mali</option><option>Malta</option><option>Marshall Islands</option><option>Mauritania</option><option>Mauritius</option><option>Mexico</option><option>Micronesia</option><option>Moldova</option><option>Monaco</option><option>Mongolia</option><option>Montenegro</option><option>Morocco</option><option>Mozambique</option><option>Myanmar</option><option>Namibia</option><option>Nauru</option><option>Nepal</option><option>Netherlands</option><option>New Zealand</option><option>Nicaragua</option><option>Niger</option><option>Nigeria</option><option>North Korea</option><option>North Macedonia</option><option>Norway</option><option>Oman</option><option>Pakistan</option><option>Palau</option><option>Palestine</option><option>Panama</option><option>Papua New Guinea</option><option>Paraguay</option><option>Peru</option><option>Philippines</option><option>Poland</option><option>Portugal</option><option>Qatar</option><option>Romania</option><option>Russia</option><option>Rwanda</option><option>Saint Kitts and Nevis</option><option>Saint Lucia</option><option>Saint Martin (French part)</option><option>Saint Vincent and the Grenadines</option><option>Samoa</option><option>San Marino</option><option>Sao Tome and Principe</option><option>Saudi Arabia</option><option>Senegal</option><option>Serbia</option><option>Seychelles</option><option>Sierra Leone</option><option>Singapore</option><option>Sint Maarten (Dutch part)</option><option>Slovakia</option><option>Slovenia</option><option>Solomon Islands</option><option>Somalia</option><option>South Africa</option><option>South Korea</option><option>South Sudan</option><option>Spain</option><option>Sri Lanka</option><option>Sudan</option><option>Suriname</option><option>Sweden</option><option>Switzerland</option><option>Syria</option><option>Taiwan</option><option>Tajikistan</option><option>Tanzania</option><option>Thailand</option><option>Timor-Leste</option><option>Togo</option><option>Tonga</option><option>Trinidad and Tobago</option><option>Tunisia</option><option>Turkey</option><option>Turkmenistan</option><option>Tuvalu</option><option>Uganda</option><option>Ukraine</option><option>United Arab Emirates</option><option>United Kingdom</option><option>United States</option><option>Uruguay</option><option>Uzbekistan</option><option>Vanuatu</option><option>Vatican City</option><option>Venezuela</option><option>Vietnam</option><option>Yemen</option><option>Zambia</option><option>Zimbabwe</option>
                 </select>
               </div>
-              <button className={`px-6 py-2 rounded-lg w-fit text-white font-medium ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}>
-                {t('settings', 'saveChanges')}
+              {/* This button existed with no onClick — which is why nothing in
+                  this section ever persisted. Every field above maps to a real
+                  column; they were simply never sent anywhere. */}
+              <button
+                onClick={saveProfile}
+                disabled={phoneSaving}
+                className={`px-6 py-2 rounded-lg w-fit text-white font-medium disabled:opacity-60 ${theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-500 hover:bg-green-600'}`}
+              >
+                {phoneSaving ? 'Saving…' : phoneSaved ? 'Saved' : t('settings', 'saveChanges')}
               </button>
             </div>
           </>
@@ -450,6 +598,15 @@ export default function ProfileSettingsPage() {
         )}
 
         {/* Language Settings */}
+        {activeSection === 'billing' && (
+          <div>
+            <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              {t('settings', 'billing')}
+            </h2>
+            <BillingSettings isDark={theme === 'dark'} />
+          </div>
+        )}
+
         {activeSection === 'languages' && (
           <div className={`p-6 rounded-lg max-w-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className={`text-xl font-semibold mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t('settings', 'languageSettings')}</h2>

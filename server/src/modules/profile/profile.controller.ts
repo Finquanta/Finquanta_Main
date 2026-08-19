@@ -60,13 +60,45 @@ export class ProfileController {
   }
 
   /** Permanently deletes the account. Requires the current password again. */
+  /**
+   * Which owned workspaces would take other people down with them. Read by the
+   * delete-account screen so it can ask for a successor BEFORE the confirm
+   * button, rather than refusing after the password has been typed.
+   */
+  async deletionBlockers(request: AuthenticatedRequest, reply: FastifyReply) {
+    try {
+      return reply.send({ success: true, data: await this.service.deletionBlockers(request.user!.id) });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not check your workspaces' });
+    }
+  }
+
   async deleteAccount(request: AuthenticatedRequest, reply: FastifyReply) {
     try {
-      const { password } = (request.body as { password?: string }) || {};
+      const { password, successors } = (request.body as {
+        password?: string;
+        successors?: Record<string, string>;
+      }) || {};
       if (!password) return reply.status(400).send({ success: false, error: 'Missing required field: password' });
-      await this.service.deleteAccount(request.user!.id, password);
+      await this.service.deleteAccount(request.user!.id, password, successors || {});
       return reply.send({ success: true });
     } catch (error) {
+      /**
+       * 409, with the workspaces attached.
+       *
+       * Not a 400: nothing about the request was malformed, and the client
+       * cannot fix it by correcting a field. It has to go and ask the user a
+       * question first, so it needs the list to ask it with.
+       */
+      const withList = error as Error & { businesses?: unknown };
+      if (withList?.message === 'SUCCESSOR_REQUIRED') {
+        return reply.status(409).send({
+          success: false,
+          error: 'Choose who should take over your shared workspaces before deleting your account.',
+          data: { businesses: withList.businesses ?? [] },
+        });
+      }
       const msg = error instanceof Error ? error.message : 'Could not delete account';
       const status = msg === 'Incorrect password' ? 401 : msg === 'User not found' ? 404 : 400;
       return reply.status(status).send({ success: false, error: msg });

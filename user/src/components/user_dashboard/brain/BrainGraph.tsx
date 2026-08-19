@@ -39,6 +39,8 @@ export interface GraphFilters {
   pin: boolean;
   /** Nodes pointing at a real ledger record. */
   entity_ref: boolean;
+  /** The platform's own observations about the numbers. */
+  insight: boolean;
   category: boolean;
   orphan: boolean;
 }
@@ -143,6 +145,7 @@ export default function BrainGraph({
       if (n.kind === "link") return filters.link;
       if (n.kind === "pin") return filters.pin;
       if (n.kind === "entity_ref") return filters.entity_ref;
+      if (n.kind === "insight") return filters.insight;
       return true;
     };
     const nodes = graph.nodes.filter(keep);

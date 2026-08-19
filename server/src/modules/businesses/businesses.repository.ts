@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { planBadgeFromRow, PlanTone } from '../billing/effective-plan';
 
 export const BUSINESS_ROLES = ['Owner', 'Admin', 'Accountant', 'Bookkeeper', 'Manager', 'Viewer', 'Other'] as const;
 export type BusinessRole = (typeof BUSINESS_ROLES)[number];
@@ -36,6 +37,13 @@ export interface Business {
   name: string;
   ownerId: string;
   role: BusinessRole;
+  /**
+   * What to call this business's plan — the plan being paid for when there is
+   * one, otherwise the window granting access ('Trial', 'Grandfathered').
+   */
+  plan?: string;
+  /** Colour key for that label, so every surface tints it the same. */
+  planTone?: PlanTone;
 }
 
 export interface BusinessMember {
@@ -97,6 +105,14 @@ export class BusinessesRepository {
     `);
     // For pre-existing invite tables (CREATE TABLE IF NOT EXISTS won't add it).
     await this.database.query(`ALTER TABLE business_invites ADD COLUMN IF NOT EXISTS single_use BOOLEAN NOT NULL DEFAULT false`);
+    /**
+     * Who an invite was emailed to, if anyone. Null for a copy-link invite.
+     *
+     * Doubles as the rate-limit counter: counting rows here per inviter per day
+     * needs no extra table, and it keeps the record of "we sent mail to this
+     * address" next to the invite it was about.
+     */
+    await this.database.query(`ALTER TABLE business_invites ADD COLUMN IF NOT EXISTS email_sent_to VARCHAR(255)`);
 
     /**
      * Workspace-level restriction, set from the admin panel. Mirrors
@@ -109,6 +125,31 @@ export class BusinessesRepository {
      */
     await this.database.query(
       `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`
+    );
+
+    /**
+     * A workspace may be OWNERLESS.
+     *
+     * The last person in a workspace can now walk out of it. The workspace and
+     * its books survive them — deleting a company's ledger because one person
+     * pressed Leave would be a catastrophic reading of that button — so
+     * ownership is dropped rather than the data.
+     *
+     * `owner_id` therefore has to accept NULL, which it did not before. Note
+     * the side effect and why it is wanted: `owner_id` cascades on user delete,
+     * so an owned workspace dies with its owner's account. A NULL one is
+     * attached to nobody and survives, which is exactly right for something
+     * waiting to be reassigned.
+     */
+    await this.database.query(`ALTER TABLE businesses ALTER COLUMN owner_id DROP NOT NULL`);
+    /**
+     * Who it belonged to, kept so the admin panel can say whose it was.
+     *
+     * ON DELETE SET NULL rather than CASCADE: if that person later closes their
+     * account, the workspace should lose the attribution, not be destroyed.
+     */
+    await this.database.query(
+      `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS previous_owner_id UUID REFERENCES users(id) ON DELETE SET NULL`
     );
 
     // Backfill: every user gets a default business (named from onboarding) + Owner membership.
@@ -159,16 +200,41 @@ export class BusinessesRepository {
     }
   }
 
+  /**
+   * Every business this user belongs to, with the plan each one is EFFECTIVELY
+   * on — what it can currently use, not what it is billed.
+   *
+   * The label is what they PAY for when they pay for anything, and the window
+   * ('Trial', 'Grandfathered') only when they do not. Showing the granted plan
+   * instead meant a workspace billed Entrepreneur read as "Business", which is
+   * true of its features and wrong about its identity.
+   *
+   * Resolved by the shared rule in billing/effective-plan, never re-derived
+   * here — a second copy is how this label came to disagree with the admin
+   * panel in the first place.
+   *
+   * Joined here rather than fetched per row: the switcher renders every
+   * business at once, so a lookup each would be one query per line.
+   */
   async listForUser(userId: string): Promise<Business[]> {
     const result = await this.database.query(
-      `SELECT b.id, b.name, b.owner_id, m.role
+      `SELECT b.id, b.name, b.owner_id, m.role,
+              s.plan, s.status, s.trial_ends_at, s.grandfathered_until
        FROM business_members m
        JOIN businesses b ON b.id = m.business_id
+       LEFT JOIN business_subscriptions s ON s.business_id = b.id
        WHERE m.user_id = $1
        ORDER BY b.created_at ASC`,
       [userId]
     );
-    return result.rows.map((r: any) => ({ id: r.id, name: r.name, ownerId: r.owner_id, role: r.role }));
+    return result.rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      ownerId: r.owner_id,
+      role: r.role,
+      plan: planBadgeFromRow(r).label,
+      planTone: planBadgeFromRow(r).tone,
+    }));
   }
 
   async create(userId: string, name: string): Promise<Business> {
@@ -268,6 +334,79 @@ export class BusinessesRepository {
 
   async markInviteAccepted(inviteId: string): Promise<void> {
     await this.database.query('UPDATE business_invites SET accepted_at = NOW() WHERE id = $1', [inviteId]);
+  }
+
+  /** A business by id, for anything that needs its name. */
+  async getBusinessById(id: string): Promise<{ id: string; name: string } | null> {
+    const r = await this.database.query('SELECT id, name FROM businesses WHERE id = $1', [id]);
+    return r.rows[0] ? { id: r.rows[0].id, name: r.rows[0].name ?? '' } : null;
+  }
+
+  /** Display name for whoever is inviting, falling back to their email. */
+  async inviterName(userId: string): Promise<string> {
+    const r = await this.database.query(
+      'SELECT first_name, last_name, email FROM users WHERE id = $1', [userId]
+    );
+    const u = r.rows[0];
+    if (!u) return 'Someone';
+    return `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email;
+  }
+
+  /**
+   * How many invite EMAILS this person has had us send today.
+   *
+   * Creating a link is unlimited: it goes nowhere until it is shared. Sending
+   * mail from our domain to an address the caller chooses is a different thing
+   * entirely, so it is capped.
+   */
+  async countInviteEmailsToday(userId: string): Promise<number> {
+    const r = await this.database.query(
+      `SELECT COUNT(*)::int AS n FROM business_invites
+        WHERE created_by = $1 AND email_sent_to IS NOT NULL
+          AND created_at >= date_trunc('day', NOW())`,
+      [userId]
+    );
+    return Number(r.rows[0]?.n) || 0;
+  }
+
+  /** Record that an invite was emailed, and to whom. */
+  async markInviteEmailed(token: string, email: string): Promise<void> {
+    await this.database.query(
+      'UPDATE business_invites SET email_sent_to = $2 WHERE token = $1', [token, email]
+    );
+  }
+
+  /** How many people are in a workspace. */
+  async memberCount(businessId: string): Promise<number> {
+    const r = await this.database.query(
+      'SELECT COUNT(*)::int AS n FROM business_members WHERE business_id = $1',
+      [businessId]
+    );
+    return Number(r.rows[0]?.n) || 0;
+  }
+
+  /**
+   * The last person leaves: keep the workspace, drop the ownership.
+   *
+   * Both halves in one transaction — a workspace that had its membership
+   * removed but kept an owner (or the reverse) is a state nothing else in the
+   * app knows how to read.
+   */
+  async abandon(businessId: string, userId: string): Promise<void> {
+    await this.database.transaction(async (client) => {
+      await client.query(
+        `UPDATE businesses
+            SET previous_owner_id = COALESCE(owner_id, previous_owner_id),
+                owner_id = NULL,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [businessId]
+      );
+      await client.query(
+        'DELETE FROM business_members WHERE business_id = $1 AND user_id = $2',
+        [businessId, userId]
+      );
+    });
   }
 
   async addMember(businessId: string, userId: string, role: BusinessRole): Promise<void> {

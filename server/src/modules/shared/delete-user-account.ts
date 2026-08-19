@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { syncSeats } from '../billing/seats';
 
 /**
  * Permanently deletes a user and everything cascading off them — the single
@@ -38,13 +39,45 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
   // ledger teardown on its own, so a failure there would destroy the financial
   // history while leaving the account standing — the exact split this
   // transaction exists to prevent.
-  return database.transaction(async (client) => {
+  const { deleted, seatChanges } = await database.transaction(async (client) => {
+    /**
+     * Which workspaces are about to lose a seat — read on the transaction
+     * client, before the cascade removes the evidence.
+     *
+     * Only workspaces they do NOT own: the ones they own are being deleted
+     * with them, so there is nothing left to bill. Anything they were merely a
+     * member of survives one seat lighter, and would otherwise keep being
+     * charged for somebody who no longer exists.
+     */
+    const memberships = await client.query(
+      `SELECT m.business_id FROM business_members m
+         JOIN businesses b ON b.id = m.business_id
+        WHERE m.user_id = $1 AND b.owner_id <> $1`,
+      [userId]
+    );
+
     await client.query(
       `DELETE FROM journal_entries
         WHERE business_id IN (SELECT id FROM businesses WHERE owner_id = $1)`,
       [userId]
     );
     const result = await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    return (result.rowCount ?? 0) > 0;
+    return {
+      deleted: (result.rowCount ?? 0) > 0,
+      seatChanges: (memberships.rows ?? []).map((r: any) => r.business_id),
+    };
   });
+
+  /**
+   * Billing is settled AFTER the transaction commits, never inside it.
+   *
+   * syncSeats calls Stripe over the network, and holding a transaction open
+   * across an external call turns a slow third party into a lock on the users
+   * table. It cannot throw, so a billing hiccup can never fail a deletion that
+   * has already happened.
+   */
+  if (deleted) {
+    for (const businessId of seatChanges) await syncSeats(database, businessId);
+  }
+  return deleted;
 }

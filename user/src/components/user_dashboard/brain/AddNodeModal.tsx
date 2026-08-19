@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText, CheckSquare, Link2, X, Search, Trash2, Building2, Archive, ArchiveRestore, Database,
+  Lightbulb,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
@@ -32,6 +33,9 @@ type ConnectTarget =
 
 const TYPE_ICON: Record<NodeType, typeof FileText> = {
   note: FileText, task: CheckSquare, link: Link2, pin: Link2, entity_ref: Database,
+  // Present to satisfy the Record. `insight` is never offered as a choice in
+  // this modal — the platform writes those, a person cannot.
+  insight: Lightbulb,
 };
 
 export default function AddNodeModal({

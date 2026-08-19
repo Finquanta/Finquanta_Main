@@ -1,0 +1,404 @@
+import { Database } from '../../infrastructure/database';
+import { GRANDFATHER_MONTHS, PlanKey } from './plans';
+
+/**
+ * Subscription state per workspace — spec 08 §3.
+ *
+ * A table of its own rather than columns on `businesses`, for two reasons.
+ * Billing is a separate concern with its own lifecycle, and when Stripe lands
+ * its ids and dates belong beside the plan rather than scattered across the
+ * core table. The Stripe columns exist here already, unused and null, so
+ * adopting billing is a write path rather than another migration.
+ */
+
+export type SubscriptionStatus =
+  | 'none'        // never started anything — the state every account begins in
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled';
+
+export interface Subscription {
+  businessId: string;
+  plan: PlanKey;
+  /**
+   * A downgrade that has been paid for but not yet taken effect.
+   *
+   * Downgrades are scheduled rather than applied: the customer has already paid
+   * for the current period, so they keep what they bought until it ends, and no
+   * money is credited back. `pendingPlan` is what they drop to, `pendingPlanAt`
+   * is when.
+   */
+  pendingPlan: PlanKey | null;
+  pendingPlanAt: string | null;
+  status: SubscriptionStatus;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
+  /** Existing accounts keep their old access until this passes. */
+  grandfatheredUntil: string | null;
+  /** Null throughout phase A. Stripe owns these once billing exists. */
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  currentPeriodEnd: string | null;
+  cancelAt: string | null;
+  updatedAt: string | null;
+}
+
+const iso = (v: any): string | null => (v ? new Date(v).toISOString() : null);
+
+export class BillingRepository {
+  constructor(private readonly database: Database) {}
+
+  async ensureSchema(): Promise<void> {
+    await this.database.query(`
+      CREATE TABLE IF NOT EXISTS business_subscriptions (
+        business_id UUID PRIMARY KEY REFERENCES businesses(id) ON DELETE CASCADE,
+        plan VARCHAR(24) NOT NULL DEFAULT 'freemium',
+        status VARCHAR(24) NOT NULL DEFAULT 'none',
+        trial_started_at TIMESTAMP WITH TIME ZONE,
+        trial_ends_at TIMESTAMP WITH TIME ZONE,
+        grandfathered_until TIMESTAMP WITH TIME ZONE,
+        stripe_customer_id VARCHAR(64),
+        stripe_subscription_id VARCHAR(64),
+        current_period_end TIMESTAMP WITH TIME ZONE,
+        cancel_at TIMESTAMP WITH TIME ZONE,
+        pending_plan VARCHAR(24),
+        pending_plan_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // A scheduled downgrade, for subscription tables that predate it.
+    await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS pending_plan VARCHAR(24)`);
+    await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS pending_plan_at TIMESTAMP WITH TIME ZONE`);
+
+    /**
+     * Grandfathering — every workspace that exists RIGHT NOW keeps the paid
+     * features it already has for GRANDFATHER_MONTHS.
+     *
+     * `WHERE NOT EXISTS` makes this a one-time backfill rather than a rolling
+     * gift: it seeds a row for workspaces created before billing shipped, and
+     * from then on those workspaces have rows, so a later boot cannot re-grant
+     * or extend anything. Workspaces created after this runs get their row from
+     * `ensureFor` with no grandfather date, which is correct — they never had
+     * the features free, so there is nothing to preserve.
+     */
+    await this.database.query(
+      `INSERT INTO business_subscriptions (business_id, plan, status, grandfathered_until)
+       SELECT b.id, 'freemium', 'none', NOW() + ($1 || ' months')::interval
+       FROM businesses b
+       WHERE NOT EXISTS (
+         SELECT 1 FROM business_subscriptions s WHERE s.business_id = b.id
+       )`,
+      [String(GRANDFATHER_MONTHS)]
+    );
+  }
+
+  /** Every workspace has a row; this creates the missing one on first touch. */
+  async ensureFor(businessId: string): Promise<Subscription> {
+    await this.database.query(
+      `INSERT INTO business_subscriptions (business_id) VALUES ($1)
+       ON CONFLICT (business_id) DO NOTHING`,
+      [businessId]
+    );
+    const s = await this.get(businessId);
+    if (!s) throw new Error('Could not create a subscription row');
+    return s;
+  }
+
+  /**
+   * Read a subscription, applying any downgrade whose date has arrived.
+   *
+   * Done on READ rather than by a scheduled job, because there is no scheduler
+   * and adding one to run a single UPDATE would be a lot of moving parts to
+   * maintain. Every path that cares about the plan comes through here, so a
+   * due change lands the first time anybody looks — including the customer
+   * themselves, which is the moment it matters.
+   *
+   * The write is conditional on the date still being due, so two concurrent
+   * reads cannot apply it twice.
+   */
+  async get(businessId: string): Promise<Subscription | null> {
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET plan = pending_plan,
+              status = CASE WHEN pending_plan = 'freemium' THEN 'none' ELSE 'active' END,
+              pending_plan = NULL,
+              pending_plan_at = NULL,
+              updated_at = NOW()
+        WHERE business_id = $1
+          AND pending_plan IS NOT NULL
+          AND pending_plan_at IS NOT NULL
+          AND pending_plan_at <= NOW()`,
+      [businessId]
+    );
+
+    const r = await this.database.query(
+      'SELECT * FROM business_subscriptions WHERE business_id = $1',
+      [businessId]
+    );
+    return r.rows[0] ? this.map(r.rows[0]) : null;
+  }
+
+  /**
+   * Schedule a downgrade for the end of the period they have already paid for.
+   *
+   * They keep the higher plan until then and no money is credited — the
+   * alternative (drop the features now, refund the difference) means somebody
+   * loses access mid-month for something they paid for, which reads as a fault
+   * however carefully the credit is explained.
+   *
+   * Setting a pending plan again simply replaces the previous one: changing
+   * your mind twice before the date should not queue two changes.
+   */
+  async schedulePlanChange(businessId: string, plan: PlanKey, effectiveAt: string): Promise<void> {
+    await this.ensureFor(businessId);
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET pending_plan = $2, pending_plan_at = $3, updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, plan, effectiveAt]
+    );
+  }
+
+  /** Drop a scheduled downgrade — used when they upgrade again before it lands. */
+  async clearPendingPlan(businessId: string): Promise<void> {
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET pending_plan = NULL, pending_plan_at = NULL, updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId]
+    );
+  }
+
+  /**
+   * Grant a plan. Used by the `invoice.paid` webhook and by the admin override.
+   *
+   * The status is decided HERE, in TypeScript, rather than by a `CASE` inside
+   * the SQL — and that is a fix, not a style choice. The CASE compared the same
+   * `$2` that is assigned to a `varchar` column against a bare string literal,
+   * so Postgres deduced `character varying` from one use and `text` from the
+   * other and refused the whole statement:
+   *
+   *   42P08: inconsistent types deduced for parameter $2
+   *          text versus character varying
+   *
+   * Which meant every paid invoice threw, the webhook returned 500, and the
+   * customer was charged and granted nothing. It never surfaced in testing
+   * because this is the one line that only runs when money actually arrives.
+   */
+  async setPlan(businessId: string, plan: PlanKey): Promise<void> {
+    await this.ensureFor(businessId);
+    // A plan set by hand or by a paid invoice is active; not a trial, not unpaid.
+    const status: SubscriptionStatus = plan === 'freemium' ? 'none' : 'active';
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET plan = $2, status = $3,
+              -- A plan granted outright supersedes anything scheduled: an
+              -- upgrade after a pending downgrade must not be undone later by
+              -- a change the customer already reversed.
+              pending_plan = NULL, pending_plan_at = NULL,
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, plan, status]
+    );
+  }
+
+  /**
+   * Begin a trial. `days` comes from the caller because the length depends on
+   * email verification, which is a user fact rather than a billing one.
+   *
+   * Refuses to restart a trial that has already been used — otherwise anyone
+   * could press the button repeatedly for unlimited free access.
+   */
+  async startTrial(businessId: string, days: number): Promise<Subscription> {
+    await this.ensureFor(businessId);
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET status = 'trialing',
+              trial_started_at = NOW(),
+              trial_ends_at = NOW() + ($2 || ' days')::interval,
+              updated_at = NOW()
+        WHERE business_id = $1 AND trial_started_at IS NULL`,
+      [businessId, String(days)]
+    );
+    const s = await this.get(businessId);
+    if (!s) throw new Error('Subscription row vanished');
+    return s;
+  }
+
+  /**
+   * Push a trial's end date out. Used both by the admin panel and by the
+   * verification bonus (spec 08 §4.1: verifying grants more trial time).
+   *
+   * Extends from whichever is later — now, or the existing end. Extending a
+   * lapsed trial from its old end date would hand out days already gone.
+   */
+  async extendTrial(businessId: string, days: number): Promise<Subscription> {
+    await this.ensureFor(businessId);
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET status = 'trialing',
+              trial_started_at = COALESCE(trial_started_at, NOW()),
+              trial_ends_at = GREATEST(COALESCE(trial_ends_at, NOW()), NOW()) + ($2 || ' days')::interval,
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, String(days)]
+    );
+    const s = await this.get(businessId);
+    if (!s) throw new Error('Subscription row vanished');
+    return s;
+  }
+
+  /**
+   * Grant or revoke early-access. `months` of null clears it.
+   *
+   * Set from NOW rather than extended from the existing date: an admin typing
+   * "6" means six months from today, not six on top of whatever is left. The
+   * boot-time backfill is the only thing that grants this automatically, and it
+   * only ever touches workspaces with no row at all — so an admin can shorten a
+   * window here without a later restart quietly putting it back.
+   */
+  async setGrandfather(businessId: string, months: number | null): Promise<void> {
+    await this.ensureFor(businessId);
+    if (months === null) {
+      await this.database.query(
+        `UPDATE business_subscriptions
+            SET grandfathered_until = NULL, updated_at = NOW()
+          WHERE business_id = $1`,
+        [businessId]
+      );
+      return;
+    }
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET grandfathered_until = NOW() + ($2 || ' months')::interval,
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, String(months)]
+    );
+  }
+
+  /** Remember which Stripe objects belong to this business. */
+  async linkStripe(
+    businessId: string,
+    ids: { customerId?: string | null; subscriptionId?: string | null }
+  ): Promise<void> {
+    await this.ensureFor(businessId);
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET stripe_customer_id = COALESCE($2, stripe_customer_id),
+              stripe_subscription_id = COALESCE($3, stripe_subscription_id),
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, ids.customerId ?? null, ids.subscriptionId ?? null]
+    );
+  }
+
+  /**
+   * Copy Stripe's own view of the subscription onto our row.
+   *
+   * Spec 08 §4.2 is explicit that the admin panel displays what Stripe reports
+   * rather than calculating dates itself, so it can never drift out of step
+   * with what the customer is actually charged. Stripe sends unix seconds.
+   */
+  async syncFromStripe(
+    businessId: string,
+    data: {
+      status?: string | null;
+      currentPeriodEnd?: number | null;
+      cancelAt?: number | null;
+      customerId?: string | null;
+      subscriptionId?: string | null;
+    }
+  ): Promise<void> {
+    await this.ensureFor(businessId);
+    const ts = (v: number | null | undefined) =>
+      v === null || v === undefined ? null : new Date(v * 1000).toISOString();
+
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET status = COALESCE($2, status),
+              current_period_end = COALESCE($3, current_period_end),
+              -- cancel_at is intentionally NOT coalesced: Stripe sends null
+              -- when a scheduled cancellation is called off, and coalescing
+              -- would keep showing a cancellation date that no longer exists.
+              cancel_at = $4,
+              stripe_customer_id = COALESCE($5, stripe_customer_id),
+              stripe_subscription_id = COALESCE($6, stripe_subscription_id),
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [
+        businessId,
+        data.status ?? null,
+        ts(data.currentPeriodEnd),
+        ts(data.cancelAt),
+        data.customerId ?? null,
+        data.subscriptionId ?? null,
+      ]
+    );
+  }
+
+  /** Which business owns this Stripe subscription? */
+  async findByStripeSubscription(subscriptionId: string): Promise<string | null> {
+    const r = await this.database.query(
+      'SELECT business_id FROM business_subscriptions WHERE stripe_subscription_id = $1',
+      [subscriptionId]
+    );
+    return r.rows[0]?.business_id ?? null;
+  }
+
+  /** Which business owns this Stripe customer? */
+  async findByStripeCustomer(customerId: string): Promise<string | null> {
+    const r = await this.database.query(
+      'SELECT business_id FROM business_subscriptions WHERE stripe_customer_id = $1',
+      [customerId]
+    );
+    return r.rows[0]?.business_id ?? null;
+  }
+
+  /**
+   * Plan distribution for the admin revenue view (spec 08 §4.3).
+   *
+   * `seats` counts BILLABLE seats — viewers excluded, floored at one — because
+   * that is the quantity Stripe multiplies the price by. It used to be a plain
+   * member count, which meant this card and the projected-MRR figure beside it
+   * were quietly using two different definitions of the same word.
+   */
+  async planDistribution(): Promise<{ plan: string; businesses: number; seats: number }[]> {
+    const r = await this.database.query(`
+      SELECT COALESCE(s.plan, 'freemium') AS plan,
+             COUNT(*)::int AS businesses,
+             COALESCE(SUM(GREATEST(1, (SELECT COUNT(*) FROM business_members m
+                                        WHERE m.business_id = b.id AND m.role <> 'Viewer'))), 0)::int AS seats
+      FROM businesses b
+      LEFT JOIN business_subscriptions s ON s.business_id = b.id
+      GROUP BY COALESCE(s.plan, 'freemium')
+      ORDER BY businesses DESC
+    `);
+    return r.rows.map((x: any) => ({
+      plan: x.plan,
+      businesses: Number(x.businesses) || 0,
+      seats: Number(x.seats) || 0,
+    }));
+  }
+
+  private map(row: any): Subscription {
+    return {
+      businessId: row.business_id,
+      plan: row.plan,
+      status: row.status,
+      trialStartedAt: iso(row.trial_started_at),
+      trialEndsAt: iso(row.trial_ends_at),
+      grandfatheredUntil: iso(row.grandfathered_until),
+      stripeCustomerId: row.stripe_customer_id ?? null,
+      stripeSubscriptionId: row.stripe_subscription_id ?? null,
+      currentPeriodEnd: iso(row.current_period_end),
+      cancelAt: iso(row.cancel_at),
+      pendingPlan: (row.pending_plan as PlanKey) ?? null,
+      pendingPlanAt: iso(row.pending_plan_at),
+      updatedAt: iso(row.updated_at),
+    };
+  }
+}

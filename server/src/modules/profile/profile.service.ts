@@ -4,6 +4,9 @@ import { ensureGoalForPrimaryGoal } from './onboarding-goal';
 import { PasswordManager } from '../auth/password';
 import { BusinessesRepository } from '../businesses/businesses.repository';
 import { PLACEHOLDER_BUSINESS_NAMES } from '../auth/auth.service';
+import {
+  OwnedBusinessNeedingSuccessor, ownedBusinessesNeedingSuccessor, transferOwnership,
+} from '../shared/transfer-ownership';
 
 export interface ProfileRepositoryPort {
   getMe(userId: string): Promise<CurrentUserResponse>;
@@ -31,13 +34,69 @@ export class ProfileService {
    * via cascade, the whole business's financial history) with no further proof
    * of identity.
    */
-  async deleteAccount(userId: string, password: string): Promise<void> {
+  /**
+   * Close an account.
+   *
+   * `successors` maps a business id to the member who should inherit it, and it
+   * is REQUIRED for every workspace this user owns that other people are in.
+   *
+   * Deleting a user cascades their owned businesses and every ledger beneath
+   * them, so without this a sole owner closing their account also erases four
+   * colleagues' books — from a button labelled "delete my account", with
+   * nothing on screen saying anyone else was affected. Refusing until somebody
+   * is nominated is the only version of this that cannot destroy other
+   * people's records by surprise.
+   *
+   * A workspace they own alone still goes with them. There is nobody to hand it
+   * to, and taking it with you is what closing an account means.
+   */
+  async deleteAccount(
+    userId: string,
+    password: string,
+    successors: Record<string, string> = {}
+  ): Promise<void> {
     if (!password) throw new Error('Missing password');
     const passwordHash = await this.repository.getPasswordHash(userId);
     if (!passwordHash) throw new Error('User not found');
     const valid = await this.passwordManager.verify(password, passwordHash);
     if (!valid) throw new Error('Incorrect password');
+
+    // Checked AFTER the password, so this cannot be used to enumerate somebody
+    // else's workspaces with a guessed password.
+    const needSuccessor = await this.deletionBlockers(userId);
+    const missing = needSuccessor.filter((b: OwnedBusinessNeedingSuccessor) => !successors[b.id]);
+    if (missing.length > 0) {
+      const err = new Error('SUCCESSOR_REQUIRED') as Error & { businesses?: unknown };
+      err.businesses = missing;
+      throw err;
+    }
+
+    /**
+     * Transfer BEFORE deleting, one workspace at a time.
+     *
+     * Each transfer is its own transaction, so a failure part-way leaves the
+     * earlier workspaces safely re-owned and the account still standing —
+     * recoverable. Deleting first and transferring after would be the opposite:
+     * unrecoverable the moment anything went wrong.
+     */
+    for (const business of needSuccessor) {
+      await transferOwnership(this.database!, business.id, successors[business.id]!);
+    }
+
     await this.repository.deleteAccount(userId);
+  }
+
+  /**
+   * Which owned workspaces need somebody nominated before this account can go.
+   *
+   * `database` is optional on this service (the profile unit tests construct it
+   * without one), so an absent connection means no shared workspaces can be
+   * checked — and with no connection there is no cascade to worry about either,
+   * since deletion itself goes through the repository.
+   */
+  async deletionBlockers(userId: string): Promise<OwnedBusinessNeedingSuccessor[]> {
+    if (!this.database) return [];
+    return ownedBusinessesNeedingSuccessor(this.database, userId);
   }
 
   async getMe(userId: string): Promise<CurrentUserResponse> {

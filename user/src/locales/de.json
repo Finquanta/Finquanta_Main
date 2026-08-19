@@ -244,6 +244,7 @@
     "brainTitle": "Company Brain",
     "brainTypeLink": "Link",
     "brainTypeRecord": "Datensatz",
+    "brainTypeInsight": "Erkenntnis",
     "brainSettings": "Brain-Einstellungen",
     "brainAutoLink": "Verwandte Notizen vorschlagen",
     "brainAutoLinkHint": "Findet Notizen, die sich ahneln, und verknupft sie automatisch. Kostenlos — keine KI-Credits.",
@@ -966,8 +967,7 @@
     "updateGoals": "Ziele aktualisieren",
     "version": "Version",
     "viewReceipt": "Beleg ansehen",
-    "workspace": "Arbeitsbereich",
-    "wsCreateBusiness": "Unternehmen erstellen",
+    "wsCreateBusiness": "Arbeitsbereich erstellen",
     "wsInviteMember": "Teammitglied einladen",
     "wsLinkExpiry": "Ablauf des Links",
     "wsLoadingTeam": "Team wird geladen…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "Aus dem Team entfernen",
     "wsShareLink": "Teilen Sie diesen Link mit Ihrem Teammitglied (Rolle:",
     "wsViewTeam": "Team ansehen",
-    "wsYourBusinesses": "Ihre Unternehmen",
-    "yourName": "Ihr Name"
+    "wsYourBusinesses": "Ihre Arbeitsbereiche",
+    "yourName": "Ihr Name",
+    "businessLabel": "Arbeitsbereich"
   },
   "demo": {
     "acAp": "Verbindlichkeiten",
@@ -1274,7 +1275,8 @@
     "newsletter": "Newsletter",
     "scheduleDemo": "Demo planen",
     "signUp": "Anmelden",
-    "tryDemo": "Demo testen"
+    "tryDemo": "Demo testen",
+    "pricing": "Preise"
   },
   "newsletter": {
     "description": "Abonnieren Sie den Finquanta AI-Newsletter.",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "Detaillierte Finanzanalysen, Planung von Mitarbeiterleistungen und erweiterte Anlagemoglichkeiten fur wachsende Unternehmen.",
-    "pBizYear": "Oder 990,99 $/Jahr (10 % Rabatt)",
+    "pBizYear": "Oder $999,95/Jahr (2 Monate gratis)",
     "pBlogAll": "Alle ansehen",
     "pBlogSub": "Einblicke und Neuigkeiten vom Finquanta-AI-Team.",
     "pBlogTitle": "Aus dem Blog",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "Massgeschneiderte Losung fur Teams ab 5 Nutzern.",
     "pCorporate": "KONZERN",
     "pEntDesc": "Erweiterte Werkzeuge fur Unternehmer, inklusive umfassender Finanzplanung und personlicher Anlageberatung.",
-    "pEntYear": "Oder 490,99 $/Jahr (11 % Rabatt)",
+    "pEntYear": "Oder $499,95/Jahr (2 Monate gratis)",
     "pEntrepreneur": "UNTERNEHMER",
     "pFeatures": "FUNKTIONEN",
     "pFree": "KOSTENLOS",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "Seien Sie unbesorgt: Ihre Zahlungsdaten werden hochst sicher und vertraulich behandelt. Geniessen Sie ein reibungsloses Zahlungserlebnis mit Finquanta.",
     "pRecCorp": "Empfohlen fur Konzerne und Investoren",
     "pRecSmall": "Empfohlen fur kleine Unternehmen",
-    "pRequestDemo": "Demo fur Ihr Team anfordern",
+    "pRequestDemo": "Demo testen",
     "pSeeCompare": "Sehen Sie unsere Funktionsvergleichstabelle",
     "pSeePricing": "Sehen Sie unsere Preise",
     "pTitle": "FINDEN SIE DEN FINQUANTA-TARIF, DER JETZT PASST.",
@@ -1367,7 +1369,29 @@
     "pfPlan": "Businessplan erstellen und validieren",
     "pfProposal": "Angebotserstellung und -validierung",
     "pfStatements": "Jahresabschlusse",
-    "pfTaxes": "Steuern"
+    "pfTaxes": "Steuern",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "Company Brain",
+    "pfComingSoon": "In Entwicklung — bald verfügbar",
+    "pPerSeat": "pro Platz",
+    "pfSecCore": "Kern",
+    "pfSecBrain": "Company Brain",
+    "pfSecLimits": "Kontingente",
+    "pfSecSoon": "Bald verfügbar",
+    "pfSeats": "Plätze",
+    "pfFinnaMsgs": "Finna-Nachrichten / Monat",
+    "pfCouncilSessions": "Council-Sitzungen / Monat",
+    "pfGroups": "Business Groups",
+    "pfBrainNotes": "Notizen, Kategorien & Live-Daten",
+    "pfBrainGraph": "Graphansicht (2D & 3D)",
+    "pfBrainBacklinks": "Backlinks",
+    "pfBrainAuto": "KI-Zusammenfassungen & Auto-Verlinkung",
+    "pfBank": "Bankverbindungen",
+    "pfDocImport": "Dokumentimport",
+    "pfForecasting": "Cashflow-Prognose",
+    "pfMultiCurrency": "Mehrwährung",
+    "pfUnlimited": "Unbegrenzt",
+    "pfPerSeatCell": "Pro Platz"
   },
   "settings": {
     "bizProfile": "Unternehmensprofil",
@@ -1442,6 +1466,7 @@
     "today": "Heute:",
     "twelveHour": "12 Stunden (AM/PM)",
     "twentyFourHour": "24 Stunden",
-    "weekStartsOn": "Woche beginnt am:"
+    "weekStartsOn": "Woche beginnt am:",
+    "billing": "Abrechnung"
   }
 }

@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { Database } from '../../infrastructure/database';
 import { AiUsageRepository } from '../ai-usage/ai-usage.repository';
 import { BrainRepository, MIN_SUMMARY_CHARS } from './brain.repository';
+import { EntitlementsService } from '../billing/entitlements.service';
 
 /**
  * Background enrichment for the Company Brain (spec §7).
@@ -52,12 +53,14 @@ const hashOf = (title: string, content: string | null) =>
 export class BrainEnrichService {
   private repo: BrainRepository;
   private usage: AiUsageRepository;
+  private entitlements: EntitlementsService;
   /** nodeId → pending debounce timer. */
   private timers = new Map<string, NodeJS.Timeout>();
 
   constructor(private database: Database) {
     this.repo = new BrainRepository(database);
     this.usage = new AiUsageRepository(database);
+    this.entitlements = new EntitlementsService(database);
   }
 
   /**
@@ -125,7 +128,13 @@ export class BrainEnrichService {
     let summary: string | null = null;
     let skipped: string | null = null;
 
-    if (!settings.autoSummarize) {
+    // Checked FIRST, before the setting and before anything is counted: auto-AI
+    // is paid-only (spec 06 §7.1, §9), and a freemium workspace must not be
+    // able to reach the spend path at all. Reported like any other skip reason
+    // so the node panel can say why nothing happened rather than looking broken.
+    if (!(await this.entitlements.can(businessId, 'brainAutoAI'))) {
+      skipped = 'not_on_plan';
+    } else if (!settings.autoSummarize) {
       skipped = 'summaries_off';
     } else if (!process.env.ANTHROPIC_API_KEY) {
       skipped = 'no_api_key';

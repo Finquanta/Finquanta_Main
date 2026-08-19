@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
+import { getMe, saveMyPhone } from "@/lib/api/me";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { postAuthDestination } from "@/lib/pendingInvite";
 import { DEFAULT_BUSINESS_NAME } from "@/lib/businessDefaults";
@@ -34,8 +35,21 @@ const COUNTRIES = [
 type StepType = "text" | "select" | "textarea" | "dropdown";
 
 interface Step {
-  key: keyof BusinessProfile;
+  /**
+   * `personalPhone` is the one key here that is NOT part of the business
+   * profile — it belongs to the person, on `user_profiles.phone`, and is saved
+   * through a different call. Everything else is a field on the workspace.
+   */
+  key: keyof BusinessProfile | "personalPhone";
   qKey: string;
+  /**
+   * Literal question text, for steps with no translation key yet. Falls back to
+   * `qKey` when absent, so existing steps are untouched — this avoids editing
+   * ten locale files to add a question, at the cost of these two being English
+   * until they are translated.
+   */
+  label?: string;
+  hint?: string;
   hintKey?: string;
   type: StepType;
   placeholder?: string;
@@ -45,6 +59,27 @@ interface Step {
 
 const STEPS: Step[] = [
   { key: "businessName", qKey: "qBusinessName", type: "text", placeholder: "e.g. Acme Co.", required: true },
+  /**
+   * Personal number: REQUIRED. It is how we reach the human being if something
+   * goes wrong with their books or their account, and it is the only channel
+   * that still works when an email address stops being read.
+   */
+  {
+    key: "personalPhone", qKey: "qPersonalPhone", type: "text", required: true,
+    label: "What's your phone number?",
+    hint: "For account security and anything urgent about your books. We will not use it for marketing.",
+    placeholder: "+1 555 123 4567",
+  },
+  /**
+   * Business number: SKIPPABLE. Plenty of businesses do not have one separate
+   * from their owner's, and demanding it would make people invent something.
+   */
+  {
+    key: "businessPhone", qKey: "qBusinessPhone", type: "text",
+    label: "And a number for the business?",
+    hint: "Optional — skip if it is the same as yours, or you do not have one yet.",
+    placeholder: "+1 555 987 6543",
+  },
   { key: "businessType", qKey: "qBusinessType", type: "text", placeholder: "e.g. SaaS, Retail, Agency" },
   { key: "industry", qKey: "qIndustry", type: "text", placeholder: "e.g. Technology, Food" },
   { key: "niche", qKey: "qNiche", hintKey: "hintNiche", type: "text", placeholder: "e.g. vegan meal prep, real estate wholesaling" },
@@ -64,20 +99,33 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const [form, setForm] = useState<BusinessProfile>({});
+  /**
+   * Held separately because it is not a business field: it saves to the user's
+   * own profile, through a different endpoint, at the end.
+   */
+  const [personalPhone, setPersonalPhone] = useState("");
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getBusinessProfile().then((b) => { if (b) setForm((f) => ({ ...f, ...b })); }).catch(() => {});
+    // Pre-fill if they already gave one — re-asking for something on file is
+    // how a form teaches people it is not paying attention.
+    getMe().then((me) => {
+      const existing = (me.profile?.phone as string) ?? "";
+      if (existing) setPersonalPhone(existing);
+    }).catch(() => {});
   }, []);
 
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
-  const value = (form[step.key] as string) ?? "";
+  const isPersonal = step.key === "personalPhone";
+  const value = isPersonal ? personalPhone : ((form[step.key as keyof BusinessProfile] as string) ?? "");
   const progress = useMemo(() => Math.round(((stepIndex + 1) / STEPS.length) * 100), [stepIndex]);
 
-  const set = (val: string) => setForm((f) => ({ ...f, [step.key]: val }));
+  const set = (val: string) =>
+    isPersonal ? setPersonalPhone(val) : setForm((f) => ({ ...f, [step.key]: val }));
 
   const goNext = async () => {
     setError(null);
@@ -100,6 +148,18 @@ export default function OnboardingPage() {
         businessName: form.businessName?.trim() || DEFAULT_BUSINESS_NAME,
         onboardingCompleted: true,
       });
+      /**
+       * The personal number goes to the user's own profile, and only after the
+       * business profile has saved.
+       *
+       * Not fatal if it fails: onboarding is finished by that point, and
+       * refusing to let someone into the product over a phone number they
+       * already typed would be the worse outcome. The sidebar prompt asks again
+       * if it did not land.
+       */
+      if (personalPhone.trim()) {
+        try { await saveMyPhone(personalPhone.trim()); } catch { /* prompted again in the sidebar */ }
+      }
       // An invitee signs up because someone sent them a link. Onboarding still
       // runs — they get their own workspace like anyone else — but the invite
       // is what they came for, so it is where they land.
@@ -146,9 +206,12 @@ export default function OnboardingPage() {
         <div className="w-full max-w-xl">
           <p className="text-sm font-medium text-blue-500 mb-3">{progressLabel}</p>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {t("onboarding", step.qKey)}{step.required && <span className="text-blue-500"> *</span>}
+            {/* `label` wins when a step has no translation key yet. */}
+            {step.label ?? t("onboarding", step.qKey)}{step.required && <span className="text-blue-500"> *</span>}
           </h1>
-          {step.hintKey ? <p className="text-gray-500 mb-6">{t("onboarding", step.hintKey)}</p> : <div className="mb-6" />}
+          {step.hint || step.hintKey
+            ? <p className="text-gray-500 mb-6">{step.hint ?? t("onboarding", step.hintKey!)}</p>
+            : <div className="mb-6" />}
 
           {step.type === "text" && (
             <input autoFocus className={fieldBase} value={value} onChange={(e) => set(e.target.value)} onKeyDown={onKeyDown} placeholder={step.placeholder} />

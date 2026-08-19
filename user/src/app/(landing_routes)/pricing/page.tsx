@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import ComparisonTable from '@/components/pricing/ComparisonTable';
 
 export default function Pricing() {
   const { t } = useLanguage();
@@ -14,9 +15,12 @@ export default function Pricing() {
         <div className="text-center mb-8">
           <h1 className="text-xl font-bold mb-2">{t('pricing', 'pTitle')}</h1>
           <p className="text-sm text-gray-500">{t('pricing', 'pIntro')}</p>
-          <div className="mt-4 inline-block bg-[#4CAF50] text-white px-8 py-2 rounded-full font-medium">
+          {/* The free tier is a real choice, so it goes where the other two
+              go — to the thing that starts it. Signup, not checkout: there is
+              nothing to pay for. */}
+          <Link href="/signup" className="mt-4 inline-block bg-[#4CAF50] text-white px-8 py-2 rounded-full font-medium hover:bg-[#43a047]">
             {t('pricing', 'pFree')}
-          </div>
+          </Link>
         </div>
 
         {/* Pricing Cards */}
@@ -27,8 +31,18 @@ export default function Pricing() {
             <h2 className="text-lg font-bold mb-3">{t('pricing', 'pEntrepreneur')}</h2>
             <p className="text-sm text-gray-600 mb-4">{t('pricing', 'pEntDesc')}</p>
             <p className="text-2xl font-bold mb-1">$49.99/MO</p>
-            <p className="text-xs text-gray-500 mb-6">{t('pricing', 'pEntYear')}</p>
-            <Link href="/payment?plan=entrepreneur&price=49.99">
+            <p className="text-xs text-gray-500">{t('pricing', 'pEntYear')}</p>
+            {/* Billing is per seat, so a team of four pays four times this.
+                Said here rather than in the FAQ, because finding out later is
+                the kind of surprise that loses trust. */}
+            <p className="text-xs font-semibold text-gray-700 mb-6">{t('pricing', 'pPerSeat')}</p>
+            {/* Signup, not checkout. Buying needs a signed-in user AND a
+                business — the server reads the seat count off the business to
+                work out the quantity — so a visitor has to have an account
+                before Stripe can be handed anything. `plan` is carried through
+                so the dashboard can open on the plan they picked; the PRICE is
+                never carried, because the server decides what things cost. */}
+            <Link href="/signup?plan=entrepreneur">
               <button className="bg-blue-500 text-white px-8 py-2 rounded-full font-bold hover:bg-blue-600 mb-6">
                 {t('pricing', 'pBuyNow')}
               </button>
@@ -36,7 +50,7 @@ export default function Pricing() {
             <div className="mt-auto">
               <div className="flex flex-col items-center text-xs text-gray-500">
                 <span>{t('pricing', 'pUsers3')}</span>
-                <a href="#" className="underline">{t('pricing', 'pRequestDemo')}</a>
+                <Link href="/demo" className="underline">{t('pricing', 'pRequestDemo')}</Link>
               </div>
             </div>
           </div>
@@ -46,8 +60,9 @@ export default function Pricing() {
             <h2 className="text-lg font-bold mb-3">{t('pricing', 'pBusiness')}</h2>
             <p className="text-sm text-gray-600 mb-4">{t('pricing', 'pBizDesc')}</p>
             <p className="text-2xl font-bold mb-1">$99.99/MO</p>
-            <p className="text-xs text-gray-500 mb-6">{t('pricing', 'pBizYear')}</p>
-            <Link href="/payment?plan=business&price=99.99">
+            <p className="text-xs text-gray-500">{t('pricing', 'pBizYear')}</p>
+            <p className="text-xs font-semibold text-gray-700 mb-6">{t('pricing', 'pPerSeat')}</p>
+            <Link href="/signup?plan=business">
               <button className="bg-red-500 text-white px-8 py-2 rounded-full font-bold hover:bg-red-600 mb-2">
                 {t('pricing', 'pBuyNow')}
               </button>
@@ -56,7 +71,7 @@ export default function Pricing() {
             <div className="mt-auto">
               <div className="flex flex-col items-center text-xs text-gray-500">
                 <span>{t('pricing', 'pUsers5')}</span>
-                <a href="#" className="underline">{t('pricing', 'pRequestDemo')}</a>
+                <Link href="/demo" className="underline">{t('pricing', 'pRequestDemo')}</Link>
               </div>
             </div>
           </div>
@@ -74,11 +89,17 @@ export default function Pricing() {
 
         </div>
 
-        {/* Feature comparison */}
-        <p className="text-center text-sm text-gray-600 mt-10">
-          {t('pricing', 'pSeeCompare')}{' '}
-          <Link href="/pricing-comparison" className="underline">{t('pricing', 'pHere')}</Link>.
-        </p>
+        {/* The comparison now sits directly under the prices rather than behind
+            a link. Someone weighing three tiers is already deciding; sending
+            them to another page to see what the tiers actually contain is a
+            step that loses people. */}
+        <div className="mt-16">
+          <h2 className="text-center text-lg font-bold mb-2">{t('pricing', 'pCompareTitle')}</h2>
+          <p className="text-center text-sm text-gray-600 mb-8 max-w-2xl mx-auto">
+            {t('pricing', 'pCompareIntro')}
+          </p>
+          <ComparisonTable />
+        </div>
 
       </div>
     </main>

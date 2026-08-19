@@ -8,6 +8,9 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
 import { getMe, finquantaAccountId } from "@/lib/api/me";
 import { checkAdmin } from "@/lib/api/admin";
 import { logoutAndRedirect } from "@/lib/auth";
+import PlanChip from "./PlanChip";
+import VerifyEmailChip from "./VerifyEmailChip";
+import PhoneChip from "./PhoneChip";
 
 const FEEDBACK_FORM = "https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form";
 
@@ -77,8 +80,8 @@ export default function DashboardSidebar({
 
   const linkClass = (href: string) => {
     const active = pathname === href || pathname.startsWith(`${href}/`);
-    if (active) return "text-sm font-semibold text-orange-500 bg-orange-50 px-3 py-2 rounded-lg";
-    return `text-sm font-medium px-3 py-2 rounded-lg ${isDark ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`;
+    if (active) return "text-[13px] font-semibold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-lg";
+    return `text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? "text-gray-200 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`;
   };
 
   return (
@@ -97,7 +100,7 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <nav className="flex flex-col gap-2" data-tour="sidebar">
+        <nav className="flex flex-col gap-1" data-tour="sidebar">
           {items.map((n) => (
             <Link key={n.href} href={n.href} className={linkClass(n.href)} onClick={onClose}>
               {n.labelKey ? t("dashboard", n.labelKey) : n.label}
@@ -113,6 +116,15 @@ export default function DashboardSidebar({
         {/* The legal documents used to sit loose down here. They now live under
             Settings → Legal, which keeps this to what you actually click. */}
         <div className="mt-auto flex flex-col gap-2 text-xs pt-6">
+          {/* Plan state lives here rather than in the top bar: it is reference
+              information you check occasionally, not a control you reach for. */}
+          <div className="mb-1">
+            <PlanChip isDark={isDark} />
+            {/* Only rendered for unverified accounts; silent otherwise. */}
+            <VerifyEmailChip isDark={isDark} />
+            {/* Also self-hiding: gone once a number is on file. */}
+            <PhoneChip isDark={isDark} />
+          </div>
           {accountId && <p className={`mt-4 ${colors.subtext}`}>{t("dashboard", "finquantaId")}: {accountId}</p>}
           {/* 2.0.0 (2026-08-11) — a major bump because the product changed shape,
               not just improved: the Company Brain arrived as a new pillar above

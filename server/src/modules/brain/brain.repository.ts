@@ -32,7 +32,12 @@ import { BrainEntitiesService, EntityRef, ResolvedEntity, readEntityRef } from '
 export const NODE_SOURCES = ['manual', 'council', 'system'] as const;
 export type NodeSource = (typeof NODE_SOURCES)[number];
 
-export const NODE_TYPES = ['note', 'task', 'link', 'pin', 'entity_ref'] as const;
+/**
+ * `insight` is written by deterministic code, never by a user and never by the
+ * AI — see brain.insights.ts. It is the Brain noticing something about the
+ * business's own numbers (spec 06 §5.1).
+ */
+export const NODE_TYPES = ['note', 'task', 'link', 'pin', 'entity_ref', 'insight'] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
 /**
@@ -40,9 +45,14 @@ export type NodeType = (typeof NODE_TYPES)[number];
  * [[wiki link]] in a note's body. The rest are declared now because the Council
  * and the insight writer will emit them, and widening a CHECK later is worse
  * than allowing them from the start.
+ *
+ * `assigned_to` is spec 06 §5.2's "a transaction or note belongs to a Business
+ * Group" — it points at the Groups module, NOT at a team member. Assigning work
+ * to a person is a task field (§4), which is a different thing entirely.
  */
 export const RELATIONSHIP_TYPES = [
   'relates_to', 'links_to', 'led_to', 'contradicts', 'depends_on', 'caused_by', 'mentions',
+  'assigned_to',
 ] as const;
 export type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];
 

@@ -244,6 +244,7 @@
     "brainTitle": "Company Brain",
     "brainTypeLink": "Link",
     "brainTypeRecord": "Record",
+    "brainTypeInsight": "Insight",
     "brainSettings": "Brain settings",
     "brainAutoLink": "Suggest related notes",
     "brainAutoLinkHint": "Finds notes that read like each other and links them automatically. Free — no AI credits used.",
@@ -966,8 +967,7 @@
     "updateGoals": "Update goals",
     "version": "Version",
     "viewReceipt": "View receipt",
-    "workspace": "Workspace",
-    "wsCreateBusiness": "Create business",
+    "wsCreateBusiness": "Create workspace",
     "wsInviteMember": "Invite team member",
     "wsLinkExpiry": "Link expiry",
     "wsLoadingTeam": "Loading team…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "Remove from team",
     "wsShareLink": "Share this link with your team member (role:",
     "wsViewTeam": "View team",
-    "wsYourBusinesses": "Your businesses",
-    "yourName": "Your name"
+    "wsYourBusinesses": "Your workspaces",
+    "yourName": "Your name",
+    "businessLabel": "Workspace"
   },
   "demo": {
     "acAp": "Accounts Payable",
@@ -1274,7 +1275,8 @@
     "newsletter": "Newsletter",
     "scheduleDemo": "Schedule Demo",
     "signUp": "Sign Up",
-    "tryDemo": "Try demo"
+    "tryDemo": "Try demo",
+    "pricing": "Pricing"
   },
   "newsletter": {
     "description": "Sign up to Finquanta AI newsletter for all the latest news, trends and insights from our industry experts.",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "Detailed financial analytics, employee benefits planning, and advanced investment opportunities for scaling businesses.",
-    "pBizYear": "Or $990.99/year (10% discount)",
+    "pBizYear": "Or $999.95/year (2 months free)",
     "pBlogAll": "View all",
     "pBlogSub": "Insights and updates from the Finquanta AI team.",
     "pBlogTitle": "From the blog",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "Customized solution for teams of more than 5 users.",
     "pCorporate": "CORPORATE",
     "pEntDesc": "Advanced tools for entrepreneurs, including comprehensive financial planning and personalized investment advice.",
-    "pEntYear": "Or $490.99/year (11% discount)",
+    "pEntYear": "Or $499.95/year (2 months free)",
     "pEntrepreneur": "ENTREPRENEUR",
     "pFeatures": "FEATURES",
     "pFree": "FREE",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "Rest assured, your payment details are handled with the utmost security and confidentiality. Enjoy a seamless and hassle-free payment experience with Finquanta.",
     "pRecCorp": "Recommended for corporations and investors",
     "pRecSmall": "Recommended for small companies",
-    "pRequestDemo": "Request a demo for your team",
+    "pRequestDemo": "Try the demo",
     "pSeeCompare": "Check out our feature comparison table",
     "pSeePricing": "Check out our pricing",
     "pTitle": "FIND THE FINQUANTA PLAN THAT'S RIGHT FOR NOW.",
@@ -1367,7 +1369,29 @@
     "pfPlan": "Business Plan Creation & Validation",
     "pfProposal": "Business Proposal Creation & Validation",
     "pfStatements": "Financial Statements",
-    "pfTaxes": "Taxes"
+    "pfTaxes": "Taxes",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "Company Brain",
+    "pfComingSoon": "In development — coming soon",
+    "pPerSeat": "per seat",
+    "pfSecCore": "Core",
+    "pfSecBrain": "Company Brain",
+    "pfSecLimits": "Allowances",
+    "pfSecSoon": "Coming Soon",
+    "pfSeats": "Seats",
+    "pfFinnaMsgs": "Finna Messages / Month",
+    "pfCouncilSessions": "Council Sessions / Month",
+    "pfGroups": "Business Groups",
+    "pfBrainNotes": "Notes, Categories & Live Data",
+    "pfBrainGraph": "Graph View (2D & 3D)",
+    "pfBrainBacklinks": "Backlinks",
+    "pfBrainAuto": "AI Summaries & Auto-Linking",
+    "pfBank": "Bank Connections",
+    "pfDocImport": "Document Import",
+    "pfForecasting": "Cash-Flow Forecasting",
+    "pfMultiCurrency": "Multi-Currency",
+    "pfUnlimited": "Unlimited",
+    "pfPerSeatCell": "Per Seat"
   },
   "settings": {
     "bizProfile": "Business Profile",
@@ -1442,6 +1466,7 @@
     "today": "Today:",
     "twelveHour": "12-hour (AM/PM)",
     "twentyFourHour": "24-hour",
-    "weekStartsOn": "Week starts on:"
+    "weekStartsOn": "Week starts on:",
+    "billing": "Billing"
   }
 }

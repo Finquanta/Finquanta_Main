@@ -180,6 +180,45 @@ async function advisorContext(
  * one thing Finna is actually for, and this is a cost guard, not a security
  * boundary.
  */
+/**
+ * Claim one message against the workspace's MONTHLY PLAN allowance.
+ *
+ * Distinct from checkAiUsageAllowed below, and both have to pass. That one is
+ * a daily cost guard protecting the prepaid Anthropic balance no matter who is
+ * asking; this is what the customer actually bought — 50 messages a month on
+ * Freemium, 500 on Entrepreneur, 2000 on Business.
+ *
+ * Signed-out visitors skip it entirely: there is no workspace to meter and no
+ * plan to meter against, so the landing-page chat is governed by the daily
+ * per-IP cap alone.
+ *
+ * Fails open on a network error, matching the helper below — an unreachable
+ * backend should not be the thing that stops Finna answering.
+ */
+async function claimPlanAllowance(
+  token: string | null,
+  businessId: string | null
+): Promise<{ allowed: boolean; limit: number | null }> {
+  if (!token || !businessId) return { allowed: true, limit: null };
+  try {
+    const res = await fetch(serverApiUrl("/v1/billing/usage/finna"), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Business-Id": businessId,
+      },
+    });
+    if (!res.ok) return { allowed: true, limit: null };
+    const json = await res.json().catch(() => null);
+    return {
+      allowed: json?.data?.allowed !== false,
+      limit: json?.data?.limit ?? null,
+    };
+  } catch {
+    return { allowed: true, limit: null };
+  }
+}
+
 async function checkAiUsageAllowed(
   token: string | null,
   clientIp: string | null
@@ -210,6 +249,30 @@ export async function POST(req: NextRequest) {
   // there's no token) doesn't collapse every anonymous visitor onto this
   // server's own address.
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+
+  /**
+   * The PLAN allowance is checked first, before the daily cost cap below.
+   *
+   * Order matters twice over. The daily check CHARGES the caller's counter as
+   * it runs, so asking it first would spend one of today's messages on a reply
+   * that was never going to be sent. And someone who has simply used up their
+   * monthly allowance should be told that — being shown a platform message
+   * about tomorrow would send them back to try again, when what they need is a
+   * bigger plan. Same ordering, for the same reasons, as the Council route.
+   */
+  const plan = await claimPlanAllowance(
+    isDashboard ? token ?? null : null,
+    isDashboard ? businessId ?? null : null
+  );
+  if (!plan.allowed) {
+    return NextResponse.json({
+      content:
+        plan.limit === 0
+          ? "Finna messages aren't included on your current plan. You can upgrade in Settings → Billing."
+          : `You've used all ${plan.limit} Finna messages on your plan this month — they reset on the 1st. You can upgrade any time in Settings → Billing.`,
+    });
+  }
+
   const usage = await checkAiUsageAllowed(token ?? null, clientIp);
   if (!usage.allowed) {
     return NextResponse.json({

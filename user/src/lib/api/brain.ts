@@ -9,8 +9,15 @@ import type { HealthScore } from './health';
  * connections between nodes. Nothing here costs an AI call.
  */
 
-/** `entity_ref` points at a real ledger record and stores no figures of its own. */
-export const NODE_TYPES = ['note', 'task', 'link', 'pin', 'entity_ref'] as const;
+/**
+ * `entity_ref` points at a real ledger record and stores no figures of its own.
+ *
+ * `insight` is written by the server when a financial threshold is crossed and
+ * is deliberately NOT offered in the Add Node modal — a person cannot author
+ * one, because the whole point is that it is the platform's own observation.
+ * It appears in this list so the graph and node list can render it.
+ */
+export const NODE_TYPES = ['note', 'task', 'link', 'pin', 'entity_ref', 'insight'] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
 export const ENTITY_TYPES = ['customer', 'invoice', 'entry', 'group'] as const;

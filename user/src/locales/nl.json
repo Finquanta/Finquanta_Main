@@ -244,6 +244,7 @@
     "brainTitle": "Company Brain",
     "brainTypeLink": "Link",
     "brainTypeRecord": "Record",
+    "brainTypeInsight": "Inzicht",
     "brainSettings": "Brain-instellingen",
     "brainAutoLink": "Verwante notities voorstellen",
     "brainAutoLinkHint": "Vindt notities die op elkaar lijken en koppelt ze automatisch. Gratis — geen AI-credits.",
@@ -966,8 +967,7 @@
     "updateGoals": "Doelen bijwerken",
     "version": "Versie",
     "viewReceipt": "Bon bekijken",
-    "workspace": "Werkruimte",
-    "wsCreateBusiness": "Bedrijf aanmaken",
+    "wsCreateBusiness": "Werkruimte aanmaken",
     "wsInviteMember": "Teamlid uitnodigen",
     "wsLinkExpiry": "Vervaldatum link",
     "wsLoadingTeam": "Team laden…",
@@ -979,8 +979,9 @@
     "wsRemoveMember": "Uit team verwijderen",
     "wsShareLink": "Deel deze link met uw teamlid (rol:",
     "wsViewTeam": "Team bekijken",
-    "wsYourBusinesses": "Uw bedrijven",
-    "yourName": "Uw naam"
+    "wsYourBusinesses": "Jouw werkruimtes",
+    "yourName": "Uw naam",
+    "businessLabel": "Werkruimte"
   },
   "demo": {
     "acAp": "Crediteuren",
@@ -1274,7 +1275,8 @@
     "newsletter": "Nieuwsbrief",
     "scheduleDemo": "Demo plannen",
     "signUp": "Registreren",
-    "tryDemo": "Demo proberen"
+    "tryDemo": "Demo proberen",
+    "pricing": "Prijzen"
   },
   "newsletter": {
     "description": "Abonneer u op de Finquanta AI-nieuwsbrief.",
@@ -1327,7 +1329,7 @@
   },
   "pricing": {
     "pBizDesc": "Gedetailleerde financiele analyses, planning van arbeidsvoorwaarden en geavanceerde beleggingskansen voor groeiende bedrijven.",
-    "pBizYear": "Of $990,99/jaar (10% korting)",
+    "pBizYear": "Of $999,95/jaar (2 maanden gratis)",
     "pBlogAll": "Alles bekijken",
     "pBlogSub": "Inzichten en updates van het Finquanta AI-team.",
     "pBlogTitle": "Van de blog",
@@ -1340,7 +1342,7 @@
     "pCorpDesc2": "Oplossing op maat voor teams van meer dan 5 gebruikers.",
     "pCorporate": "CORPORATE",
     "pEntDesc": "Geavanceerde tools voor ondernemers, met uitgebreide financiele planning en persoonlijk beleggingsadvies.",
-    "pEntYear": "Of $490,99/jaar (11% korting)",
+    "pEntYear": "Of $499,95/jaar (2 maanden gratis)",
     "pEntrepreneur": "ONDERNEMER",
     "pFeatures": "FUNCTIES",
     "pFree": "GRATIS",
@@ -1349,7 +1351,7 @@
     "pPaymentSafe": "Wees gerust: uw betaalgegevens worden met de grootste zorg en vertrouwelijkheid behandeld. Geniet van een naadloze betaalervaring met Finquanta.",
     "pRecCorp": "Aanbevolen voor concerns en investeerders",
     "pRecSmall": "Aanbevolen voor kleine bedrijven",
-    "pRequestDemo": "Vraag een demo aan voor uw team",
+    "pRequestDemo": "Probeer de demo",
     "pSeeCompare": "Bekijk onze functievergelijkingstabel",
     "pSeePricing": "Bekijk onze prijzen",
     "pTitle": "VIND HET FINQUANTA-PLAN DAT NU BIJ U PAST.",
@@ -1367,7 +1369,29 @@
     "pfPlan": "Ondernemingsplan opstellen en valideren",
     "pfProposal": "Zakelijk voorstel opstellen en valideren",
     "pfStatements": "Jaarrekeningen",
-    "pfTaxes": "Belastingen"
+    "pfTaxes": "Belastingen",
+    "pfCouncil": "Finna Council",
+    "pfBrain": "Company Brain",
+    "pfComingSoon": "In ontwikkeling — binnenkort",
+    "pPerSeat": "per gebruiker",
+    "pfSecCore": "Basis",
+    "pfSecBrain": "Company Brain",
+    "pfSecLimits": "Limieten",
+    "pfSecSoon": "Binnenkort",
+    "pfSeats": "Gebruikers",
+    "pfFinnaMsgs": "Finna-berichten / maand",
+    "pfCouncilSessions": "Raad-sessies / maand",
+    "pfGroups": "Business Groups",
+    "pfBrainNotes": "Notities, categorieën & live data",
+    "pfBrainGraph": "Grafiekweergave (2D & 3D)",
+    "pfBrainBacklinks": "Backlinks",
+    "pfBrainAuto": "AI-samenvattingen & auto-koppelen",
+    "pfBank": "Bankkoppelingen",
+    "pfDocImport": "Documentimport",
+    "pfForecasting": "Cashflow-prognose",
+    "pfMultiCurrency": "Multi-valuta",
+    "pfUnlimited": "Onbeperkt",
+    "pfPerSeatCell": "Per gebruiker"
   },
   "settings": {
     "bizProfile": "Bedrijfsprofiel",
@@ -1442,6 +1466,7 @@
     "today": "Vandaag:",
     "twelveHour": "12 uur (AM/PM)",
     "twentyFourHour": "24 uur",
-    "weekStartsOn": "Week begint op:"
+    "weekStartsOn": "Week begint op:",
+    "billing": "Facturering"
   }
 }

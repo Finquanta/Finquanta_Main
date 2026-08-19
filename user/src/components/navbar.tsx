@@ -37,6 +37,11 @@ export function NavBarComponent() {
             <button onClick={() => scrollToSection("faq")} className="text-gray-700 hover:text-gray-900 text-base font-medium bg-transparent border-none cursor-pointer">{t("nav", "faqs")}</button>
             <button onClick={() => scrollToSection("newsletter")} className="text-gray-700 hover:text-gray-900 text-base font-medium bg-transparent border-none cursor-pointer">{t("nav", "newsletter")}</button>
             <button onClick={() => scrollToSection("community")} className="text-gray-700 hover:text-gray-900 text-base font-medium bg-transparent border-none cursor-pointer">{t("nav", "community")}</button>
+            {/* A real route, unlike the neighbours above which scroll to
+                sections of the homepage. /pricing existed but was reachable
+                only from /pricing-comparison, so nobody arriving at the
+                homepage could find it. */}
+            <Link href="/pricing" className="text-gray-700 hover:text-gray-900 text-base font-medium">{t("nav", "pricing")}</Link>
             <Link href="/blog" className="text-gray-700 hover:text-gray-900 text-base font-medium">{t("nav", "blog")}</Link>
           </div>
 

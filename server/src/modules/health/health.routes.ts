@@ -7,6 +7,7 @@ import { ProfileRepository } from '../profile/profile.repository';
 import { HealthRepository } from './health.repository';
 import { computeHealthScore, computeRunway, PERIOD_DAYS } from './health.service';
 import { HealthContext } from './health.types';
+import { BrainInsightsService } from '../brain/brain.insights';
 
 /**
  * Section 11 — Financial Health Score.
@@ -18,6 +19,7 @@ export async function healthRoutes(fastify: FastifyInstance, options: { database
   const repo = new HealthRepository(database);
   const ledger = new AccountingRepository(database);
   const profiles = new ProfileRepository(database);
+  const insights = new BrainInsightsService(database);
   const pre = [authenticate, withBusiness(database)];
 
   fastify.get('/v1/health-score', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
@@ -54,10 +56,22 @@ export async function healthRoutes(fastify: FastifyInstance, options: { database
         primaryGoal: business.primaryGoal,
       };
 
-      return reply.send({
-        success: true,
-        data: computeHealthScore(snapshot, comparable, daysOfData, context),
-      });
+      const health = computeHealthScore(snapshot, comparable, daysOfData, context);
+
+      /**
+       * Record any threshold the business has crossed since the last reading
+       * (spec 06 §5.1). This is the only moment a crossing is observable —
+       * nothing else recomputes the score — so it hooks here rather than
+       * running on a timer that would repeat the same work.
+       *
+       * Not awaited, and it swallows its own errors: the caller asked for a
+       * health score, and an insight node failing to write must not turn that
+       * into a 500. Writing is idempotent, so the dashboard being refreshed
+       * repeatedly produces one node per actual crossing, not one per request.
+       */
+      void insights.record(businessId, health);
+
+      return reply.send({ success: true, data: health });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Could not compute your health score.' });

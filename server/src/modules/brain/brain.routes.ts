@@ -7,6 +7,8 @@ import {
   RELATIONSHIP_TYPES, RelationshipType, StatusFilter,
 } from './brain.repository';
 import { BrainPinsService, PIN_KEYS, PinKey } from './brain.pins';
+import { EntitlementsService } from '../billing/entitlements.service';
+import { requireFeature } from '../billing/require-feature';
 import {
   BrainEntitiesService, ENTITY_TYPES, EntityRef, EntityType, isEntityType,
 } from './brain.entities';
@@ -33,6 +35,7 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
   const accessService = new BrainAccessService(options.database);
   const advisor = new BrainAdvisorService(options.database);
   const pre = [authenticate, withBusiness(options.database)];
+  const entitlements = new EntitlementsService(options.database);
 
   /**
    * Resolve the caller's Brain access once per request.
@@ -237,7 +240,9 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
    * graph renders the entire Brain at once, so paginating it would just mean
    * drawing an incomplete picture.
    */
-  fastify.get('/v1/brain/graph', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+  // Graph view is paid (spec 06 §9). Freemium keeps the category tree, notes
+  // and search — everything except the visualisation.
+  fastify.get('/v1/brain/graph', { preHandler: [...pre, requireFeature(options.database, 'brainGraph')] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const businessId = request.businessId!;
       await repo.ensureDefaults(businessId);
@@ -259,6 +264,18 @@ export async function brainRoutes(fastify: FastifyInstance, options: { database:
       // 404 rather than 403: a restricted node must be indistinguishable from
       // one that doesn't exist.
       if (!node) return reply.status(404).send({ success: false, error: 'Note not found' });
+
+      // The backlinks panel is paid (spec 06 §9). Stripped from the payload
+      // rather than refused: the note itself is free to read, and 402-ing the
+      // whole node because one panel is premium would lock a freemium user out
+      // of their own writing. `backlinksLocked` lets the client show the panel
+      // as a locked upsell instead of silently omitting it.
+      if (!(await entitlements.can(request.businessId!, 'brainBacklinks'))) {
+        return reply.send({
+          success: true,
+          data: { ...node, backlinks: [], backlinksLocked: true },
+        });
+      }
       return reply.send({ success: true, data: node });
     } catch (error) {
       request.log.error(error);
