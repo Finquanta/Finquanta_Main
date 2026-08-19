@@ -1,5 +1,6 @@
 import { Database } from '../../infrastructure/database';
 import { syncSeats } from '../billing/seats';
+import { stopBillingForBusinesses } from '../billing/stop-billing';
 
 /**
  * Permanently deletes a user and everything cascading off them — the single
@@ -39,7 +40,7 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
   // ledger teardown on its own, so a failure there would destroy the financial
   // history while leaving the account standing — the exact split this
   // transaction exists to prevent.
-  const { deleted, seatChanges } = await database.transaction(async (client) => {
+  const { deleted, seatChanges, billedBusinesses } = await database.transaction(async (client) => {
     /**
      * Which workspaces are about to lose a seat — read on the transaction
      * client, before the cascade removes the evidence.
@@ -56,6 +57,14 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
       [userId]
     );
 
+    /**
+     * The workspaces about to be destroyed with this account, read before the
+     * cascade removes them. Any subscription on one of these has to be
+     * cancelled at Stripe, or the card keeps being charged for a workspace that
+     * no longer exists.
+     */
+    const owned = await client.query('SELECT id FROM businesses WHERE owner_id = $1', [userId]);
+
     await client.query(
       `DELETE FROM journal_entries
         WHERE business_id IN (SELECT id FROM businesses WHERE owner_id = $1)`,
@@ -65,6 +74,7 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
     return {
       deleted: (result.rowCount ?? 0) > 0,
       seatChanges: (memberships.rows ?? []).map((r: any) => r.business_id),
+      billedBusinesses: (owned.rows ?? []).map((r: any) => r.id),
     };
   });
 
@@ -77,6 +87,14 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
    * has already happened.
    */
   if (deleted) {
+    /**
+     * Stop the money first, then correct the seat counts.
+     *
+     * Cancelling is the one with a deadline — every day it is missed is another
+     * charge — while a stale seat count costs a proration at worst. Neither can
+     * throw, so an outage in one does not skip the other.
+     */
+    await stopBillingForBusinesses(database, billedBusinesses);
     for (const businessId of seatChanges) await syncSeats(database, businessId);
   }
   return deleted;

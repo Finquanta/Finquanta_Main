@@ -259,6 +259,13 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
         <div className="mt-auto px-3">
           {deletingAccount ? (
             <div className="mt-2 space-y-2">
+              {/* Said before the password, not after: somebody closing an
+                  account wants to stop paying, and leaving them to guess is how
+                  a deletion turns into a chargeback. */}
+              <p className={`text-[11px] leading-snug ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Any subscription on the workspaces you own is cancelled at the same time — you will
+                not be charged again.
+              </p>
               {blockers.map((b) => (
                 <div key={b.id} className={`rounded-lg border p-2 ${theme === 'dark' ? 'border-amber-700 bg-amber-900/20' : 'border-amber-300 bg-amber-50'}`}>
                   <p className={`text-[11px] font-semibold ${theme === 'dark' ? 'text-amber-300' : 'text-amber-800'}`}>

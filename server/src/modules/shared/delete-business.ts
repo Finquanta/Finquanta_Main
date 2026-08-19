@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { stopBillingForBusinesses } from '../billing/stop-billing';
 
 /**
  * Permanently deletes one business and everything under it — invoices, ledger,
@@ -29,6 +30,16 @@ export async function deleteBusinessCascade(
   database: Database,
   businessId: string
 ): Promise<boolean> {
+  /**
+   * Stop billing BEFORE the rows go.
+   *
+   * `business_subscriptions` cascades from `businesses`, so once the delete
+   * commits there is no record of which Stripe subscription belonged to it —
+   * and it would carry on charging the customer's card for a workspace nobody
+   * can open. Cannot throw, so a Stripe problem never blocks the deletion.
+   */
+  await stopBillingForBusinesses(database, [businessId]);
+
   // One transaction, so a failure part-way cannot leave a business stripped of
   // its financial history but still standing — the split this guards against.
   return database.transaction(async (client) => {

@@ -60,11 +60,15 @@ function formEncode(obj: Record<string, unknown>, prefix = ''): string {
   return parts.filter(Boolean).join('&');
 }
 
-async function call<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+async function call<T>(
+  path: string,
+  body?: Record<string, unknown>,
+  method?: 'GET' | 'POST' | 'DELETE'
+): Promise<T> {
   if (!isConfigured()) throw new StripeNotConfigured();
 
   const res = await fetch(API + path, {
-    method: body ? 'POST' : 'GET',
+    method: method ?? (body ? 'POST' : 'GET'),
     headers: {
       Authorization: 'Bearer ' + stripeSecret(),
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -240,6 +244,23 @@ export async function syncSubscriptionQuantity(input: {
     proration_behavior: 'create_prorations',
   });
   return { changed: true, from: item.quantity, to: quantity };
+}
+
+/**
+ * Cancel a subscription immediately.
+ *
+ * Used when the thing being paid for stops existing — an account closed, a
+ * workspace deleted. Without this, Stripe carries on charging a card every
+ * month for a product the customer can no longer open, which is the kind of
+ * billing they dispute rather than email about.
+ *
+ * Immediate rather than at-period-end, deliberately. A scheduled cancellation
+ * assumes someone is still using it until then; here there is nothing left to
+ * use. No refund is issued — that is a judgement call for a human, and quietly
+ * refunding is as surprising as quietly not.
+ */
+export async function cancelSubscription(id: string): Promise<void> {
+  await call<any>('/subscriptions/' + encodeURIComponent(id), undefined, 'DELETE');
 }
 
 /**
