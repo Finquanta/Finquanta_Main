@@ -130,6 +130,34 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
   };
 
   const buyable = billing.plans.filter((p) => p.selfServe && p.monthly > 0);
+  const corporate = billing.plans.find((p) => p.contactSales);
+
+  /**
+   * A prefilled email rather than a bare address.
+   *
+   * Whoever answers needs to know which workspace and which plan before they
+   * can say anything useful, and asking the customer to type that out is asking
+   * them to do the work of the person selling to them.
+   *
+   * The address comes from NEXT_PUBLIC_SALES_EMAIL so it can change without a
+   * code edit — set it, or make sure the fallback mailbox actually exists.
+   */
+  const salesEmail = process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@finquanta.ai";
+  const salesMailto =
+    `mailto:${salesEmail}` +
+    `?subject=${encodeURIComponent("Corporate plan enquiry")}` +
+    `&body=${encodeURIComponent(
+      `I would like to talk about the Corporate plan.
+
+` +
+      `Current plan: ${billing.badgeLabel}
+` +
+      `Seats: ${billing.seats}
+
+` +
+      `What we need:
+`
+    )}`;
   const hasSubscription = billing.status === "active" || billing.status === "past_due";
 
   // Why they can currently use more than they pay for, and until when.
@@ -324,7 +352,7 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
               cancel flow that feels evasive is how a cancellation turns into a
               chargeback — and nothing is lost by it: the plan runs to the date
               already paid for, and the books are never touched. */}
-          {hasSubscription && (
+          {billing.hasStripeSubscription && (
             <div className={`mt-3 pt-3 border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>
               {cancelling ? (
                 <button
@@ -344,6 +372,29 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
                 </button>
               )}
             </div>
+          )}
+
+          {/* Corporate is priced by negotiation, so it cannot be a buy button.
+              It still belongs in the list — leaving it out made the top tier
+              invisible to exactly the customers most able to afford it. */}
+          {corporate && (
+            <a
+              href={salesMailto}
+              className={`mt-1.5 w-full flex items-center justify-between border rounded-lg px-3 py-2 text-left ${
+                isDark ? "border-gray-700 hover:bg-gray-700/40" : "border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              <span className="font-semibold text-sm">
+                {corporate.name}
+                {billing.plan === corporate.key && (
+                  <span className="text-green-600 font-medium"> · current</span>
+                )}
+              </span>
+              <span className="text-right text-xs">
+                <span className={`block ${muted}`}>Priced to fit</span>
+                <span className="block font-bold text-blue-500">Contact sales</span>
+              </span>
+            </a>
           )}
 
           <p className={`text-xs mt-3 ${muted}`}>

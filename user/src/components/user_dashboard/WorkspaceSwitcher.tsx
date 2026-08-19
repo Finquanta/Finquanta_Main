@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/businesses";
 import { MyBilling, getMyBilling } from "@/lib/api/billing";
 import { planTone } from "@/lib/planColors";
+import { COUNTRIES } from "@/lib/countries";
 import ConfirmDialog from "./ConfirmDialog";
 import { getMe } from "@/lib/api/me";
 import { useLanguage } from "@/hooks/context/LanguageContext";
@@ -26,6 +27,13 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  /**
+   * Which country this business operates in — asked at creation because that is
+   * the only moment the answer is obvious. Optional: somebody adding a
+   * workspace in a hurry should not be stopped by it, and it is editable in
+   * Settings -> Business profile afterwards.
+   */
+  const [newCountry, setNewCountry] = useState("");
   /**
    * The team panel opens for a SPECIFIC business, not the active one.
    *
@@ -94,8 +102,9 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const handleCreate = async () => {
     if (!newName.trim()) return;
     try {
-      const biz = await createBusiness(newName.trim());
+      const biz = await createBusiness(newName.trim(), newCountry || undefined);
       setNewName("");
+      setNewCountry("");
       setCreating(false);
       await load();
       switchTo(biz.id);
@@ -145,11 +154,27 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
               choice among the rows, and at the bottom it drifted further out of
               reach with every business someone added. */}
           {creating ? (
-            <div className="p-2 flex gap-2">
+            <div className="p-2 space-y-1.5">
               <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-                placeholder={t("settings","fBusinessName")} className={`flex-1 text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
-              <button onClick={handleCreate} className="bg-blue-500 text-white text-xs px-3 rounded-lg">Add</button>
+                placeholder={t("settings","fBusinessName")} className={`w-full text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`} />
+              {/* Per workspace, not per person: one business can be in the US
+                  and another in Canada, with different books and different
+                  rules. Optional, so it never blocks creating one. */}
+              <select
+                value={newCountry}
+                onChange={(e) => setNewCountry(e.target.value)}
+                className={`w-full text-xs rounded-lg px-2 py-1.5 border outline-none ${colors.input}`}
+              >
+                <option value="">Country (optional)</option>
+                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="flex gap-2">
+                <button onClick={handleCreate} disabled={!newName.trim()}
+                  className="flex-1 bg-blue-500 disabled:opacity-50 text-white text-xs py-1.5 rounded-lg">Add</button>
+                <button onClick={() => { setCreating(false); setNewName(""); setNewCountry(""); }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border ${colors.divider} ${colors.sub}`}>Cancel</button>
+              </div>
             </div>
           ) : (
             <button onClick={() => setCreating(true)} className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 font-medium ${colors.item}`}>
@@ -422,28 +447,52 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
      * step that fixes it, rather than a dead end with an OK.
      */
     if (isOwner) {
-      const canHandOver = candidates.length > 0;
+      /**
+       * An owner with COLLEAGUES must hand over first — walking out would
+       * strand people in a workspace nobody can administer.
+       *
+       * An owner who is ALONE simply leaves. There is nobody to hand it to, and
+       * refusing would trap them in a workspace forever. The workspace and its
+       * books survive them and become ownerless, which an admin can reassign if
+       * it was a mistake.
+       */
+      if (candidates.length === 0) {
+        setAsk({
+          title: `Leave ${business.name}?`,
+          confirmLabel: "Leave workspace",
+          tone: "danger",
+          body: (
+            <>
+              You are the only person here, so it will be left with{" "}
+              <strong>no owner</strong>. Nothing is deleted — the books, invoices and history
+              stay exactly as they are.
+              <br /><br />
+              It keeps your email recorded as the last owner, and an admin can hand it back to
+              you or to somebody else.
+            </>
+          ),
+          run: async () => {
+            setBusyId("leave"); setError(null);
+            try { await leaveBusiness(business.id); onChanged(); }
+            catch (e) { setError(e instanceof Error ? e.message : "Could not leave."); setBusyId(""); }
+          },
+        });
+        return;
+      }
+
       setAsk({
         title: `You own ${business.name}`,
-        confirmLabel: canHandOver ? "Choose a successor" : "Got it",
+        confirmLabel: "Choose a successor",
         tone: "warning",
-        body: canHandOver ? (
+        body: (
           <>
-            A workspace always needs an owner — without one, nobody can invite
-            people, change the plan or close it down.
+            Other people work here, so the workspace needs an owner — without one, nobody can
+            invite people, change the plan or close it down.
             <br /><br />
-            Hand it to someone first, and you can then leave as an Admin.
-          </>
-        ) : (
-          <>
-            A workspace always needs an owner, and there is nobody here to hand it to.
-            <br /><br />
-            Invite somebody first, or delete the workspace from the admin panel if you
-            are finished with it entirely.
+            Hand it to someone first, and you will leave as soon as they have it.
           </>
         ),
         run: async () => {
-          if (!canHandOver) return;
           // Remember WHY we are here, so the transfer finishes the job.
           setLeavingAfterHandover(true);
           setHandingOver(true);

@@ -57,6 +57,11 @@ export interface MyBilling {
    * and the admin panel, so the three cannot disagree.
    */
   badgeLabel: string;
+  /**
+   * Whether a real Stripe subscription exists. Not the same as `status ===
+   * 'active'`, which is also true of a plan an admin granted by hand.
+   */
+  hasStripeSubscription: boolean;
   /** A downgrade already chosen, taking effect at `pendingPlanAt`. */
   pendingPlan: string | null;
   pendingPlanName: string | null;

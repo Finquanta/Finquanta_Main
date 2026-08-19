@@ -34,6 +34,9 @@ export default function AdminBusinessesPage() {
   const [billing, setBilling] = useState<AdminBillingOverview | null>(null);
   /** Which row has its plan dropdown open. */
   const [planFor, setPlanFor] = useState<AdminBusiness | null>(null);
+  /** The ownerless workspace being handed to somebody. */
+  const [assigning, setAssigning] = useState<AdminBusiness | null>(null);
+  const [assignEmail, setAssignEmail] = useState("");
 
   const bounceToLogin = (msg: string) => {
     if (/admin access|authentication|session|401|403/i.test(msg)) { router.replace("/admin-login"); return true; }
@@ -101,23 +104,27 @@ export default function AdminBusinessesPage() {
    * already knows whose it should be, and a searchable list of every account on
    * the platform is a lot of machinery for something used once in a while.
    */
-  const assignOwner = async (b: AdminBusiness) => {
+  /**
+   * Opens the assign-owner dialog, prefilled with whoever had it last.
+   *
+   * A dialog rather than window.prompt: this is a recovery action taken on
+   * somebody else's workspace, and the previous owner's address is the thing
+   * that makes it safe to confirm. A browser prompt cannot show that legibly,
+   * and it looks like the scam popups people dismiss without reading.
+   */
+  const assignOwner = (b: AdminBusiness) => {
     setOpenMenuId("");
-    const email = window.prompt(
-      `Assign an owner to "${b.name}".
+    setAssignEmail(b.previousOwnerEmail || "");
+    setAssigning(b);
+  };
 
-` +
-      (b.previousOwnerEmail ? `It previously belonged to ${b.previousOwnerEmail}.
-
-` : "") +
-      `Enter the email address of the account that should own it. They are added ` +
-      `to the workspace as Owner.`,
-      b.previousOwnerEmail || ""
-    );
-    if (!email?.trim()) return;
-
-    // The server resolves the address and says so if it matches nobody.
-    act(() => assignAdminBusinessOwner(b.id, { email: email.trim() }), b.id);
+  const confirmAssignOwner = () => {
+    if (!assigning || !assignEmail.trim()) return;
+    const target = assigning;
+    const email = assignEmail.trim();
+    setAssigning(null);
+    // The server resolves the address and reports back if it matches nobody.
+    act(() => assignAdminBusinessOwner(target.id, { email }), target.id);
   };
 
   const changePlan = (b: AdminBusiness, plan: string) =>
@@ -448,6 +455,65 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
           )}
         </div>
       </div>
+
+      {/* Assign an owner to an abandoned workspace. */}
+      {assigning && (
+        <div onClick={() => setAssigning(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: "90vw", background: d.surface, color: d.text, borderRadius: 14, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,.3)" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Assign an owner</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: d.muted }}>
+              {assigning.name} · currently has no owner
+            </p>
+
+            {/* The address that makes this safe to confirm. */}
+            {assigning.previousOwnerEmail ? (
+              <div style={{ border: `0.5px solid ${d.border}`, borderRadius: 10, padding: "10px 12px", background: d.input, marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: d.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                  Last owned by
+                </div>
+                <div style={{ fontSize: 13, marginTop: 2 }}>{assigning.previousOwnerEmail}</div>
+              </div>
+            ) : (
+              <p style={{ margin: "0 0 14px", fontSize: 12, color: d.muted }}>
+                No previous owner recorded for this workspace.
+              </p>
+            )}
+
+            <label style={{ fontSize: 12, color: d.muted, display: "block", marginBottom: 4 }}>
+              Email of the account that should own it
+            </label>
+            <input
+              autoFocus
+              type="email"
+              value={assignEmail}
+              onChange={(e) => setAssignEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") confirmAssignOwner(); if (e.key === "Escape") setAssigning(null); }}
+              placeholder="name@example.com"
+              style={{ width: "100%", padding: "9px 11px", border: `0.5px solid ${d.border}`, borderRadius: 8, background: d.input, color: d.text, fontSize: 13, boxSizing: "border-box" }}
+            />
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: d.muted }}>
+              They are added to the workspace as Owner, with full control of its books and billing.
+              If they are already a member, their role is upgraded.
+            </p>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+              <button
+                onClick={confirmAssignOwner}
+                disabled={!assignEmail.trim() || busyId === assigning.id}
+                style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !assignEmail.trim() ? 0.5 : 1 }}
+              >
+                Assign owner
+              </button>
+              <button
+                onClick={() => setAssigning(null)}
+                style={{ background: d.input, color: d.text, border: `0.5px solid ${d.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Plan picker. Every plan is offered including Corporate — comping a
           design partner is a real need, and the audit log is the control here

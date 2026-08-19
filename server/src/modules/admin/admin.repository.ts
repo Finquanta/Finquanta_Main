@@ -330,8 +330,15 @@ export class AdminRepository {
     id: string; name: string; ownerId: string; ownerEmail: string; ownerRole: string; status: string;
   } | null> {
     const result = await this.database.query(
+      /**
+       * LEFT JOIN, because a workspace can be OWNERLESS.
+       *
+       * With an inner join this returned nothing for exactly those workspaces —
+       * so "Assign owner", the one action that exists for them, failed with
+       * "Business not found". Same shape of bug as the admin list had.
+       */
       `SELECT b.id, b.name, b.status, b.owner_id, u.email AS owner_email, u.role AS owner_role
-       FROM businesses b JOIN users u ON u.id = b.owner_id WHERE b.id = $1`,
+       FROM businesses b LEFT JOIN users u ON u.id = b.owner_id WHERE b.id = $1`,
       [id]
     );
     const r = result.rows[0];
@@ -339,8 +346,10 @@ export class AdminRepository {
       ? {
           id: r.id,
           name: r.name,
-          ownerId: r.owner_id,
-          ownerEmail: r.owner_email,
+          // Empty rather than null for an ownerless workspace: callers put these
+          // straight into audit entries and confirmation text.
+          ownerId: r.owner_id ?? '',
+          ownerEmail: r.owner_email ?? '',
           ownerRole: r.owner_role ?? 'user',
           status: r.status ?? 'active',
         }

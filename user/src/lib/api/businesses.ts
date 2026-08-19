@@ -37,8 +37,19 @@ export async function listBusinesses(): Promise<Business[]> {
   return apiFetch<Business[]>('/v1/businesses');
 }
 
-export async function createBusiness(name: string): Promise<Business> {
-  return apiFetch<Business>('/v1/businesses', { method: 'POST', body: JSON.stringify({ name }) });
+/**
+ * Create a workspace, optionally recording which country the business is in.
+ *
+ * Country is per WORKSPACE, not per person: somebody can run a company in the
+ * US and another in Canada, and those are different businesses with different
+ * books and different rules. It is editable afterwards in Settings → Business
+ * profile.
+ */
+export async function createBusiness(name: string, country?: string): Promise<Business> {
+  return apiFetch<Business>('/v1/businesses', {
+    method: 'POST',
+    body: JSON.stringify({ name, country: country || undefined }),
+  });
 }
 
 export async function renameBusiness(businessId: string, name: string): Promise<Business> {

@@ -237,7 +237,16 @@ export class BusinessesRepository {
     }));
   }
 
-  async create(userId: string, name: string): Promise<Business> {
+  /**
+   * Create a workspace, optionally recording which country the business is in.
+   *
+   * Country is per WORKSPACE, on its own `business_profiles` row — not per
+   * person. Somebody can run a company in the US and another in Canada, and
+   * they are different businesses with different books, different tax years and
+   * different rules. Asking at creation is the only moment the answer is
+   * obvious; afterwards it has to be hunted for in settings.
+   */
+  async create(userId: string, name: string, country?: string | null): Promise<Business> {
     const biz = await this.database.query(
       'INSERT INTO businesses (owner_id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING id, name, owner_id',
       [userId, name]
@@ -248,6 +257,31 @@ export class BusinessesRepository {
        ON CONFLICT (business_id, user_id) DO NOTHING`,
       [row.id, userId]
     );
+
+    if (country && country.trim()) {
+      /**
+       * Keyed on business_id, which is the per-workspace key. Writing this on
+       * user_id — the column that table still carries — is the fanout bug that
+       * once turned 26 users into 29 rows in the admin panel.
+       */
+      await this.database.query(
+        /**
+         * The `WHERE business_id IS NOT NULL` is required, not decorative.
+         *
+         * The unique index on business_id is PARTIAL, and Postgres will not
+         * infer a partial index unless the predicate is repeated here — it
+         * raises 42P10 instead, the same error that once made admin edits fail
+         * silently. `user_id` is carried because the column is NOT NULL; it is
+         * not what identifies the row.
+         */
+        `INSERT INTO business_profiles (business_id, user_id, country)
+              VALUES ($1, $2, $3)
+         ON CONFLICT (business_id) WHERE business_id IS NOT NULL
+         DO UPDATE SET country = EXCLUDED.country`,
+        [row.id, userId, country.trim()]
+      );
+    }
+
     return { id: row.id, name: row.name, ownerId: row.owner_id, role: 'Owner' };
   }
 

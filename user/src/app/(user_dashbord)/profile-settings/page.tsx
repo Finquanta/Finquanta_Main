@@ -15,6 +15,7 @@ import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
 import { DeletionBlocker, deleteAccount, getDeletionBlockers, getMe, saveMyProfile } from '@/lib/api/me';
 import { BusinessMember, getMembers } from '@/lib/api/businesses';
+import { COUNTRIES } from '@/lib/countries';
 
 const ENTITY_TYPES = ["Solopreneur", "Sole Proprietorship", "LLC", "Corporation", "Partnership", "Nonprofit", "Other"];
 const MATURITY_STAGES = ["Idea", "Startup", "Early-stage", "Growth", "Established", "Mature"];
@@ -460,7 +461,13 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
                 </div>
                 <div>
                   <label className={labelCls}>{t('settings', 'fCountry')}</label>
-                  <input className={inputCls} value={biz.country ?? ''} onChange={(e) => setBizField('country', e.target.value)} placeholder="e.g. United States" />
+                  {/* A picker, not free text. This value is what the admin
+                      Overview groups workspaces by, so "USA" typed here and
+                      "United States" chosen at signup would be two countries. */}
+                  <select className={inputCls} value={biz.country ?? ''} onChange={(e) => setBizField('country', e.target.value)}>
+                    <option value="">Select a country…</option>
+                    {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelCls}>{t('settings', 'fPlaceOfIncorporation')}</label>

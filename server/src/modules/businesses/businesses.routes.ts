@@ -30,9 +30,12 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
   // Create a new business (creator becomes Owner)
   fastify.post('/v1/businesses', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const { name } = request.body as { name?: string };
+      const { name, country } = request.body as { name?: string; country?: string };
       if (!name || !name.trim()) return reply.status(400).send({ success: false, error: 'Business name is required' });
-      return reply.status(201).send({ success: true, data: await repo.create(request.user!.id, name.trim()) });
+      return reply.status(201).send({
+        success: true,
+        data: await repo.create(request.user!.id, name.trim(), country ?? null),
+      });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Internal server error' });

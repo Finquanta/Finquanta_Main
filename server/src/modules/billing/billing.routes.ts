@@ -75,6 +75,14 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
            * for the period — so the page has to say so, or the change looks
            * like it did not register.
            */
+          /**
+           * Whether a real Stripe subscription exists.
+           *
+           * NOT the same as `status === 'active'`, which is also true of a plan
+           * an admin granted by hand — there is no subscription behind those,
+           * so offering "Cancel plan" would show a button that can only fail.
+           */
+          hasStripeSubscription: !!sub?.stripeSubscriptionId,
           pendingPlan: sub?.pendingPlan ?? null,
           pendingPlanName: sub?.pendingPlan ? PLANS[sub.pendingPlan].name : null,
           pendingPlanAt: sub?.pendingPlanAt ?? null,
