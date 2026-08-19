@@ -4,6 +4,25 @@ import Link from 'next/link';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import ComparisonTable from '@/components/pricing/ComparisonTable';
 
+
+/**
+ * Corporate is not being sold yet — the paid plans only just launched, and it
+ * is revisited around November 2026. The button asks a question rather than
+ * starting a sale, which is also why it is still worth having: what people ask
+ * for over the next few months is the cheapest input into what the tier should
+ * contain.
+ *
+ * It previously had no click handler at all, so the marketing site advertised
+ * Corporate with a button that did nothing.
+ */
+const CORPORATE_ENQUIRY =
+  'mailto:jeeordahnoh@gmail.com' +
+  '?subject=' + encodeURIComponent('Question about the Corporate plan') +
+  '&body=' + encodeURIComponent(
+    'I would like to know more about the Corporate plan.' + String.fromCharCode(10) + String.fromCharCode(10) +
+    'What we are looking for:' + String.fromCharCode(10)
+  );
+
 export default function Pricing() {
   const { t } = useLanguage();
 
@@ -81,9 +100,16 @@ export default function Pricing() {
             <h2 className="text-lg font-bold mb-3">{t('pricing', 'pCorporate')}</h2>
             <p className="text-sm text-gray-600 mb-4">{t('pricing', 'pCorpDesc')}</p>
             <p className="text-sm text-gray-600 mb-4">{t('pricing', 'pCorpDesc2')}</p>
-            <button className="border-2 border-gray-400 text-gray-600 px-8 py-2 rounded-full font-bold hover:bg-gray-100 mb-2">
+            {/* This button had no click handler at all — the marketing site
+                advertised Corporate with something that did nothing.
+                Corporate is not being sold yet (revisited around Nov 2026), so
+                it asks a question rather than starting a sale. */}
+            <a
+              href={CORPORATE_ENQUIRY}
+              className="border-2 border-gray-400 text-gray-600 px-8 py-2 rounded-full font-bold hover:bg-gray-100 mb-2 inline-block"
+            >
               {t('pricing', 'pContactSales')}
-            </button>
+            </a>
             <p className="text-xs text-gray-500">{t('pricing', 'pRecCorp')}</p>
           </div>
 

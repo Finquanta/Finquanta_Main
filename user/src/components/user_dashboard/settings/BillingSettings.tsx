@@ -133,21 +133,24 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
   const corporate = billing.plans.find((p) => p.contactSales);
 
   /**
-   * A prefilled email rather than a bare address.
+   * Corporate is not being sold yet — the paid plans have only just launched,
+   * and it is revisited around November 2026. So the row says "coming soon"
+   * rather than "contact sales": inviting a purchase nobody is ready to fulfil
+   * is how a keen customer becomes a disappointed one.
    *
-   * Whoever answers needs to know which workspace and which plan before they
-   * can say anything useful, and asking the customer to type that out is asking
-   * them to do the work of the person selling to them.
+   * It stays clickable, deliberately. Somebody asking what Corporate will
+   * include is the cheapest possible input into deciding what it should be, and
+   * "not yet, but tell me what you need" is a good reply to have to write.
    *
-   * The address comes from NEXT_PUBLIC_SALES_EMAIL so it can change without a
-   * code edit — set it, or make sure the fallback mailbox actually exists.
+   * The address is overridable with NEXT_PUBLIC_SALES_EMAIL for when there is a
+   * sales mailbox rather than a personal one.
    */
-  const salesEmail = process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@finquanta.ai";
+  const salesEmail = process.env.NEXT_PUBLIC_SALES_EMAIL || "jeeordahnoh@gmail.com";
   const salesMailto =
     `mailto:${salesEmail}` +
-    `?subject=${encodeURIComponent("Corporate plan enquiry")}` +
+    `?subject=${encodeURIComponent("Question about the Corporate plan")}` +
     `&body=${encodeURIComponent(
-      `I would like to talk about the Corporate plan.
+      `I would like to know more about the Corporate plan.
 
 ` +
       `Current plan: ${billing.badgeLabel}
@@ -155,7 +158,7 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
       `Seats: ${billing.seats}
 
 ` +
-      `What we need:
+      `What we are looking for:
 `
     )}`;
   const hasSubscription = billing.status === "active" || billing.status === "past_due";
@@ -391,8 +394,8 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
                 )}
               </span>
               <span className="text-right text-xs">
-                <span className={`block ${muted}`}>Priced to fit</span>
-                <span className="block font-bold text-blue-500">Contact sales</span>
+                <span className={`block ${muted}`}>Coming soon</span>
+                <span className="block font-bold text-blue-500">Ask about it</span>
               </span>
             </a>
           )}
