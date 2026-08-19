@@ -7,6 +7,7 @@ import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
 import BillingSettings from '@/components/user_dashboard/settings/BillingSettings';
+import FinnaSettings from '@/components/user_dashboard/settings/FinnaSettings';
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
@@ -234,6 +235,7 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
           {[
             { id: 'profile-settings', label: t('dashboard', 'profileSettings') },
             { id: 'business-profile', label: t('settings', 'bizProfile') },
+            { id: 'finna', label: 'Finna' },
             { id: 'billing', label: t('settings', 'billing') },
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
@@ -601,6 +603,15 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
               onClick={() => { restartTour(); router.push('/dashboard'); }}
               className={`inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'}`}
             >{t("dashboard","psRestartTour")}</button>
+          </div>
+        )}
+
+        {activeSection === 'finna' && (
+          <div>
+            <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              Finna
+            </h2>
+            <FinnaSettings isDark={theme === 'dark'} />
           </div>
         )}
 

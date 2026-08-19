@@ -247,6 +247,25 @@ export async function syncSubscriptionQuantity(input: {
 }
 
 /**
+ * Schedule a cancellation for the end of the paid period — or call one off.
+ *
+ * Not the same as `cancelSubscription`, and the difference matters. This is
+ * somebody choosing to stop: they have paid for the days in front of them and
+ * keep the product until those run out, which is the same rule downgrades
+ * follow. `cancelSubscription` is for when the thing being paid for has ceased
+ * to exist, where there is nothing left to keep.
+ *
+ * Reversible on purpose. People change their minds, and having to buy the plan
+ * again to undo a cancellation you have not yet been charged for is a poor
+ * answer.
+ */
+export async function setCancelAtPeriodEnd(id: string, cancel: boolean): Promise<any> {
+  return call<any>('/subscriptions/' + encodeURIComponent(id), {
+    cancel_at_period_end: cancel,
+  });
+}
+
+/**
  * Cancel a subscription immediately.
  *
  * Used when the thing being paid for stops existing — an account closed, a

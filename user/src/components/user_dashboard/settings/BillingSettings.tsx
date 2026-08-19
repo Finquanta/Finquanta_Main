@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  CheckoutOutcome, MyBilling, getBillingStatus, getMyBilling, openBillingPortal, startCheckout,
-  startMyTrial,
+  CheckoutOutcome, MyBilling, getBillingStatus, getMyBilling, openBillingPortal, setPlanCancellation,
+  startCheckout, startMyTrial,
 } from "@/lib/api/billing";
 
 /**
@@ -18,42 +18,6 @@ import {
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
-
-/** A usage meter. `limit` of null means unlimited, so there is no bar to draw. */
-function Meter({
-  label, used, limit, isDark,
-}: { label: string; used: number; limit: number | null; isDark: boolean }) {
-  const muted = isDark ? "text-gray-400" : "text-gray-500";
-  const track = isDark ? "bg-gray-700" : "bg-gray-200";
-
-  if (limit === null) {
-    return (
-      <div className="flex items-center justify-between text-sm py-2">
-        <span>{label}</span>
-        <span className={muted}>{used.toLocaleString()} used · unlimited</span>
-      </div>
-    );
-  }
-
-  const pct = limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
-  // Amber before the wall, red at it. Spec 08 asks for meters to be visible
-  // BEFORE someone is blocked, not as an error afterwards.
-  const bar = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-green-500";
-
-  return (
-    <div className="py-1.5">
-      <div className="flex items-center justify-between text-sm mb-1">
-        <span>{label}</span>
-        <span className={muted}>
-          {limit === 0 ? "Not on your plan" : `${used.toLocaleString()} of ${limit.toLocaleString()}`}
-        </span>
-      </div>
-      <div className={`h-1.5 w-full rounded-full ${track}`}>
-        <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
 
 export default function BillingSettings({ isDark }: { isDark: boolean }) {
   const [billing, setBilling] = useState<MyBilling | null>(null);
@@ -72,6 +36,7 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
    * dismiss. This is a decision about money — it should look like part of the
    * product.
    */
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [switching, setSwitching] = useState<
     { key: string; name: string; unit: number; up: boolean } | null
   >(null);
@@ -285,24 +250,6 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
         </div>
       </div>
 
-      {/* Usage meters — shown before someone hits a wall, not after. */}
-      <div className={`border rounded-xl p-4 ${card}`}>
-        <p className="font-semibold text-sm">This month</p>
-        <p className={`text-xs mb-2 ${muted}`}>Resets on the 1st.</p>
-        <Meter
-          label="Finna messages"
-          used={billing.usage?.finna_messages?.used ?? 0}
-          limit={billing.usage?.finna_messages?.limit ?? null}
-          isDark={isDark}
-        />
-        <Meter
-          label="Council sessions"
-          used={billing.usage?.council_sessions?.used ?? 0}
-          limit={billing.usage?.council_sessions?.limit ?? null}
-          isDark={isDark}
-        />
-      </div>
-
       {/* Change plan */}
       {canBuy && (
         <div className={`border rounded-xl p-4 ${card}`}>
@@ -373,6 +320,32 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
             })}
           </div>
 
+          {/* Leaving lives with the plans, not buried in Stripe's portal. A
+              cancel flow that feels evasive is how a cancellation turns into a
+              chargeback — and nothing is lost by it: the plan runs to the date
+              already paid for, and the books are never touched. */}
+          {hasSubscription && (
+            <div className={`mt-3 pt-3 border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>
+              {cancelling ? (
+                <button
+                  onClick={() => go(() => setPlanCancellation(true).then(() => ({})), "resume", { expectRedirect: false })}
+                  disabled={!!busy}
+                  className="text-sm font-semibold text-green-600 hover:underline disabled:opacity-60"
+                >
+                  {busy === "resume" ? "Working…" : "Keep my plan"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setCancelOpen(true)}
+                  disabled={!!busy}
+                  className={`text-sm font-semibold hover:underline disabled:opacity-60 ${muted}`}
+                >
+                  Cancel plan
+                </button>
+              )}
+            </div>
+          )}
+
           <p className={`text-xs mt-3 ${muted}`}>
             Payment is handled by Stripe. Your card details never reach Finquanta.
           </p>
@@ -387,6 +360,51 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
 
       {note && <p className="text-sm text-green-600">{note}</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
+
+      {/* Cancelling is a decision about money, so it gets the same weight as a
+          plan change rather than a browser confirm. */}
+      {cancelOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setCancelOpen(false)}
+        >
+          <div
+            className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl ${card}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold">Cancel your plan?</h3>
+            <p className={`text-sm mt-2 ${muted}`}>
+              You keep {billing.badgeLabel} until{" "}
+              <strong>{fmtDate(billing.currentPeriodEnd)}</strong> — the period you have already
+              paid for — and are not charged again after that.
+            </p>
+            <p className={`text-sm mt-2 ${muted}`}>
+              Your books, invoices and history stay exactly as they are. You drop to the free plan,
+              and can start again whenever you like.
+            </p>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setCancelOpen(false);
+                  go(() => setPlanCancellation(false).then(() => ({})), "cancel", { expectRedirect: false });
+                }}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"
+              >
+                Cancel my plan
+              </button>
+              <button
+                onClick={() => setCancelOpen(false)}
+                className={`px-4 py-2.5 rounded-lg border text-sm font-semibold ${
+                  isDark ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Keep it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {switching && (
         <div

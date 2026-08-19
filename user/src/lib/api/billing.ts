@@ -138,3 +138,18 @@ export async function openBillingPortal(): Promise<{ url: string }> {
 export async function getBillingStatus(): Promise<{ configured: boolean; testMode: boolean }> {
   return apiFetch('/v1/billing/status');
 }
+
+/**
+ * Cancel at the end of the paid period, or call that cancellation off.
+ *
+ * `resume: true` undoes a pending cancellation. Nothing is lost either way —
+ * the plan runs to the date already paid for, and the books are never touched.
+ */
+export async function setPlanCancellation(
+  resume = false
+): Promise<{ cancelled: boolean; endsAt: number | string | null }> {
+  return apiFetch('/v1/billing/cancel', {
+    method: 'POST',
+    body: JSON.stringify({ resume }),
+  });
+}

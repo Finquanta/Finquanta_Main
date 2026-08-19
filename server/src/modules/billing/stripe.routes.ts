@@ -7,7 +7,7 @@ import { EntitlementsService } from './entitlements.service';
 import { isPlanKey, PLAN_KEYS, PlanKey, SELF_SERVE_PLANS } from './plans';
 import {
   changeSubscriptionPrice, createCheckoutSession, createPortalSession, getSubscription,
-  isConfigured, isLiveSubscription, isTestMode, StripeNotConfigured,
+  isConfigured, isLiveSubscription, isTestMode, setCancelAtPeriodEnd, StripeNotConfigured,
 } from './stripe.client';
 
 /**
@@ -237,6 +237,52 @@ export async function stripeRoutes(fastify: FastifyInstance, options: { database
 
       request.log.error(error);
       return reply.status(502).send({ success: false, error: 'Could not start checkout.' });
+    }
+  }) as any);
+
+  /**
+   * Cancel at the end of the paid period, or call that cancellation off.
+   *
+   * The portal can already do this, but burying it there means somebody trying
+   * to leave has to go looking — and a cancel flow that feels evasive is how a
+   * cancellation becomes a chargeback. It is one button next to the plans.
+   *
+   * Nothing is lost on cancelling: the plan runs to the date already paid for,
+   * and the books are never touched.
+   */
+  fastify.post('/v1/billing/cancel', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const businessId = request.businessId!;
+      const { resume } = (request.body as { resume?: boolean }) || {};
+      const sub = await billing.get(businessId);
+      if (!sub?.stripeSubscriptionId) {
+        return reply.status(400).send({ success: false, error: 'There is no subscription to cancel.' });
+      }
+
+      const updated = await setCancelAtPeriodEnd(sub.stripeSubscriptionId, !resume);
+      /**
+       * Written here as well as by the webhook.
+       *
+       * `customer.subscription.updated` will carry the same fact along shortly,
+       * but the person is looking at the screen NOW — waiting for a round trip
+       * through Stripe to redraw the page makes the button feel broken.
+       */
+      await billing.syncFromStripe(businessId, {
+        status: updated?.status ?? null,
+        currentPeriodEnd: updated?.current_period_end ?? null,
+        cancelAt: resume ? null : (updated?.cancel_at ?? updated?.current_period_end ?? null),
+      });
+
+      return reply.send({
+        success: true,
+        data: { cancelled: !resume, endsAt: resume ? null : (updated?.cancel_at ?? updated?.current_period_end ?? null) },
+      });
+    } catch (error) {
+      if (error instanceof StripeNotConfigured) {
+        return reply.status(503).send({ success: false, error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(502).send({ success: false, error: 'Could not change your cancellation.' });
     }
   }) as any);
 
