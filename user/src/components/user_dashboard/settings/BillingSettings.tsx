@@ -148,7 +148,7 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
   const salesEmail = process.env.NEXT_PUBLIC_SALES_EMAIL || "jeeordahnoh@gmail.com";
   const salesMailto =
     `mailto:${salesEmail}` +
-    `?subject=${encodeURIComponent("Question about the Corporate plan")}` +
+    `?subject=${encodeURIComponent("Finquanta — Question about the Corporate plan")}` +
     `&body=${encodeURIComponent(
       `I would like to know more about the Corporate plan.
 

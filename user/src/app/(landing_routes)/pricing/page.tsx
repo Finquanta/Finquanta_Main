@@ -17,7 +17,7 @@ import ComparisonTable from '@/components/pricing/ComparisonTable';
  */
 const CORPORATE_ENQUIRY =
   'mailto:jeeordahnoh@gmail.com' +
-  '?subject=' + encodeURIComponent('Question about the Corporate plan') +
+  '?subject=' + encodeURIComponent('Finquanta — Question about the Corporate plan') +
   '&body=' + encodeURIComponent(
     'I would like to know more about the Corporate plan.' + String.fromCharCode(10) + String.fromCharCode(10) +
     'What we are looking for:' + String.fromCharCode(10)
