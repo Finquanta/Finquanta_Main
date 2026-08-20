@@ -18,7 +18,19 @@ import { getMe } from "@/lib/api/me";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
 const ACTIVE_KEY = "activeBusinessId";
-const INVITABLE_ROLES = BUSINESS_ROLES.filter((r) => r !== "Owner");
+/**
+ * Roles that can be assigned or invited.
+ *
+ * Owner is excluded because becoming one is a transfer, not a role change.
+ * "Other" is excluded because it says nothing — it grants full working access
+ * and a paid seat exactly like the named roles, while telling nobody what the
+ * person actually does. Nobody holds it.
+ *
+ * It stays in BUSINESS_ROLES rather than being deleted: the server validates
+ * against that list, and a value that is merely no longer offered is safer than
+ * one that suddenly becomes invalid for any row that might still carry it.
+ */
+const INVITABLE_ROLES = BUSINESS_ROLES.filter((r) => r !== "Owner" && r !== "Other");
 
 export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const { t } = useLanguage();
@@ -341,9 +353,43 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
   useEffect(() => { getMe().then((u) => setMeId(u.id)).catch(() => setMeId("")); }, []);
 
   /** What one seat costs a month on the plan being billed. Zero when none is. */
+  /**
+   * What a seat actually COSTS this workspace today — the price of the plan
+   * being billed. Zero on a free window, which is why the seat-change dialogs
+   * stay silent there: granting a seat during early access costs nothing, and
+   * warning about a charge that will not happen is just noise.
+   */
   const seatPrice = billing
     ? (billing.plans.find((p) => p.key === billing.plan)?.monthly ?? 0)
     : 0;
+
+  /**
+   * What a seat WOULD cost — the price of the plan currently in force.
+   *
+   * On a trial or early-access window these differ: nothing is charged, but the
+   * workspace is using a paid plan. Showing the figure with the reason attached
+   * is better than showing nothing, because the day the window ends is the day
+   * that number starts arriving, and nobody should meet it for the first time
+   * on an invoice.
+   */
+  const windowPrice = billing
+    ? (billing.plans.find((p) => p.key === billing.effectivePlan)?.monthly ?? 0)
+    : 0;
+
+  /** Why this workspace is not being charged, when it is using a paid plan. */
+  const freeBecause =
+    billing?.reason === "grandfathered" ? "early access"
+      : billing?.reason === "trial" ? "your free trial"
+        : null;
+
+  const shownPrice = seatPrice > 0 ? seatPrice : (freeBecause ? windowPrice : 0);
+  const windowEnds = billing?.reason === "grandfathered"
+    ? billing?.grandfatheredUntil
+    : billing?.trialEndsAt;
+  const endsOn = windowEnds
+    ? new Date(windowEnds).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : null;
+
   const money = (n: number) => `$${n.toFixed(2)}`;
   const holdsSeat = (role: BusinessRole) => role !== "Viewer";
   const seatsUsed = members.filter((m) => holdsSeat(m.role)).length;
@@ -649,14 +695,26 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
                 There is no way to buy fewer seats than you have working
                 members: the seat count is the member count, so the only lever
                 is the role, and it should be named. */}
-            {seatPrice > 0 && !loading && members.length > 0 && (
+            {shownPrice > 0 && !loading && members.length > 0 && (
               <div className={`text-xs mb-2 ${sub}`}>
                 <p>
-                  {seatsUsed} paid seat{seatsUsed === 1 ? "" : "s"} × {money(seatPrice)}/mo ={" "}
-                  <span className="font-semibold">{money(seatsUsed * seatPrice)}/mo</span>
+                  {seatsUsed} seat{seatsUsed === 1 ? "" : "s"} × {money(shownPrice)}/mo ={" "}
+                  <span className="font-semibold">{money(seatsUsed * shownPrice)}/mo</span>
                 </p>
+
+                {/* Shown on a free window too, with the reason attached. Hiding
+                    it there meant the workspace using the most expensive plan
+                    was the one told least about what it costs — and the day the
+                    window closes is the day that figure starts arriving. */}
+                {freeBecause ? (
+                  <p className={`mt-0.5 font-semibold ${isDark ? "text-amber-400" : "text-amber-700"}`}>
+                    Not charged — you are on {freeBecause}
+                    {endsOn ? `, which ends ${endsOn}` : ""}.
+                  </p>
+                ) : null}
+
                 <p className="mt-0.5">
-                  Every working role is a paid seat. Change someone to{" "}
+                  Every working role {freeBecause ? "counts as" : "is"} a paid seat. Change someone to{" "}
                   <span className="font-semibold">Viewer</span> for free read-only access.
                 </p>
               </div>
