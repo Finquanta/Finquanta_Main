@@ -641,13 +641,25 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
         ) : (
           <>
             {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-            {/* What this team costs and why. Viewers are named as free here, at
-                the moment of deciding, rather than left to be discovered. */}
+            {/* What this team costs, and HOW it is arrived at.
+                The total alone leaves people to infer the mechanism from the
+                badges. Saying it here answers the question where it is actually
+                asked — looking at the member list, wondering why the bill is
+                what it is — rather than after an invoice that feels wrong.
+                There is no way to buy fewer seats than you have working
+                members: the seat count is the member count, so the only lever
+                is the role, and it should be named. */}
             {seatPrice > 0 && !loading && members.length > 0 && (
-              <p className={`text-xs mb-2 ${sub}`}>
-                {seatsUsed} paid seat{seatsUsed === 1 ? "" : "s"} × {money(seatPrice)}/mo ={" "}
-                <span className="font-semibold">{money(seatsUsed * seatPrice)}/mo</span>. Viewers are free.
-              </p>
+              <div className={`text-xs mb-2 ${sub}`}>
+                <p>
+                  {seatsUsed} paid seat{seatsUsed === 1 ? "" : "s"} × {money(seatPrice)}/mo ={" "}
+                  <span className="font-semibold">{money(seatsUsed * seatPrice)}/mo</span>
+                </p>
+                <p className="mt-0.5">
+                  Every working role is a paid seat. Change someone to{" "}
+                  <span className="font-semibold">Viewer</span> for free read-only access.
+                </p>
+              </div>
             )}
             {loading ? (
               <p className={`text-sm ${sub}`}>{t("dashboard","wsLoadingTeam")}</p>
