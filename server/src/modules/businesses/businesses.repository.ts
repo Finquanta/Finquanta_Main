@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { runOnce } from '../../infrastructure/migrations';
 import { planBadgeFromRow, PlanTone } from '../billing/effective-plan';
 
 export const BUSINESS_ROLES = ['Owner', 'Admin', 'Accountant', 'Bookkeeper', 'Manager', 'Viewer', 'Other'] as const;
@@ -169,6 +170,29 @@ export class BusinessesRepository {
         SELECT 1 FROM business_members m WHERE m.business_id = b.id AND m.user_id = b.owner_id
       )
     `);
+
+    /**
+     * The two lookups that happen on nearly every request, indexed.
+     *
+     * `business_members` already has UNIQUE (business_id, user_id), and that
+     * index cannot serve a `WHERE user_id = $1` search: user_id is its TRAILING
+     * column, so Postgres has to scan the whole table. Both `listForUser` (the
+     * workspace switcher) and `getDefaultBusinessId` filter on exactly that —
+     * and `getDefaultBusinessId` runs inside `withBusiness`, which is the
+     * preHandler on essentially every authenticated route. That is a sequential
+     * scan of every membership row on the platform, per request, growing with
+     * total customers rather than with the size of the account asking.
+     *
+     * `businesses.owner_id` had no index at all, and the plan work now leans on
+     * it hard: the workspace allowance counts owned workspaces, the verification
+     * bonus joins through it, and both boot-time backfills scan it.
+     */
+    await this.database.query(
+      `CREATE INDEX IF NOT EXISTS idx_business_members_user ON business_members(user_id)`
+    );
+    await this.database.query(
+      `CREATE INDEX IF NOT EXISTS idx_businesses_owner ON businesses(owner_id)`
+    );
   }
 
   /** The user's default (earliest) business — used when no active business is specified. */
@@ -190,12 +214,27 @@ export class BusinessesRepository {
     const tables = ['financial_transactions', 'user_goals', 'reminders'];
     for (const table of tables) {
       await this.database.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS business_id UUID`);
-      // Backfill: assign existing rows to the owning user's earliest business.
-      await this.database.query(`
-        UPDATE ${table} t SET business_id = (
-          SELECT b.id FROM businesses b WHERE b.owner_id = t.user_id ORDER BY b.created_at ASC LIMIT 1
-        ) WHERE t.business_id IS NULL
-      `);
+
+      /**
+       * Backfill: assign pre-scoping rows to the owning user's earliest
+       * business. Recorded in the ledger because it is the single most
+       * expensive thing boot does — a correlated subquery evaluated per row,
+       * over the LEDGER tables, which are the ones that grow fastest. Every
+       * row written since scoping shipped already carries `business_id`, so
+       * after the first run this only ever scans to find nothing.
+       *
+       * The ALTER above and the CREATE INDEX below stay outside the ledger on
+       * purpose: they are cheap, and they reconcile a drifted database back to
+       * the expected schema, which is worth re-checking on every boot.
+       */
+      await runOnce(this.database, `businesses:scope-${table}`, async (client) => {
+        await client.query(`
+          UPDATE ${table} t SET business_id = (
+            SELECT b.id FROM businesses b WHERE b.owner_id = t.user_id ORDER BY b.created_at ASC LIMIT 1
+          ) WHERE t.business_id IS NULL
+        `);
+      });
+
       await this.database.query(`CREATE INDEX IF NOT EXISTS idx_${table}_business ON ${table}(business_id)`);
     }
   }
