@@ -10,8 +10,21 @@
  * a white table is an invisible badge.
  */
 
+/**
+ * MIRRORS `PlanTone` in server/src/modules/billing/effective-plan.ts.
+ *
+ * `server` and `user` are separate projects with no shared package, so this
+ * union cannot import the real one — it is restated, and adding a tier means
+ * editing BOTH files. Nothing catches a mismatch at compile time, because the
+ * drift is across a process boundary.
+ *
+ * What stops that being a bug is `planTone()` at the bottom of this file: a
+ * tone the server sends that is missing here renders grey rather than throwing.
+ * A new tier that is only added server-side therefore looks unstyled, not
+ * broken — check here first if a plan pill ever shows up grey.
+ */
 export type PlanTone =
-  | 'freemium' | 'entrepreneur' | 'business' | 'corporate'
+  | 'freemium' | 'starter' | 'entrepreneur' | 'business' | 'corporate'
   | 'grandfathered' | 'trial';
 
 export interface ToneColors {
@@ -31,6 +44,8 @@ export interface ToneColors {
 
 const LIGHT: Record<PlanTone, ToneColors> = {
   freemium: { bg: '#dcfce7', fg: '#15803d', border: 'transparent', text: '#15803d' },
+  // Yellow needs a darker ink than the others to stay readable on a pale chip.
+  starter: { bg: '#fef9c3', fg: '#a16207', border: 'transparent', text: '#a16207' },
   entrepreneur: { bg: '#dbeafe', fg: '#1d4ed8', border: 'transparent', text: '#1d4ed8' },
   business: { bg: '#fee2e2', fg: '#b91c1c', border: 'transparent', text: '#b91c1c' },
   corporate: { bg: '#ffffff', fg: '#374151', border: '#d1d5db', text: '#374151' },
@@ -40,6 +55,7 @@ const LIGHT: Record<PlanTone, ToneColors> = {
 
 const DARK: Record<PlanTone, ToneColors> = {
   freemium: { bg: 'rgba(34,197,94,.16)', fg: '#4ade80', border: 'transparent', text: '#4ade80' },
+  starter: { bg: 'rgba(234,179,8,.18)', fg: '#facc15', border: 'transparent', text: '#facc15' },
   entrepreneur: { bg: 'rgba(59,130,246,.16)', fg: '#60a5fa', border: 'transparent', text: '#60a5fa' },
   business: { bg: 'rgba(239,68,68,.16)', fg: '#f87171', border: 'transparent', text: '#f87171' },
   // The pill stays a solid white chip with dark text; the plain-text form goes

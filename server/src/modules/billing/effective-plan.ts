@@ -81,7 +81,7 @@ export function effectivePlanFromRow(row: any, trialPlan: PlanKey = 'business'):
 
 /** The six things a plan badge can be. Doubles as the colour key on the client. */
 export type PlanTone =
-  | 'freemium' | 'entrepreneur' | 'business' | 'corporate'
+  | 'freemium' | 'starter' | 'entrepreneur' | 'business' | 'corporate'
   | 'grandfathered' | 'trial';
 
 export interface PlanBadge {

@@ -30,6 +30,7 @@ interface Row {
   /** A section heading rather than a feature. */
   section?: boolean;
   free?: Cell;
+  starter?: Cell;
   entrepreneur?: Cell;
   business?: Cell;
   /**
@@ -41,42 +42,63 @@ interface Row {
 
 const ROWS: Row[] = [
   { key: 'pfSecCore', section: true },
-  { key: 'pfBookkeeping', free: true, entrepreneur: true, business: true },
-  { key: 'pfAccounting', free: true, entrepreneur: true, business: true },
-  { key: 'pfPlan', free: true, entrepreneur: true, business: true },
-  { key: 'pfProposal', free: true, entrepreneur: true, business: true },
-  { key: 'pfMultiCurrency', free: true, entrepreneur: true, business: true },
+  { key: 'pfBookkeeping', free: true, starter: true, entrepreneur: true, business: true },
+  { key: 'pfAccounting', free: true, starter: true, entrepreneur: true, business: true },
+  { key: 'pfPlan', free: true, starter: true, entrepreneur: true, business: true },
+  { key: 'pfProposal', free: true, starter: true, entrepreneur: true, business: true },
+  { key: 'pfMultiCurrency', free: true, starter: true, entrepreneur: true, business: true },
 
   { key: 'pfSecBrain', section: true },
   // Split into its real gates. As one row it either overpromised (Freemium
   // does get notes) or undersold (the graph genuinely is paid).
-  { key: 'pfBrainNotes', free: true, entrepreneur: true, business: true },
-  { key: 'pfBrainGraph', free: false, entrepreneur: true, business: true },
-  { key: 'pfBrainBacklinks', free: false, entrepreneur: true, business: true },
-  { key: 'pfBrainAuto', free: false, entrepreneur: true, business: true },
-  { key: 'pfCouncil', free: false, entrepreneur: true, business: true },
+  { key: 'pfBrainNotes', free: true, starter: true, entrepreneur: true, business: true },
+  { key: 'pfBrainGraph', free: false, starter: true, entrepreneur: true, business: true },
+  { key: 'pfBrainBacklinks', free: false, starter: false, entrepreneur: true, business: true },
+  { key: 'pfBrainAuto', free: false, starter: false, entrepreneur: true, business: true },
+  { key: 'pfCouncil', free: false, starter: false, entrepreneur: true, business: true },
 
   { key: 'pfSecLimits', section: true },
   // Numbers, not ticks — the tiers mostly differ by how much, not whether.
-  { key: 'pfSeats', free: '1', entrepreneur: 'pfPerSeatCell', business: 'pfPerSeatCell' },
-  { key: 'pfFinnaMsgs', free: '50', entrepreneur: '500', business: '2,000' },
-  { key: 'pfCouncilSessions', free: '—', entrepreneur: '10', business: '30' },
-  { key: 'pfGroups', free: '3', entrepreneur: 'pfUnlimited', business: 'pfUnlimited' },
-  // No "workspaces" row. There is no workspace: `businesses` is a flat table
-  // and the UI simply calls a business row a workspace, so the old row was
-  // advertising a limit on a thing that does not exist as its own object. The
-  // `businesses` limit stays in plans.ts, unenforced, until it means something.
+  { key: 'pfSeats', free: '1', starter: 'pfPerSeatCell', entrepreneur: 'pfPerSeatCell', business: 'pfPerSeatCell' },
+  { key: 'pfFinnaMsgs', free: '50', starter: '200', entrepreneur: '500', business: '2,000' },
+  { key: 'pfCouncilSessions', free: '—', starter: '—', entrepreneur: '10', business: '30' },
+  { key: 'pfGroups', free: '3', starter: '10', entrepreneur: 'pfUnlimited', business: 'pfUnlimited' },
+  /**
+   * NO WORKSPACES ROW, deliberately.
+   *
+   * A plan covers one workspace, and a second workspace is bought — it carries
+   * its own subscription and is charged by ITS seats, like the first. So there
+   * is no "workspaces included" number to advertise: the honest answer is the
+   * same on every tier, and a column of 1s reads as a limit being imposed
+   * rather than a unit of purchase being described.
+   *
+   * Per-seat pricing is already stated on the cards and in the pfSeats row
+   * above, which is where this belongs.
+   */
 
   { key: 'pfSecSoon', section: true },
-  { key: 'pfBank', free: false, entrepreneur: true, business: true, soon: true },
-  { key: 'pfDocImport', free: false, entrepreneur: true, business: true, soon: true },
-  { key: 'pfForecasting', free: false, entrepreneur: false, business: true, soon: true },
-  { key: 'pfTaxes', free: false, entrepreneur: true, business: true, soon: true },
-  { key: 'pfPayroll', free: false, entrepreneur: false, business: true, soon: true },
-  { key: 'pfStatements', free: false, entrepreneur: false, business: true, soon: true },
-  { key: 'pfAdmin', free: false, entrepreneur: false, business: true, soon: true },
-  { key: 'pfAudits', free: false, entrepreneur: false, business: true, soon: true },
-  { key: 'pfContracts', free: false, entrepreneur: false, business: true, soon: true },
+  /**
+   * Every tier answers every row — a cross, never a blank. An empty cell reads
+   * as an oversight; a cross is an answer.
+   *
+   * Starter gets bank feeds and document import: they are what turn bookkeeping
+   * from typing into checking, and they are worth paying to move off Freemium
+   * for. The rest of this section stays crossed for Starter, which is where the
+   * line between it and Entrepreneur actually falls.
+   *
+   * The tiers are drawn to sell, not to describe a persona — "for freelancers"
+   * is how Starter is MARKETED, and nothing here should be reasoned about as
+   * though the plan were technically limited to one person.
+   */
+  { key: 'pfBank', free: false, starter: true, entrepreneur: true, business: true, soon: true },
+  { key: 'pfDocImport', free: false, starter: true, entrepreneur: true, business: true, soon: true },
+  { key: 'pfForecasting', free: false, starter: false, entrepreneur: true, business: true, soon: true },
+  { key: 'pfTaxes', free: false, starter: false, entrepreneur: true, business: true, soon: true },
+  { key: 'pfPayroll', free: false, starter: false, entrepreneur: true, business: true, soon: true },
+  { key: 'pfStatements', free: false, starter: false, entrepreneur: false, business: true, soon: true },
+  { key: 'pfAdmin', free: false, starter: false, entrepreneur: false, business: true, soon: true },
+  { key: 'pfAudits', free: false, starter: false, entrepreneur: false, business: true, soon: true },
+  { key: 'pfContracts', free: false, starter: false, entrepreneur: false, business: true, soon: true },
 ];
 
 /**
@@ -129,6 +151,7 @@ export default function ComparisonTable() {
           <tr className="bg-gray-100">
             <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('pricing', 'pFeatures')}</th>
             <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pFree')}</th>
+            <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pStarter')}</th>
             <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pEntrepreneur')}</th>
             <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pBusiness')}</th>
           </tr>
@@ -139,7 +162,7 @@ export default function ComparisonTable() {
               // Section bands, like the reference charts — they break a long
               // list into things you can actually scan.
               <tr key={row.key} className="bg-gray-200/70">
-                <td colSpan={4} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
+                <td colSpan={5} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
                   {t('pricing', row.key)}
                 </td>
               </tr>
@@ -147,6 +170,7 @@ export default function ComparisonTable() {
               <tr key={row.key} className={row.soon ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <td className="px-4 py-3 text-left text-gray-700">{t('pricing', row.key)}</td>
                 <td className="px-4 py-3">{renderCell(row.free, row.soon)}</td>
+                <td className="px-4 py-3">{renderCell(row.starter, row.soon)}</td>
                 <td className="px-4 py-3">{renderCell(row.entrepreneur, row.soon)}</td>
                 <td className="px-4 py-3">{renderCell(row.business, row.soon)}</td>
               </tr>

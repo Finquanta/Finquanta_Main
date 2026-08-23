@@ -11,7 +11,15 @@
  * charged. Until then nothing here moves money.
  */
 
-export const PLAN_KEYS = ['freemium', 'entrepreneur', 'business', 'corporate'] as const;
+/**
+ * Every plan, CHEAPEST FIRST — the order is the ranking.
+ *
+ * `indexOf` on this array decides what counts as an upgrade or a downgrade, so
+ * inserting a tier in the wrong position would silently invert those: an
+ * upgrade would bill as a downgrade and a downgrade would charge immediately.
+ * Starter sits between Freemium and Entrepreneur.
+ */
+export const PLAN_KEYS = ['freemium', 'starter', 'entrepreneur', 'business', 'corporate'] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
 
 export const isPlanKey = (v: unknown): v is PlanKey => PLAN_KEYS.includes(v as PlanKey);
@@ -33,7 +41,16 @@ export interface PlanFeatures {
   council: boolean;
   /** Cash-flow forecasting and scenario projections. */
   forecasting: boolean;
-  /** More than one workspace per account. */
+  /**
+   * VESTIGIAL — do not gate anything on this, and do not trust its value.
+   *
+   * It reads as "more than one workspace per account", which is true for every
+   * account regardless of tier: workspaces are not rationed by plan. Each one
+   * carries its own subscription and is billed by its own seats, so a second
+   * workspace is a second purchase that starts on Freemium — not a perk to
+   * unlock. The per-tier values below are leftovers from when this was a real
+   * distinction and are kept only because the client still reads the shape.
+   */
   multipleBusinesses: boolean;
   /** Portfolio view across businesses. */
   portfolio: boolean;
@@ -53,6 +70,15 @@ export interface PlanLimits {
   councilSessionsPerMonth: number | null;
   groups: number | null;
   importsPerMonth: number | null;
+  /**
+   * Workspaces allowed. `null` on every tier — workspaces are not capped.
+   *
+   * A workspace is the thing a plan is bought FOR, not something a plan doles
+   * out: anyone may open another, it starts on Freemium, and it is billed by
+   * its own seats if it is ever upgraded. This was briefly a real cap, to stop
+   * people farming free trials by making workspaces; the trial is now claimed
+   * against the user row instead, which fixes that without refusing business.
+   */
   businesses: number | null;
 }
 
@@ -95,7 +121,45 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 0,
       groups: 3,
       importsPerMonth: 3,
-      businesses: 1,
+      businesses: null,
+    },
+  },
+
+  /**
+   * For freelancers, sole traders and brand-new businesses — one person doing
+   * their own books rather than a team.
+   *
+   * The line against Entrepreneur is the AI, not the bookkeeping. Everything
+   * that records money is here in full, because a freelancer's invoices are
+   * not worth less than a company's. What is smaller is Finna's allowance, and
+   * the Council is absent entirely: a Council session costs real money to run,
+   * and at $19.99 there is no room for it.
+   *
+   * The Brain graph is included deliberately. It is the thing people show other
+   * people, and putting the most visible part of the product two tiers up makes
+   * the cheap plan feel like a demo.
+   */
+  starter: {
+    key: 'starter',
+    name: 'Starter',
+    monthly: 19.99,
+    // Ten months for the price of twelve, matching the other tiers.
+    annual: 199.99,
+    contactSales: false,
+    features: {
+      ...NOTHING,
+      brainGraph: true,
+    },
+    limits: {
+      // Four times Freemium, well short of Entrepreneur's 500. Enough for daily
+      // use by one person, not enough to run a team's questions through.
+      finnaMessagesPerMonth: 200,
+      // Council starts at Entrepreneur. Each session costs us real money, and
+      // this tier does not carry it.
+      councilSessionsPerMonth: 0,
+      groups: 10,
+      importsPerMonth: 20,
+      businesses: null,
     },
   },
 
@@ -114,6 +178,15 @@ export const PLANS: Record<PlanKey, Plan> = {
       // pricing page sells it at this tier and the two must not disagree — a
       // page promising something the server 402s is a support ticket.
       council: true,
+      // Vestigial, like the flag itself — nothing reads it. Anyone on any tier
+      // may open another workspace; it starts on Freemium and is billed by its
+      // own seats if they upgrade it.
+      multipleBusinesses: false,
+      // Forecasting is advertised as coming soon at this tier, so the flag has
+      // to say so too. Nothing is gated by it yet — the feature does not exist —
+      // but the day it ships, entitlements and the pricing page must already
+      // agree, rather than the page promising what the server refuses.
+      forecasting: true,
     },
     limits: {
       finnaMessagesPerMonth: 500,
@@ -123,7 +196,16 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 10,
       groups: null,
       importsPerMonth: 50,
-      businesses: 1,
+      /**
+       * One, like every self-serve tier.
+       *
+       * A plan buys a workspace; it does not buy a number of them. A second
+       * workspace is a second purchase, carrying its own subscription and
+       * charged by its own seats. It was briefly 3 to give a workspaces row on
+       * the comparison table something to say — the row is gone, and with it
+       * the only reason this was ever a number at all.
+       */
+      businesses: null,
     },
   },
 
@@ -147,7 +229,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 30,
       groups: null,
       importsPerMonth: null,
-      businesses: 5,
+      businesses: null,
     },
   },
 
@@ -194,4 +276,4 @@ export const TRIAL_DAYS_VERIFIED = 14;
 export const GRANDFATHER_MONTHS = 6;
 
 /** Plans a customer can buy without talking to anyone. */
-export const SELF_SERVE_PLANS: PlanKey[] = ['freemium', 'entrepreneur', 'business'];
+export const SELF_SERVE_PLANS: PlanKey[] = ['freemium', 'starter', 'entrepreneur', 'business'];
