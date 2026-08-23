@@ -205,6 +205,36 @@ export async function getAuditLogs(): Promise<AuditLog[]> {
   return apiFetch<AuditLog[]>('/v1/admin/audit');
 }
 
+/**
+ * One closed account.
+ *
+ * Every field is a COPY taken just before the delete — the user row it
+ * describes is gone, so there is nothing to join back to.
+ */
+export interface AccountDeletion {
+  id: string;
+  userId: string;
+  email: string | null;
+  name: string | null;
+  /** 'self' = they closed it themselves. 'admin' = we removed it. */
+  source: 'self' | 'admin' | string;
+  actorId: string | null;
+  actorEmail: string | null;
+  workspacesDestroyed: number;
+  createdAt: string | null;
+}
+
+/**
+ * Accounts that have been deleted (admin only).
+ *
+ * Deliberately NOT read from the audit log: that only ever recorded admin
+ * actions, so people who closed their own account — most of them — were
+ * invisible.
+ */
+export async function getAccountDeletions(): Promise<AccountDeletion[]> {
+  return apiFetch<AccountDeletion[]>('/v1/admin/account-deletions');
+}
+
 /** Headline numbers for the admin Overview tab. */
 export interface AdminOverview {
   /** The window the dated figures cover. Null on either side = open-ended. */

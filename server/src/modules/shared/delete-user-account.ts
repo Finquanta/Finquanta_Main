@@ -34,7 +34,53 @@ import { stopBillingForBusinesses } from '../billing/stop-billing';
  * `DELETE FROM users`. Both call this now — anything the cascade needs ordered
  * belongs in this function, not in a caller.
  */
-export async function deleteUserAccount(database: Database, userId: string): Promise<boolean> {
+/** Who pressed the button. Self-serve leaves `actorId` null — nobody else acted. */
+export interface DeletionActor {
+  actorId?: string | null;
+  actorEmail?: string | null;
+  /** 'self' when the account holder did it, 'admin' from the admin panel. */
+  source: 'self' | 'admin';
+}
+
+/**
+ * The permanent record of a deletion, written INSIDE the teardown transaction.
+ *
+ * A deleted user leaves nothing behind: `users` is gone and every FK cascades
+ * off it, so afterwards there is no way to answer "whose account was that?".
+ * `admin_audit_logs` only half-covers it — the admin panel writes an entry when
+ * an admin deletes somebody, but a person deleting their OWN account through
+ * profile settings was recorded nowhere at all. That is the more common case
+ * and the more important one to be able to answer questions about later.
+ *
+ * The identifying fields are copied in rather than referenced, precisely
+ * because the row they came from is about to stop existing. No FK to `users`
+ * for the same reason — a foreign key here would either block the delete or
+ * cascade the evidence away with it.
+ */
+export async function ensureAccountDeletionsSchema(database: Database): Promise<void> {
+  await database.query(`
+    CREATE TABLE IF NOT EXISTS account_deletions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL,
+      email VARCHAR(255),
+      name VARCHAR(255),
+      source VARCHAR(16) NOT NULL DEFAULT 'self',
+      actor_id UUID,
+      actor_email VARCHAR(255),
+      workspaces_destroyed INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  `);
+  await database.query(
+    `CREATE INDEX IF NOT EXISTS idx_account_deletions_created ON account_deletions(created_at DESC)`
+  );
+}
+
+export async function deleteUserAccount(
+  database: Database,
+  userId: string,
+  actor: DeletionActor = { source: 'self' }
+): Promise<boolean> {
   // The users row is deleted on the same client, inside the same BEGIN/COMMIT:
   // a separate query would take a different pooled connection and commit the
   // ledger teardown on its own, so a failure there would destroy the financial
@@ -65,12 +111,48 @@ export async function deleteUserAccount(database: Database, userId: string): Pro
      */
     const owned = await client.query('SELECT id FROM businesses WHERE owner_id = $1', [userId]);
 
+    /**
+     * Who this was, read while the row still exists. One query earlier and the
+     * cascade below erases the only copy of it.
+     */
+    const who = await client.query(
+      'SELECT email, first_name, last_name FROM users WHERE id = $1',
+      [userId]
+    );
+    const u = who.rows[0];
+
     await client.query(
       `DELETE FROM journal_entries
         WHERE business_id IN (SELECT id FROM businesses WHERE owner_id = $1)`,
       [userId]
     );
     const result = await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    /**
+     * Written on the SAME client, inside the SAME transaction as the delete.
+     *
+     * If the deletion rolls back, so does this — a record of a deletion that
+     * did not happen is worse than no record. And because `account_deletions`
+     * has no FK to `users`, the row survives the cascade that just removed
+     * everything else about them.
+     */
+    if ((result.rowCount ?? 0) > 0 && u) {
+      const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || null;
+      await client.query(
+        `INSERT INTO account_deletions
+           (user_id, email, name, source, actor_id, actor_email, workspaces_destroyed)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          userId,
+          u.email ?? null,
+          name,
+          actor.source,
+          actor.actorId ?? null,
+          actor.actorEmail ?? null,
+          (owned.rows ?? []).length,
+        ]
+      );
+    }
     return {
       deleted: (result.rowCount ?? 0) > 0,
       seatChanges: (memberships.rows ?? []).map((r: any) => r.business_id),

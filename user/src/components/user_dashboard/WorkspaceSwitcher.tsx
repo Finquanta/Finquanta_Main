@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil, Eye, ArrowLeft, Trash2,
-  LogOut, Crown, Send, Link as LinkIcon,
+  LogOut, Crown, Send, Link as LinkIcon, Settings,
 } from "lucide-react";
 import {
   Business, BusinessMember, BusinessRole, BUSINESS_ROLES,
   listBusinesses, createBusiness, createInvite, renameBusiness, getMembers, removeMember,
   transferOwnership, leaveBusiness, changeMemberRole,
 } from "@/lib/api/businesses";
+import WorkspaceSettingsModal from "@/components/user_dashboard/settings/WorkspaceSettingsModal";
 import { MyBilling, getMyBilling } from "@/lib/api/billing";
 import { planTone } from "@/lib/planColors";
 import { COUNTRIES } from "@/lib/countries";
@@ -55,6 +56,8 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
    * question about people. The eye on each row opens that row.
    */
   const [teamFor, setTeamFor] = useState<Business | null>(null);
+  /** Which workspace the settings popup is open for, if any. */
+  const [settingsFor, setSettingsFor] = useState<Business | null>(null);
   const [editingId, setEditingId] = useState<string>("");
   const [editName, setEditName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -228,6 +231,20 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     )}
+                    {/* Workspace settings — business profile, Finna overview
+                        and billing, all scoped to THIS workspace.
+
+                        Switching first is not optional: those pages read the
+                        active workspace from `activeBusinessId`, so opening
+                        them without switching would show the gear you clicked
+                        on one row while editing a different workspace's books. */}
+                    <button
+                      onClick={() => { switchTo(b.id); setSettingsFor(b); }}
+                      className="text-gray-400 hover:text-blue-500"
+                      title="Workspace settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
                     <button onClick={() => { setOpen(false); setTeamFor(b); }} className="text-gray-400 hover:text-blue-500" title={t("dashboard","wsViewTeam")}>
                       <Eye className="h-4 w-4" />
                     </button>
@@ -242,6 +259,14 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
           </div>
         </div>,
         document.body
+      )}
+
+      {settingsFor && (
+        <WorkspaceSettingsModal
+          businessName={settingsFor.name}
+          isDark={isDark}
+          onClose={() => setSettingsFor(null)}
+        />
       )}
 
       {teamFor && (

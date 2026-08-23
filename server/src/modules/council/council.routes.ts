@@ -96,7 +96,7 @@ export async function councilRoutes(fastify: FastifyInstance, options: { databas
         request.user?.id ?? null,
         question
       );
-      await usage.record(request.businessId!, 'council_sessions');
+      await usage.record(request.businessId!, 'council_sessions', 1, request.user!.id);
       return reply.status(201).send({ success: true, data: session });
     } catch (error) {
       // Lost the race for the last slot. Nothing was spent, so this is a 429

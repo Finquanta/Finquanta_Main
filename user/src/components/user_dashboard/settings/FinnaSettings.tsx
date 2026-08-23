@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MyBilling, getMyBilling } from "@/lib/api/billing";
 import { FINNA_VISIBILITY_EVENT, isFinnaHidden, setFinnaHidden } from "@/lib/finnaVisibility";
 import UsageMeter from "./UsageMeter";
+import MemberUsageTable from "./MemberUsageTable";
 
 /**
  * Settings → Finna.
@@ -114,6 +115,11 @@ export default function FinnaSettings({ isDark }: { isDark: boolean }) {
           </>
         )}
       </div>
+
+      {/* Where the shared allowance is actually going. Directly under the
+          meters, because "how much is left" and "who is using it" are the same
+          question asked twice. */}
+      <MemberUsageTable isDark={isDark} />
 
       {/* What the Council is, for anyone who has not opened it */}
       <div className={`border rounded-xl p-4 ${card}`}>

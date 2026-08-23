@@ -93,6 +93,24 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
     }
   }) as any);
 
+  /**
+   * Closed accounts (admin only).
+   *
+   * Separate from /audit because the audit log only ever held ADMIN actions —
+   * somebody deleting their own account from profile settings appeared nowhere,
+   * and that is the majority of deletions. This reads the dedicated record
+   * written inside the deletion transaction itself, so it survives the cascade
+   * that removes everything else about the person.
+   */
+  fastify.get('/v1/admin/account-deletions', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await repo.listAccountDeletions() });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  }) as any);
+
   // Edit a user: name, role (super_admin only), status (restrict/suspend)
   fastify.patch('/v1/admin/users/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
@@ -319,7 +337,7 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         handedOver.push(business.name);
       }
 
-      await repo.deleteUser(id);
+      await repo.deleteUser(id, { actorId: request.user!.id, actorEmail: request.user!.email });
       await repo.addAuditLog({
         actorId: request.user!.id,
         actorEmail: request.user!.email,
@@ -598,7 +616,11 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
         [target.ownerId]
       );
       const days = v.rows[0]?.email_verified ? TRIAL_DAYS_VERIFIED : TRIAL_DAYS_UNVERIFIED;
-      const sub = await billing.startTrial(id, days);
+      /**
+       * `force` — an admin granting a second trial is a deliberate comp, not the
+       * accident the per-account rule exists to stop. Audited below.
+       */
+      const sub = await billing.startTrial(id, days, { userId: target.ownerId || null, force: true });
 
       await repo.addAuditLog({
         actorId: request.user!.id,

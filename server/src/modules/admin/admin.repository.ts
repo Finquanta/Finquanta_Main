@@ -1,5 +1,5 @@
 import { Database } from '../../infrastructure/database';
-import { deleteUserAccount } from '../shared/delete-user-account';
+import { deleteUserAccount, ensureAccountDeletionsSchema } from '../shared/delete-user-account';
 import { deleteBusinessCascade } from '../shared/delete-business';
 import { plansForBusinesses } from './admin.plan';
 
@@ -71,6 +71,23 @@ export interface AuditLogRow {
   createdAt: string | null;
 }
 
+/**
+ * One closed account. Everything here is a COPY taken before the delete, not a
+ * reference — the user row it describes no longer exists.
+ */
+export interface AccountDeletionRow {
+  id: string;
+  userId: string;
+  email: string | null;
+  name: string | null;
+  /** 'self' = they closed it. 'admin' = we removed it. */
+  source: 'self' | 'admin' | string;
+  actorId: string | null;
+  actorEmail: string | null;
+  workspacesDestroyed: number;
+  createdAt: string | null;
+}
+
 export class AdminRepository {
   constructor(private database: Database) {}
 
@@ -83,6 +100,10 @@ export class AdminRepository {
    * recreate it with the full role set so promotions can succeed.
    */
   async ensureSchema(): Promise<void> {
+    // The record of closed accounts. Defined next to the teardown it is written
+    // by, so the table and the INSERT cannot drift apart.
+    await ensureAccountDeletionsSchema(this.database);
+
     await this.database.query(
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`
     );
@@ -609,7 +630,41 @@ export class AdminRepository {
    * server error" for anyone who has actually posted a transaction. See
    * `deleteUserAccount`.
    */
-  async deleteUser(id: string): Promise<void> {
-    await deleteUserAccount(this.database, id);
+  async deleteUser(id: string, actor?: { actorId: string; actorEmail: string }): Promise<void> {
+    // Recorded as an ADMIN deletion so the deletions list can tell "we removed
+    // this account" apart from "they closed it themselves" — the two need very
+    // different answers when somebody asks later what happened.
+    await deleteUserAccount(this.database, id, {
+      source: 'admin',
+      actorId: actor?.actorId ?? null,
+      actorEmail: actor?.actorEmail ?? null,
+    });
+  }
+
+  /**
+   * Accounts that no longer exist, most recent first.
+   *
+   * Read from `account_deletions` rather than the audit log: the audit log only
+   * ever recorded ADMIN deletions, so anyone who closed their own account was
+   * invisible here — which is most of them.
+   */
+  async listAccountDeletions(limit = 250): Promise<AccountDeletionRow[]> {
+    const r = await this.database.query(
+      `SELECT id, user_id, email, name, source, actor_id, actor_email,
+              workspaces_destroyed, created_at
+         FROM account_deletions ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return (r.rows ?? []).map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      email: row.email,
+      name: row.name,
+      source: row.source,
+      actorId: row.actor_id,
+      actorEmail: row.actor_email,
+      workspacesDestroyed: Number(row.workspaces_destroyed) || 0,
+      createdAt: row.created_at,
+    }));
   }
 }

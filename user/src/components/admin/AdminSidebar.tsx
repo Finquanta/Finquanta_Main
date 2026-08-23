@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { logoutAndRedirect } from "@/lib/auth";
 
-type Tab = "overview" | "users" | "businesses" | "blog" | "usage" | "playbook" | "audit" | "patch" | "referrals" | "notifications";
+type Tab = "overview" | "users" | "businesses" | "blog" | "usage" | "playbook" | "audit" | "patch" | "referrals" | "notifications" | "deletions";
 
 const NAV: { key: Tab; label: string; href: string }[] = [
   { key: "overview", label: "Overview", href: "/admin-overview" },
@@ -11,6 +11,10 @@ const NAV: { key: Tab; label: string; href: string }[] = [
   // Directly under Users: business data used to be columns on that tab, where
   // joining it duplicated every owner of more than one workspace.
   { key: "businesses", label: "Workspaces", href: "/admin-businesses" },
+  // Beside Users and Workspaces, because it answers a question about them: the
+  // accounts that USED to be there. Not folded into Audit Logs — that records
+  // admin actions only, so self-closed accounts never appeared in it.
+  { key: "deletions", label: "Deletions", href: "/admin-deletions" },
   { key: "notifications", label: "Notifications", href: "/admin-notifications" },
   { key: "referrals", label: "Referrals", href: "/admin-referrals" },
   { key: "blog", label: "Blog", href: "/admin-blog" },
