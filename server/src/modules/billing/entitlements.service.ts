@@ -32,6 +32,17 @@ export interface Entitlements {
   /** Days left on whatever is granting access above the paid plan. */
   daysRemaining: number | null;
   seats: number;
+  /**
+   * The row this was resolved from.
+   *
+   * Handed back because `for()` has already paid for it. `/v1/billing/me` is
+   * read on nearly every page and used to call `billing.get()` again straight
+   * afterwards for the Stripe ids and the pending downgrade — and `get()` is
+   * not a plain read: it issues the apply-a-due-downgrade UPDATE before its
+   * SELECT. So the hottest endpoint on the platform ran that write twice per
+   * request, for the same row, to learn the same thing.
+   */
+  subscription: Subscription;
 }
 
 const daysUntil = (iso: string | null): number | null => {
@@ -87,6 +98,7 @@ export class EntitlementsService {
           : best.reason === 'grandfathered' ? daysUntil(sub.grandfatheredUntil)
             : null,
       seats,
+      subscription: sub,
     };
   }
 

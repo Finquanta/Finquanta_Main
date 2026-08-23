@@ -1,4 +1,5 @@
 import { Database } from '../../infrastructure/database';
+import { runOnce } from '../../infrastructure/migrations';
 import { GRANDFATHER_MONTHS, PlanKey } from './plans';
 
 /**
@@ -69,6 +70,40 @@ export class BillingRepository {
       );
     `);
 
+    /**
+     * The trial belongs to the PERSON, not the workspace.
+     *
+     * It used to be recorded only on `business_subscriptions`, and creating a
+     * workspace is free and unlimited — so anyone could have a fresh 14-day
+     * Business trial as often as they liked by making another one, or by
+     * deleting one and remaking it. Stamping the user is what closes that.
+     *
+     * `trial_bonus_at` records the +7 days awarded for verifying an email, so
+     * verifying twice cannot be worth fourteen.
+     */
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used_at TIMESTAMP WITH TIME ZONE`);
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_bonus_at TIMESTAMP WITH TIME ZONE`);
+
+    /**
+     * Backfill: anyone whose workspace already carries a started trial has used
+     * theirs. Without this, every existing account would be handed a second one
+     * the moment this ships.
+     *
+     * Recorded in the migration ledger — this repairs history exactly once, and
+     * re-running it every boot would scan `users` against every subscription
+     * forever to keep discovering there is nothing left to do.
+     */
+    await runOnce(this.database, 'billing:backfill-trial-used-at', async (client) => {
+      await client.query(`
+        UPDATE users u SET trial_used_at = s.trial_started_at
+          FROM business_subscriptions s
+          JOIN businesses b ON b.id = s.business_id
+         WHERE b.owner_id = u.id
+           AND s.trial_started_at IS NOT NULL
+           AND u.trial_used_at IS NULL
+      `);
+    });
+
     // A scheduled downgrade, for subscription tables that predate it.
     await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS pending_plan VARCHAR(24)`);
     await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS pending_plan_at TIMESTAMP WITH TIME ZONE`);
@@ -84,15 +119,17 @@ export class BillingRepository {
      * `ensureFor` with no grandfather date, which is correct — they never had
      * the features free, so there is nothing to preserve.
      */
-    await this.database.query(
-      `INSERT INTO business_subscriptions (business_id, plan, status, grandfathered_until)
-       SELECT b.id, 'freemium', 'none', NOW() + ($1 || ' months')::interval
-       FROM businesses b
-       WHERE NOT EXISTS (
-         SELECT 1 FROM business_subscriptions s WHERE s.business_id = b.id
-       )`,
-      [String(GRANDFATHER_MONTHS)]
-    );
+    await runOnce(this.database, 'billing:seed-grandfather-window', async (client) => {
+      await client.query(
+        `INSERT INTO business_subscriptions (business_id, plan, status, grandfathered_until)
+         SELECT b.id, 'freemium', 'none', NOW() + ($1 || ' months')::interval
+         FROM businesses b
+         WHERE NOT EXISTS (
+           SELECT 1 FROM business_subscriptions s WHERE s.business_id = b.id
+         )`,
+        [String(GRANDFATHER_MONTHS)]
+      );
+    });
   }
 
   /** Every workspace has a row; this creates the missing one on first touch. */
@@ -212,8 +249,46 @@ export class BillingRepository {
    * Refuses to restart a trial that has already been used — otherwise anyone
    * could press the button repeatedly for unlimited free access.
    */
-  async startTrial(businessId: string, days: number): Promise<Subscription> {
+  async startTrial(
+    businessId: string,
+    days: number,
+    options: { userId?: string | null; force?: boolean } = {}
+  ): Promise<Subscription> {
     await this.ensureFor(businessId);
+
+    /**
+     * ONE TRIAL PER PERSON, not per workspace.
+     *
+     * Workspaces are free and unlimited to create, so a per-workspace trial is
+     * a per-person trial you can have as many times as you can be bothered to
+     * click. The claim is made against the user row and only succeeds once —
+     * `WHERE trial_used_at IS NULL` makes that true even if two requests arrive
+     * together, rather than relying on a read-then-write.
+     *
+     * `force` exists for the admin panel: granting somebody a second trial is a
+     * legitimate thing to do deliberately, and it is audited there.
+     */
+    if (options.userId && !options.force) {
+      const claim = await this.database.query(
+        `UPDATE users SET trial_used_at = NOW()
+          WHERE id = $1 AND trial_used_at IS NULL
+          RETURNING id`,
+        [options.userId]
+      );
+      if (claim.rowCount === 0) {
+        // Already used one. Return what they have rather than throwing: the
+        // caller is usually onboarding, where this is expected, not an error.
+        const existing = await this.get(businessId);
+        if (!existing) throw new Error('Subscription row vanished');
+        return existing;
+      }
+    } else if (options.userId) {
+      await this.database.query(
+        `UPDATE users SET trial_used_at = COALESCE(trial_used_at, NOW()) WHERE id = $1`,
+        [options.userId]
+      );
+    }
+
     await this.database.query(
       `UPDATE business_subscriptions
           SET status = 'trialing',
@@ -226,6 +301,90 @@ export class BillingRepository {
     const s = await this.get(businessId);
     if (!s) throw new Error('Subscription row vanished');
     return s;
+  }
+
+  /** Has this person already used their one trial? */
+  async hasUsedTrial(userId: string): Promise<boolean> {
+    const r = await this.database.query('SELECT trial_used_at FROM users WHERE id = $1', [userId]);
+    return !!r.rows[0]?.trial_used_at;
+  }
+
+  /**
+   * Does this person OWN the workspace, as opposed to merely being in it?
+   *
+   * `withBusiness` resolves any workspace the caller is a member of, at any
+   * role — so "the active workspace" is not the same question as "a workspace
+   * that is theirs to spend a trial on". Owner-only, deliberately: the trial is
+   * claimed once per account and the verification bonus only ever tops up a
+   * trial on a workspace the person owns, so letting a member start one
+   * anywhere else spends something they can never get back.
+   *
+   * Note `owner_id` is nullable — a workspace can outlive its owner — and a
+   * NULL owner matches nobody, which is the right answer here.
+   */
+  async isOwnedBy(businessId: string, userId: string): Promise<boolean> {
+    const r = await this.database.query(
+      'SELECT 1 AS ok FROM businesses WHERE id = $1 AND owner_id = $2',
+      [businessId, userId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * The +7 days for verifying an email, awarded once.
+   *
+   * Applied to whatever trial is currently running on a workspace they own.
+   * Someone who starts a trial unverified gets 7 days; verifying later tops it
+   * up to the 14 a verified signup would have had, so starting early never
+   * costs them anything.
+   *
+   * The claim on `trial_bonus_at` is the guard — verifying an address twice, or
+   * two verification links arriving at once, cannot award it twice.
+   *
+   * ONLY TOPS UP A TRIAL THAT IS STILL RUNNING. `status` is never moved off
+   * 'trialing' when a trial lapses — nothing sweeps the table, and
+   * `effectivePlan` decides a trial is over by comparing `trial_ends_at` to now
+   * rather than by reading the status. So 'trialing' on its own also describes
+   * every trial that has ever expired, and extending from
+   * `GREATEST(trial_ends_at, NOW())` restarts a dead one from TODAY: a full
+   * week of Business, handed to anyone whose trial ended months ago, the first
+   * time they confirm an address. The boot-time backfill stamps `trial_used_at`
+   * on exactly that population with `trial_bonus_at` still null, and
+   * `resendVerification` is public, so it was reachable on demand.
+   *
+   * `trial_ends_at > NOW()` is therefore the real condition. The claim carries
+   * it too, so a bonus is not burnt on somebody it cannot be paid to.
+   */
+  async awardVerificationBonus(userId: string, days: number): Promise<number> {
+    const claim = await this.database.query(
+      `UPDATE users u SET trial_bonus_at = NOW()
+        WHERE u.id = $1
+          AND u.trial_used_at IS NOT NULL
+          AND u.trial_bonus_at IS NULL
+          AND EXISTS (
+            SELECT 1 FROM business_subscriptions s
+              JOIN businesses b ON b.id = s.business_id
+             WHERE b.owner_id = u.id
+               AND s.status = 'trialing'
+               AND s.trial_ends_at > NOW()
+          )
+        RETURNING u.id`,
+      [userId]
+    );
+    if (claim.rowCount === 0) return 0;
+
+    const extended = await this.database.query(
+      `UPDATE business_subscriptions s
+          SET trial_ends_at = s.trial_ends_at + ($2 || ' days')::interval,
+              updated_at = NOW()
+         FROM businesses b
+        WHERE b.id = s.business_id
+          AND b.owner_id = $1
+          AND s.status = 'trialing'
+          AND s.trial_ends_at > NOW()`,
+      [userId, String(days)]
+    );
+    return extended.rowCount ?? 0;
   }
 
   /**

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { BusinessProfile, getBusinessProfile, saveBusinessProfile } from "@/lib/api/business";
 import { getMe, saveMyPhone } from "@/lib/api/me";
 import { COUNTRIES } from "@/lib/countries";
+import { startMyTrial } from "@/lib/api/billing";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { postAuthDestination } from "@/lib/pendingInvite";
 import { DEFAULT_BUSINESS_NAME } from "@/lib/businessDefaults";
@@ -114,6 +115,34 @@ export default function OnboardingPage() {
   const set = (val: string) =>
     isPersonal ? setPersonalPhone(val) : setForm((f) => ({ ...f, [step.key]: val }));
 
+  /**
+   * Start the free trial on the way into the product — whether they answered
+   * the questions or skipped them.
+   *
+   * Not at signup: somebody who registers and never reaches the dashboard
+   * should not spend a day of trial in the gap. Not a button either — a trial
+   * nobody notices they have to claim is one most people never claim.
+   *
+   * Safe to call twice. The server allows ONE trial per account, so a second
+   * call returns the existing state rather than granting anything, and a
+   * failure here must never block somebody entering the product.
+   */
+  const beginTrial = async () => {
+    try { await startMyTrial(); } catch { /* already used, or offline — not worth blocking on */ }
+  };
+
+  /**
+   * The same call, but nothing waits for it.
+   *
+   * Used by Skip, where the whole point is to leave immediately. Nobody reads
+   * the result — `beginTrial` swallows every outcome — yet awaiting it put a
+   * network round trip in front of the navigation, with no timeout on
+   * `apiFetch` and no spinner on the button. On a stalled connection Skip
+   * simply appeared dead. The trial still starts; the page just stops waiting
+   * to find out.
+   */
+  const beginTrialInBackground = () => { void beginTrial(); };
+
   const goNext = async () => {
     setError(null);
     if (step.required && !value.trim()) {
@@ -147,6 +176,7 @@ export default function OnboardingPage() {
       if (personalPhone.trim()) {
         try { await saveMyPhone(personalPhone.trim()); } catch { /* prompted again in the sidebar */ }
       }
+      await beginTrial();
       // An invitee signs up because someone sent them a link. Onboarding still
       // runs — they get their own workspace like anyone else — but the invite
       // is what they came for, so it is where they land.
@@ -183,7 +213,14 @@ export default function OnboardingPage() {
       {/* Top bar: logo + skip */}
       <div className="flex items-center justify-between px-6 py-4">
         <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-24 h-auto" />
-        <button onClick={() => { if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1"); router.push(postAuthDestination()); }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+        <button onClick={() => {
+          if (typeof window !== "undefined") sessionStorage.setItem("onboardingSkipped", "1");
+          // Skipping still earns the trial — it starts on arriving in the
+          // product, not on answering questions about your business. Fired
+          // without waiting, so a slow network cannot make Skip look broken.
+          beginTrialInBackground();
+          router.push(postAuthDestination());
+        }} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
           {t("onboarding", "skip")}
         </button>
       </div>

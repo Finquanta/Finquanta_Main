@@ -34,12 +34,31 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
     try {
       const businessId = request.businessId!;
       const e = await entitlements.for(businessId);
-      const sub = await billing.get(businessId);
-      const meters = await usage.summary(businessId);
+      // The row `for()` already resolved, rather than a second `billing.get()`
+      // — which would re-run the apply-a-due-downgrade UPDATE as well as the
+      // SELECT, twice per request, on the endpoint every page load hits.
+      const sub = e.subscription;
+      // Same resolution again — the meters compare usage against the very plan
+      // just worked out above, so handing it in keeps the whole endpoint to one.
+      const meters = await usage.summary(businessId, e);
 
-      // Whether the "start your free trial" prompt should appear at all. A
-      // trial is once per workspace; after that the answer is to subscribe.
-      const trialAvailable = !sub?.trialStartedAt;
+      /**
+       * Whether the "start your free trial" prompt should appear at all.
+       *
+       * Three conditions, and they are the same three the POST enforces — the
+       * prompt must not offer something the write will refuse. Once per
+       * workspace, once per PERSON (a second workspace does not come with a
+       * second trial), and only to the owner, since only the owner can spend it.
+       *
+       * Ordered cheapest-first so the two extra queries are skipped entirely
+       * for everyone whose workspace has already started a trial — which, after
+       * onboarding starts one automatically, is nearly every request. `&&`
+       * short-circuits, so a workspace already trialing costs neither.
+       */
+      const trialAvailable =
+        !sub?.trialStartedAt
+        && !(await billing.hasUsedTrial(request.user!.id))
+        && (await billing.isOwnedBy(businessId, request.user!.id));
 
       return reply.send({
         success: true,
@@ -149,7 +168,7 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
       if (!check.allowed) {
         return reply.send({ success: true, data: { ...check, planName: PLANS[(await entitlements.for(businessId)).effectivePlan].name } });
       }
-      const used = await usage.record(businessId, 'finna_messages');
+      const used = await usage.record(businessId, 'finna_messages', 1, request.user!.id);
       return reply.send({
         success: true,
         data: { ...check, used, remaining: check.limit === null ? null : Math.max(0, check.limit - used) },
@@ -170,6 +189,24 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
   }) as any);
 
   /**
+   * Who in this workspace has used what, this period.
+   *
+   * Workspace-scoped via `withBusiness`, so a member only ever sees the
+   * breakdown for a workspace they belong to. Deliberately readable by any
+   * member rather than owners only: the point is for a team to see where their
+   * shared allowance is going, and hiding that from the people spending it is
+   * how a shared quota turns into a surprise.
+   */
+  fastify.get('/v1/billing/usage/members', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await usage.byUser(request.businessId!) });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not load member usage.' });
+    }
+  }) as any);
+
+  /**
    * Start this workspace's trial. Self-serve half of what the user asked for —
    * an admin can also start one from the admin panel.
    *
@@ -180,11 +217,47 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
   fastify.post('/v1/billing/trial', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const businessId = request.businessId!;
+
+      /**
+       * ONLY THE OWNER MAY SPEND THE TRIAL.
+       *
+       * `withBusiness` resolves whatever workspace the caller is a member of —
+       * any role, Viewer included — and the client sends that from
+       * `localStorage.activeBusinessId`. So the workspace this lands on is not
+       * necessarily one the caller owns, and since onboarding now starts the
+       * trial automatically, an invitee whose active workspace is the person
+       * who invited them would silently spend their one lifetime trial on
+       * somebody else's books. They cannot get it back: the claim is per
+       * account, and the verification bonus only ever tops up a trial on a
+       * workspace they OWN, so the +7 days would find nothing either.
+       *
+       * 400 rather than 403 — the client reads 401/403 as a dead session and
+       * signs people out, and this is a refusal, not an expired login.
+       */
+      if (!(await billing.isOwnedBy(businessId, request.user!.id))) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Only the owner of this workspace can start its free trial.',
+        });
+      }
+
       const existing = await billing.get(businessId);
       if (existing?.trialStartedAt) {
         return reply.status(400).send({
           success: false,
-          error: 'This business has already used its free trial.',
+          error: 'This workspace has already used its free trial.',
+        });
+      }
+      /**
+       * Checked against the PERSON, not the workspace.
+       *
+       * Creating workspaces is free and unlimited, so a per-workspace trial is
+       * one anybody can have repeatedly just by making another workspace.
+       */
+      if (await billing.hasUsedTrial(request.user!.id)) {
+        return reply.status(400).send({
+          success: false,
+          error: 'You have already used your free trial. It is one per account.',
         });
       }
 
@@ -194,7 +267,26 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
       );
       const days = v.rows[0]?.email_verified ? TRIAL_DAYS_VERIFIED : TRIAL_DAYS_UNVERIFIED;
 
-      const sub = await billing.startTrial(businessId, days);
+      const sub = await billing.startTrial(businessId, days, { userId: request.user!.id });
+
+      /**
+       * Say so if nothing actually started.
+       *
+       * `startTrial` returns the subscription either way — it declines quietly
+       * when the per-person claim has already been spent, because its usual
+       * caller is onboarding, where that is expected rather than an error. The
+       * checks above catch the ordinary cases, but a second request arriving
+       * while the first is in flight gets past them and loses the claim race.
+       * Reporting `days: 14` for a trial that was not granted would leave the
+       * page counting down a fortnight the account does not have.
+       */
+      if (!sub.trialEndsAt) {
+        return reply.status(400).send({
+          success: false,
+          error: 'You have already used your free trial. It is one per account.',
+        });
+      }
+
       return reply.send({
         success: true,
         data: { trialEndsAt: sub.trialEndsAt, days, verified: !!v.rows[0]?.email_verified },

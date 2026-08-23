@@ -86,6 +86,27 @@ export interface MyBilling {
   plans: PlanOption[];
 }
 
+/**
+ * One member's share of this workspace's allowance, this period.
+ *
+ * `userId` null means the spend outlived the person — they left or closed
+ * their account. It still counts toward the workspace total, so it is shown
+ * rather than dropped, otherwise the rows would not add up to the meter.
+ */
+export interface MemberUsage {
+  userId: string | null;
+  email: string | null;
+  name: string | null;
+  role: string | null;
+  finnaMessages: number;
+  councilSessions: number;
+}
+
+/** Who in this workspace has used what. Workspace-scoped by the active header. */
+export async function getMemberUsage(): Promise<MemberUsage[]> {
+  return apiFetch<MemberUsage[]>('/v1/billing/usage/members');
+}
+
 export async function getMyBilling(): Promise<MyBilling> {
   return apiFetch<MyBilling>('/v1/billing/me');
 }

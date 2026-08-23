@@ -16,6 +16,7 @@ const canManage = (role: string | null) => role === 'Owner' || role === 'Admin';
 export async function businessRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new BusinessesRepository(options.database);
   const passwords = new PasswordManager();
+  const entitlements = new EntitlementsService(options.database);
 
   // List businesses the current user belongs to
   fastify.get('/v1/businesses', { preHandler: [authenticate] }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
@@ -32,6 +33,22 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
     try {
       const { name, country } = request.body as { name?: string; country?: string };
       if (!name || !name.trim()) return reply.status(400).send({ success: false, error: 'Business name is required' });
+
+      /**
+       * NO WORKSPACE CAP, deliberately.
+       *
+       * A new workspace starts on Freemium and is billed by its own seats if it
+       * is ever upgraded, so creating one is the START of a purchase, not a
+       * thing to refuse. Blocking it here charged nobody and only stopped
+       * someone from opening books they would then have paid for.
+       *
+       * This was briefly gated on `limits.businesses` to close the repeated-free-
+       * trial loophole. That loophole is closed properly now, and elsewhere: the
+       * trial is claimed against the USER row (`users.trial_used_at`), so a
+       * second workspace does not come with a second trial no matter how many
+       * are created. Capping workspaces to fix a trial bug was treating the
+       * symptom.
+       */
       return reply.status(201).send({
         success: true,
         data: await repo.create(request.user!.id, name.trim(), country ?? null),

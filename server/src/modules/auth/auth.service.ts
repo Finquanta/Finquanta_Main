@@ -9,6 +9,10 @@ import { TwoFactorService } from './twofa.service';
 import { sendEmail } from '../../infrastructure/email';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
+import { BillingRepository } from '../billing/billing.repository';
+import { TRIAL_DAYS_UNVERIFIED, TRIAL_DAYS_VERIFIED } from '../billing/plans';
+/** 14 verified minus 7 unverified — the difference verifying is worth. */
+const TRIAL_VERIFY_BONUS_DAYS = TRIAL_DAYS_VERIFIED - TRIAL_DAYS_UNVERIFIED;
 import {
   BusinessesRepository, DEFAULT_BUSINESS_NAME, PLACEHOLDER_BUSINESS_NAMES,
 } from '../businesses/businesses.repository';
@@ -238,6 +242,28 @@ export class AuthService {
       throw new VerificationError('expired', 'This verification link has expired. Request a new one below.');
     }
     await this.userRepository.markEmailVerified(row.id);
+
+    /**
+     * The +7 days for verifying, awarded automatically.
+     *
+     * Spec 08 §4.1: 7 days unverified, 14 verified, and verifying later tops
+     * the difference up — so starting a trial before confirming your address
+     * never costs you a week. Nothing implemented it until now.
+     *
+     * Automatic rather than a "claim your days" button: making somebody verify
+     * AND then find a second button is two steps for one decision, and whoever
+     * misses the second one silently loses the time.
+     *
+     * Cannot fail the verification. Somebody confirming their email must end up
+     * verified whatever happens to their trial — the days are a bonus, and a
+     * bonus that can lock you out of your account is not one.
+     */
+    try {
+      await new BillingRepository(this.database).awardVerificationBonus(row.id, TRIAL_VERIFY_BONUS_DAYS);
+    } catch (error) {
+      console.error('Could not extend the trial after verification:', error);
+    }
+
     return 'verified';
   }
 
