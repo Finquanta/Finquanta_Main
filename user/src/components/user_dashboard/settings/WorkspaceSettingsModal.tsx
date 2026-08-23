@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Settings, X } from 'lucide-react';
 import WorkspaceSettingsPanel, { WorkspaceTab } from './WorkspaceSettingsPanel';
+import { listBusinesses } from '@/lib/api/businesses';
 
 /**
  * Workspace settings as a popup.
@@ -47,6 +48,29 @@ export default function WorkspaceSettingsModal({
     };
   }, [onClose]);
 
+  /**
+   * The heading follows the panel's workspace picker.
+   *
+   * `businessName` is the row the gear was clicked on, which is right when the
+   * dialog opens and wrong the moment somebody switches inside it — leaving the
+   * title naming one workspace over a form editing another.
+   */
+  const [shownName, setShownName] = useState(businessName);
+  useEffect(() => { setShownName(businessName); }, [businessName]);
+  useEffect(() => {
+    const onChange = () => {
+      listBusinesses()
+        .then((list) => {
+          const active = localStorage.getItem('activeBusinessId');
+          const found = list.find((b) => b.id === active);
+          if (found) setShownName(found.name);
+        })
+        .catch(() => { /* keep the name we have rather than blanking it */ });
+    };
+    window.addEventListener('finna:businessChanged', onChange);
+    return () => window.removeEventListener('finna:businessChanged', onChange);
+  }, []);
+
   if (typeof document === 'undefined') return null;
 
   const shell = isDark ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900';
@@ -75,7 +99,7 @@ export default function WorkspaceSettingsModal({
                 between workspaces, so without the name there is nothing on
                 screen telling you whose books you are about to change. */}
             <p className={`text-xs mt-0.5 truncate ${muted}`}>
-              {businessName ? businessName : 'Current workspace'}
+              {shownName ? shownName : 'Current workspace'}
             </p>
           </div>
           <button

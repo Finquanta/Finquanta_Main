@@ -25,12 +25,29 @@ const EMPLOYEE_COUNTS = ["Just me", "2–5", "6–10", "11–50", "51–200", "2
 const DEBT_ANSWERS = ["Yes", "No", "Not sure"];
 const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "Get organized"];
 
+/**
+ * The sections this page actually has. Must match the nav below.
+ *
+ * Business Profile, Finna Overview and Billing are deliberately absent — they
+ * are workspace-scoped and live in Workspace Settings now. Links to them from
+ * before the split are still around, which is what this list is for.
+ */
+const PERSONAL_SECTIONS = [
+  'profile-settings', 'notifications', 'languages', 'theme', 'feedback', 'legal', 'logout',
+];
+
 export default function ProfileSettingsPage() {
   const [activeSection, setActiveSection] = useState('profile-settings');
 
   /**
    * Allow another page to open this one on a particular section, e.g.
-   * `/profile-settings?section=billing` from the sidebar's Upgrade button.
+   * `/profile-settings?section=notifications`.
+   *
+   * CHECKED against the sections that exist. It used to accept anything, so a
+   * link to a section that had moved — `?section=billing`, which the sidebar's
+   * Upgrade button pointed at until Billing became workspace-scoped — selected
+   * a section with nothing behind it and left the page blank. Falling back to
+   * the default shows a working page rather than an empty one.
    *
    * Read from `window.location` in an effect rather than with
    * `useSearchParams`, which would drag this page into needing a Suspense
@@ -38,7 +55,7 @@ export default function ProfileSettingsPage() {
    */
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section');
-    if (section) setActiveSection(section);
+    if (section && PERSONAL_SECTIONS.includes(section)) setActiveSection(section);
   }, []);
   const [menuSearch, setMenuSearch] = useState('');
   const [firstName, setFirstName] = useState('');

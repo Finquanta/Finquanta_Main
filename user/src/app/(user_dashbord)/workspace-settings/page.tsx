@@ -43,20 +43,31 @@ export default function WorkspaceSettingsPage() {
     }
   }, []);
 
-  /** Which workspace this is, named so it is clear whose books are being edited. */
+  /**
+   * Which workspace this is, named so it is clear whose books are being edited.
+   *
+   * Re-read whenever the workspace changes, because the panel below can now
+   * switch it in place. A heading naming one workspace over a form editing
+   * another is worse than no heading at all.
+   */
   const [name, setName] = useState<string>('');
   useEffect(() => {
-    listBusinesses()
-      .then((list: Business[]) => {
-        // The same key the API layer sends as X-Business-Id, so the name shown
-        // is guaranteed to be the workspace these tabs actually edit.
-        const active = typeof window !== 'undefined'
-          ? localStorage.getItem('activeBusinessId')
-          : null;
-        const found = list.find((b) => b.id === active) ?? list[0];
-        setName(found?.name ?? '');
-      })
-      .catch(() => setName(''));
+    const refresh = () => {
+      listBusinesses()
+        .then((list: Business[]) => {
+          // The same key the API layer sends as X-Business-Id, so the name shown
+          // is guaranteed to be the workspace these tabs actually edit.
+          const active = typeof window !== 'undefined'
+            ? localStorage.getItem('activeBusinessId')
+            : null;
+          const found = list.find((b) => b.id === active) ?? list[0];
+          setName(found?.name ?? '');
+        })
+        .catch(() => setName(''));
+    };
+    refresh();
+    window.addEventListener('finna:businessChanged', refresh);
+    return () => window.removeEventListener('finna:businessChanged', refresh);
   }, []);
 
   const muted = isDark ? 'text-gray-400' : 'text-gray-500';
