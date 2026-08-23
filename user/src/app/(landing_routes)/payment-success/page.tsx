@@ -20,8 +20,24 @@ import { getMyBilling } from '@/lib/api/billing';
  * that can, because it is the only one that cannot be spoofed by opening a URL.
  */
 
-const ATTEMPTS = 6;
-const GAP_MS = 1500;
+/**
+ * How long to wait before calling it "still settling", and why it is not the
+ * nine seconds it used to be.
+ *
+ * Nine seconds assumed the webhook is processed the moment Stripe sends it.
+ * That holds on a warm server and not otherwise: Render spins an idle instance
+ * down, and this app's own boot budget is 120s (see `pluginTimeout` in
+ * server.ts — ~20 sequential migrations). A card payment into a cold instance
+ * is therefore routinely slower to land than the page was willing to wait, so
+ * a perfectly successful purchase showed "Payment received — still settling"
+ * and told the customer to contact support.
+ *
+ * Backoff rather than more polling at the same rate: quick early attempts still
+ * catch the warm case in a couple of seconds, while the gaps stretch out to
+ * cover a cold boot without hammering the API for a minute and a half.
+ */
+const GAPS_MS = [1000, 1500, 2000, 3000, 4000, 5000, 8000, 10000, 12000, 15000, 20000, 20000];
+const ATTEMPTS = GAPS_MS.length;
 
 type Outcome = 'checking' | 'confirmed' | 'pending';
 
@@ -65,7 +81,7 @@ export default function PaymentSuccess() {
         // Ignore and retry: a single failed read says nothing either way.
       }
       if (attempt >= ATTEMPTS) { setOutcome('pending'); return; }
-      setTimeout(() => poll(attempt + 1), GAP_MS);
+      setTimeout(() => poll(attempt + 1), GAPS_MS[attempt - 1] ?? 5000);
     };
 
     poll(1);

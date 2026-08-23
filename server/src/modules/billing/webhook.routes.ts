@@ -139,11 +139,56 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance, options: { d
        * Money actually arrived. This is the event that grants a plan.
        */
       case 'invoice.paid': {
+        /**
+         * BOTH BAILOUTS BELOW MEAN: THE CUSTOMER PAID AND GOT NOTHING.
+         *
+         * They used to be bare `return`s with a 200 to Stripe, so the single
+         * worst outcome this system can produce — money taken, plan not
+         * granted — left no trace anywhere. The only symptom was the customer
+         * sitting on "Payment received — still settling" forever, and nothing
+         * in the logs to say why.
+         *
+         * `error`, not `warn`: there is no benign reading of a paid invoice we
+         * could not act on. The most likely cause is a STRIPE_PRICE_* variable
+         * missing or mistyped on this deploy — which is exactly the state a
+         * newly added tier is in before its ids are set, and it fails silently
+         * rather than refusing the sale.
+         */
         const businessId = await businessIdFor(object);
-        if (!businessId) return;
+        if (!businessId) {
+          fastify.log.error(
+            {
+              invoiceId: object?.id,
+              customer: object?.customer,
+              subscription: object?.subscription,
+            },
+            'PAID INVOICE NOT GRANTED: could not resolve which workspace it belongs to'
+          );
+          return;
+        }
 
         const plan = planFromInvoice(object);
-        if (!plan) return; // a price we do not sell — nothing to grant
+        if (!plan) {
+          fastify.log.error(
+            {
+              invoiceId: object?.id,
+              businessId,
+              // The ids actually charged, so the mismatch can be compared
+              // against STRIPE_PRICE_* by eye without opening Stripe.
+              chargedPriceIds: (object?.lines?.data ?? [])
+                .filter((l: any) => Number(l?.amount) > 0)
+                .map((l: any) => l?.price?.id ?? l?.pricing?.price_details?.price),
+              configured: PLAN_KEYS.flatMap((p) =>
+                ['MONTHLY', 'YEARLY'].map((i) => {
+                  const name = `STRIPE_PRICE_${p.toUpperCase()}_${i}`;
+                  return `${name}=${process.env[name] ? 'set' : 'MISSING'}`;
+                })
+              ),
+            },
+            'PAID INVOICE NOT GRANTED: no plan matches the price that was charged — check STRIPE_PRICE_* on this deploy'
+          );
+          return;
+        }
 
         await billing.setPlan(businessId, plan);
         await billing.linkStripe(businessId, {
