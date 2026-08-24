@@ -72,6 +72,13 @@ export interface MyBilling {
   daysRemaining: number | null;
   trialAvailable: boolean;
   /**
+   * The trial has lapsed and this workspace has not been asked what it wants to
+   * do about it yet. True at most once per workspace — the server stamps the
+   * row, so it is not a client-side "have I shown this" flag that a cleared
+   * browser would forget.
+   */
+  trialEnded: boolean;
+  /**
    * Plan allowance consumed this month, per metric. Separate from the daily
    * cost caps in ai-usage: this is what the customer bought, not what protects
    * the AI spend. A limit of null means unlimited.
@@ -153,6 +160,16 @@ export async function startCheckout(
     method: 'POST',
     body: JSON.stringify({ plan, interval }),
   });
+}
+
+/**
+ * Put the end-of-trial prompt away for good.
+ *
+ * Called for every outcome — bought a plan, chose to stay free, or closed the
+ * dialog. All three are an answer, and none of them should be asked twice.
+ */
+export async function dismissTrialPrompt(): Promise<{ claimed: boolean }> {
+  return apiFetch('/v1/billing/trial-prompt/seen', { method: 'POST' });
 }
 
 /** Open Stripe's hosted portal: payment method, invoices, cancellation. */

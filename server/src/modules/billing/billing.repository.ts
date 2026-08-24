@@ -37,6 +37,11 @@ export interface Subscription {
   trialEndsAt: string | null;
   /** Existing accounts keep their old access until this passes. */
   grandfatheredUntil: string | null;
+  /**
+   * When the end-of-trial plan prompt was shown. Null means never, which is
+   * what makes it a once-only prompt rather than one on every page load.
+   */
+  trialPromptAt: string | null;
   /** Null throughout phase A. Stripe owns these once billing exists. */
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
@@ -109,6 +114,16 @@ export class BillingRepository {
     await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS pending_plan_at TIMESTAMP WITH TIME ZONE`);
 
     /**
+     * When the "your trial has ended, pick a plan" prompt was shown.
+     *
+     * Recorded so it appears ONCE. Nothing moves `status` off 'trialing' when a
+     * trial lapses, so a lapsed trial is indistinguishable from a running one
+     * except by date — which means without a stamp the prompt would reappear on
+     * every single dashboard load, forever.
+     */
+    await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS trial_prompt_at TIMESTAMP WITH TIME ZONE`);
+
+    /**
      * Grandfathering — every workspace that exists RIGHT NOW keeps the paid
      * features it already has for GRANDFATHER_MONTHS.
      *
@@ -160,7 +175,15 @@ export class BillingRepository {
     await this.database.query(
       `UPDATE business_subscriptions
           SET plan = pending_plan,
-              status = CASE WHEN pending_plan = 'freemium' THEN 'none' ELSE 'active' END,
+              -- A scheduled downgrade to freemium must not end a trial that
+              -- is still running. The status column carries BOTH the
+              -- subscription state and the trial state, so 'none' over a live
+              -- trial silently removes the remaining access, not just a label.
+              status = CASE
+                         WHEN pending_plan <> 'freemium' THEN 'active'
+                         WHEN trial_ends_at > NOW() THEN 'trialing'
+                         ELSE 'none'
+                       END,
               pending_plan = NULL,
               pending_plan_at = NULL,
               updated_at = NOW()
@@ -240,6 +263,34 @@ export class BillingRepository {
         WHERE business_id = $1`,
       [businessId, plan, status]
     );
+
+    /**
+     * Dropping to freemium must not end a trial that still has days left.
+     *
+     * `status` is a single column describing two different things — whether a
+     * subscription is being paid for, AND whether a trial is running. Writing
+     * 'none' over a live trial therefore revokes the customer's remaining
+     * access, not just the label: `effectivePlan` only counts a trial when
+     * `status = 'trialing'`. It is invisible from the row, because
+     * `trial_ends_at` is left in place and still reads as a running trial.
+     *
+     * Reached by the admin plan picker, `customer.subscription.deleted`, and a
+     * portal downgrade — none of which mean "this trial is over".
+     *
+     * A separate guarded statement rather than a CASE in the UPDATE above:
+     * reusing $2 in a comparison is exactly what raised 42P08 here before (see
+     * the note on this method), and this statement reuses nothing.
+     */
+    if (plan === 'freemium') {
+      await this.database.query(
+        `UPDATE business_subscriptions
+            SET status = 'trialing', updated_at = NOW()
+          WHERE business_id = $1
+            AND status = 'none'
+            AND trial_ends_at > NOW()`,
+        [businessId]
+      );
+    }
   }
 
   /**
@@ -385,6 +436,25 @@ export class BillingRepository {
       [userId, String(days)]
     );
     return extended.rowCount ?? 0;
+  }
+
+  /**
+   * Record that the end-of-trial plan prompt has been shown.
+   *
+   * Guarded the same way the trial claim is: the condition lives in the WHERE,
+   * so two dashboard loads arriving together cannot both decide they are the
+   * first. Returns whether this call was the one that claimed it, which is what
+   * the caller needs to know to actually show the dialog.
+   */
+  async markTrialPromptShown(businessId: string): Promise<boolean> {
+    const r = await this.database.query(
+      `UPDATE business_subscriptions
+          SET trial_prompt_at = NOW(), updated_at = NOW()
+        WHERE business_id = $1 AND trial_prompt_at IS NULL
+        RETURNING business_id`,
+      [businessId]
+    );
+    return (r.rowCount ?? 0) > 0;
   }
 
   /**
@@ -557,6 +627,7 @@ export class BillingRepository {
       cancelAt: iso(row.cancel_at),
       pendingPlan: (row.pending_plan as PlanKey) ?? null,
       pendingPlanAt: iso(row.pending_plan_at),
+      trialPromptAt: iso(row.trial_prompt_at),
       updatedAt: iso(row.updated_at),
     };
   }

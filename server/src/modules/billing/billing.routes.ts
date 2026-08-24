@@ -60,6 +60,34 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
         && !(await billing.hasUsedTrial(request.user!.id))
         && (await billing.isOwnedBy(businessId, request.user!.id));
 
+      /**
+       * Whether to show the "your trial has ended — pick a plan" dialog.
+       *
+       * A lapsed trial is only distinguishable from a running one by DATE:
+       * nothing ever moves `status` off 'trialing' when one expires. So the
+       * test is a past end date on a workspace still marked trialing, which
+       * has not been prompted yet.
+       *
+       * Excluded deliberately:
+       *  - anyone on a paid plan (they already chose; `plan` is the paid one)
+       *  - anyone inside a live grandfather window, who has lost nothing yet
+       *    and would be asked to buy something they still have for free
+       *  - anyone already stamped, so this asks once and never nags
+       *
+       * Only the owner is asked, for the same reason only the owner can start a
+       * trial: a member cannot buy a plan for somebody else's workspace, so
+       * prompting them would be a dead end.
+       */
+      const grandfatherLive = !!sub?.grandfatheredUntil && new Date(sub.grandfatheredUntil) > new Date();
+      const trialEnded =
+        sub?.status === 'trialing'
+        && !!sub?.trialEndsAt
+        && new Date(sub.trialEndsAt) <= new Date()
+        && e.plan === 'freemium'
+        && !grandfatherLive
+        && !sub?.trialPromptAt
+        && (await billing.isOwnedBy(businessId, request.user!.id));
+
       return reply.send({
         success: true,
         data: {
@@ -76,6 +104,8 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
           grandfatheredUntil: e.grandfatheredUntil,
           daysRemaining: e.daysRemaining,
           trialAvailable,
+          /** Show the end-of-trial plan picker once. */
+          trialEnded,
           /**
            * When the subscription stops, if a cancellation is scheduled.
            *
@@ -214,6 +244,27 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
    * verified. Verifying later tops it up by 7 through the verification flow,
    * so an unverified user is never worse off for starting early.
    */
+  /**
+   * Dismiss the end-of-trial plan prompt.
+   *
+   * Called whether they picked a plan or chose to stay on Freemium — both are
+   * an answer, and neither should be asked twice. Staying free is a real choice
+   * here, so dismissing is not treated as "ask again later".
+   *
+   * Idempotent, and says whether this call was the one that claimed the stamp.
+   * A dashboard can mount twice (a remount, two tabs), and the guard lives in
+   * the WHERE clause so the second caller cannot also think it was first.
+   */
+  fastify.post('/v1/billing/trial-prompt/seen', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const claimed = await billing.markTrialPromptShown(request.businessId!);
+      return reply.send({ success: true, data: { claimed } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save that.' });
+    }
+  }) as any);
+
   fastify.post('/v1/billing/trial', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const businessId = request.businessId!;

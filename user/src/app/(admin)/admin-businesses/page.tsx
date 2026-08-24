@@ -230,6 +230,21 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—");
 
   /**
+   * How much of a free window is left, in days.
+   *
+   * The date alone made every admin do the arithmetic, which is also how a
+   * window about to lapse goes unnoticed in a list of thirty. Rounded UP, so
+   * the last partial day reads "1 day left" rather than "0" while access is
+   * still live.
+   */
+  const daysLeft = (iso: string | null): number | null => {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    if (Number.isNaN(ms)) return null;
+    return Math.max(0, Math.ceil(ms / 86_400_000));
+  };
+
+  /**
    * The badge. Both the words and the colour come from the SERVER
    * (`planBadgeFor`), so this table and the business switcher in the dashboard
    * cannot describe the same workspace differently — which is exactly what
@@ -379,17 +394,18 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
                             "why does this account have Council?" without
                             opening Stripe. The badge above names the window, so
                             this line carries the plan it grants. */}
-                        {b.onFreeWindow && (
-                          <div style={{ fontSize: 11, color: d.muted, marginTop: 3 }}>
-                            {`${b.effectivePlan} features`}
-                            {b.subscriptionStatus === "trialing" && b.trialEndsAt
-                              ? ` until ${fmtDate(b.trialEndsAt)}`
-                              : b.grandfatheredUntil
-                                ? ` until ${fmtDate(b.grandfatheredUntil)}`
-                                : ""}
-                            {` · billed ${b.plan}`}
-                          </div>
-                        )}
+                        {b.onFreeWindow && (() => {
+                          const until = b.subscriptionStatus === "trialing" ? b.trialEndsAt : b.grandfatheredUntil;
+                          const left = daysLeft(until);
+                          return (
+                            <div style={{ fontSize: 11, color: d.muted, marginTop: 3 }}>
+                              {`${b.effectivePlan} features`}
+                              {until ? ` until ${fmtDate(until)}` : ""}
+                              {left !== null ? ` · ${left} day${left === 1 ? "" : "s"} left` : ""}
+                              {` · billed ${b.plan}`}
+                            </div>
+                          );
+                        })()}
                       </td>
                       {/* The BUSINESS's phone, not any individual's — those
                           are on the Users tab. Two separate numbers on purpose. */}

@@ -981,7 +981,18 @@
     "wsViewTeam": "View team",
     "wsYourBusinesses": "Your workspaces",
     "yourName": "Your name",
-    "businessLabel": "Workspace"
+    "businessLabel": "Workspace",
+    "trialEndTitle": "Your free trial has ended",
+    "trialEndBody": "You're back on the Freemium plan. Pick a plan to keep the features you were using — your books and everything in them stay exactly as they are either way.",
+    "trialEndMonthly": "Monthly",
+    "trialEndYearly": "Yearly",
+    "trialEndPerMo": "/mo",
+    "trialEndPerYr": "/yr",
+    "trialEndPerSeat": "Priced per seat. A workspace with three members pays three times this.",
+    "trialEndOpening": "Opening…",
+    "trialEndStayFree": "Stay on Freemium",
+    "trialEndStayFreeHint": "You keep your books, your workspace and 50 Finna messages a month. You can upgrade whenever you like.",
+    "trialEndErr": "Could not start checkout. Please try again."
   },
   "demo": {
     "acAp": "Accounts Payable",

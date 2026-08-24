@@ -35,6 +35,15 @@ class FakeDb {
   }
 
   /**
+   * The follow-up statement that puts a still-running trial back into
+   * 'trialing' after a drop to freemium. Matched on its SET clause, since it
+   * is the only statement that writes that status without a placeholder.
+   */
+  get trialGuard() {
+    return this.calls.find((c) => c.text.includes("SET status = 'trialing'"));
+  }
+
+  /**
    * The setPlan statement specifically.
    *
    * `get()` now issues its OWN `UPDATE business_subscriptions SET plan = ...`
@@ -83,5 +92,66 @@ describe('BillingRepository.setPlan', () => {
     // UPDATE against nothing would silently affect zero rows — a paid customer
     // left on freemium with no error anywhere.
     expect(db.calls[0]?.text).toContain('INSERT INTO business_subscriptions');
+  });
+});
+
+/**
+ * A drop to freemium must not end a trial that still has days left.
+ *
+ * `status` is one column describing two unrelated things: whether a
+ * subscription is being paid for, and whether a trial is running. So writing
+ * 'none' over a live trial did not merely mislabel the workspace — it revoked
+ * the customer's remaining access, because `effectivePlan` only counts a trial
+ * while `status = 'trialing'`.
+ *
+ * It was invisible from the row: `trial_ends_at` was left in place, so the
+ * record still read as a running trial to anyone looking at it. Found in the
+ * admin panel, where a workspace mid-trial displayed "Freemium" and no days
+ * remaining.
+ *
+ * Reached from the admin plan picker, `customer.subscription.deleted`, and a
+ * portal downgrade — none of which mean "this trial is over".
+ */
+describe('setPlan does not cancel a running trial', () => {
+  it('restores trialing when dropping to freemium', async () => {
+    const db = new FakeDb();
+    await new BillingRepository(db as unknown as Database).setPlan('biz', 'freemium');
+
+    const guard = db.trialGuard;
+    expect(guard).toBeDefined();
+    expect(guard!.params).toEqual(['biz']);
+    // Only a trial that is genuinely still running, and only one that this
+    // call just overwrote — never a lapsed one, and never a paid subscription.
+    expect(guard!.text).toContain('trial_ends_at > NOW()');
+    expect(guard!.text).toContain("status = 'none'");
+  });
+
+  it('runs after the plan is written, not before', async () => {
+    const db = new FakeDb();
+    await new BillingRepository(db as unknown as Database).setPlan('biz', 'freemium');
+
+    // Ordering is the whole mechanism: the guard repairs the status that the
+    // main UPDATE just set. Run first, it would be overwritten immediately.
+    expect(db.calls.indexOf(db.update!)).toBeLessThan(db.calls.indexOf(db.trialGuard!));
+  });
+
+  it('takes no placeholder it could get a type wrong on', async () => {
+    const db = new FakeDb();
+    await new BillingRepository(db as unknown as Database).setPlan('biz', 'freemium');
+
+    // Deliberately a separate statement rather than a CASE in the UPDATE
+    // above. Folding it in would have meant comparing $2 against 'freemium'
+    // while also assigning it to a varchar column — the exact 42P08 shape
+    // these tests exist to prevent.
+    expect(db.trialGuard!.params).toHaveLength(1);
+  });
+
+  it('leaves a paid plan alone', async () => {
+    const db = new FakeDb();
+    await new BillingRepository(db as unknown as Database).setPlan('biz', 'business');
+
+    // Buying a plan mid-trial genuinely ends the trial — they converted, and
+    // the paid plan is what they should be billed and labelled as.
+    expect(db.trialGuard).toBeUndefined();
   });
 });
