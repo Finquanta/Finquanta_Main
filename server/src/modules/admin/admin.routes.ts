@@ -7,7 +7,10 @@ import { AdminRepository } from './admin.repository';
 import { PasswordManager } from '../auth/password';
 import { BillingRepository } from '../billing/billing.repository';
 import { EntitlementsService } from '../billing/entitlements.service';
+import * as stripe from '../billing/stripe.client';
 import { ownedBusinessesNeedingSuccessor, transferOwnership } from '../shared/transfer-ownership';
+import { LifecycleService } from '../lifecycle/lifecycle.service';
+import { LifecycleRepository, REMINDER_TYPES, ReminderType } from '../lifecycle/lifecycle.repository';
 import {
   isPlanKey, PLANS, PLAN_KEYS, TRIAL_DAYS_UNVERIFIED, TRIAL_DAYS_VERIFIED,
 } from '../billing/plans';
@@ -636,30 +639,58 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
     }
   }) as any);
 
-  // Extend a trial by an arbitrary number of days.
+  /**
+   * Move a trial's end date, in either direction.
+   *
+   * Negative days take time OFF. Support was asked for after a trial had to be
+   * shortened by hand in the database — the only way to correct one that had
+   * been set too generously, since nothing else here can move that date down.
+   * Removing more days than remain simply lands it in the past, which is what
+   * revoking a trial means; there is no separate cancel to keep in step.
+   */
   fastify.patch('/v1/admin/businesses/:id/trial', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = (request.body as { days?: unknown }) || {};
-      const days = Number(body.days);
-      if (!Number.isFinite(days) || days <= 0 || days > 365) {
-        return reply.status(400).send({ success: false, error: 'Days must be between 1 and 365.' });
+      const days = Math.round(Number(body.days));
+      // Zero is rejected rather than treated as a no-op: it is always a mistake
+      // — an empty box, or a value that failed to parse — and writing an audit
+      // entry saying a trial was changed by 0 days is worse than an error.
+      if (!Number.isFinite(days) || days === 0 || Math.abs(days) > 365) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Days must be between -365 and 365, and not zero.',
+        });
       }
       const target = await repo.getBusinessById(id);
       if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
 
-      const sub = await billing.extendTrial(id, Math.round(days));
+      let sub;
+      try {
+        sub = await billing.extendTrial(id, days);
+      } catch (e) {
+        // The only thing extendTrial refuses is taking days off a workspace
+        // with no trial. That is the caller's mistake, not a server fault, so
+        // it must not come back as a 500 the admin panel reports as "failed".
+        return reply.status(400).send({
+          success: false,
+          error: e instanceof Error ? e.message : 'Could not change that trial.',
+        });
+      }
+
       await repo.addAuditLog({
         actorId: request.user!.id,
         actorEmail: request.user!.email,
-        action: `Extended the trial for "${target.name}" by ${Math.round(days)} days`,
+        action: days > 0
+          ? `Extended the trial for "${target.name}" by ${days} days`
+          : `Took ${Math.abs(days)} days off the trial for "${target.name}"`,
         targetId: id,
         targetEmail: target.ownerEmail,
       });
       return reply.send({ success: true, data: sub });
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ success: false, error: 'Could not extend that trial.' });
+      return reply.status(500).send({ success: false, error: 'Could not change that trial.' });
     }
   }) as any);
 
@@ -673,7 +704,73 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
   fastify.patch('/v1/admin/businesses/:id/grandfather', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const body = (request.body as { months?: unknown }) || {};
+      const body = (request.body as { months?: unknown; days?: unknown }) || {};
+
+      /**
+       * `days` NUDGES an existing window; `months` SETS one from today.
+       *
+       * Both exist because they answer different questions. "Grandfather this
+       * workspace for 6 months" is absolute. "Give them another fortnight" is
+       * relative, and doing it with the absolute form would silently throw away
+       * whatever was left.
+       */
+      if (body.days !== undefined && body.days !== null) {
+        const days = Math.round(Number(body.days));
+        if (!Number.isFinite(days) || days === 0 || Math.abs(days) > 3650) {
+          return reply.status(400).send({
+            success: false, error: 'Days must be between -3650 and 3650, and not zero.',
+          });
+        }
+        const target = await repo.getBusinessById(id);
+        if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
+        let sub;
+        try {
+          sub = await billing.adjustGrandfather(id, days);
+        } catch (e) {
+          return reply.status(400).send({
+            success: false, error: e instanceof Error ? e.message : 'Could not change that.',
+          });
+        }
+
+        /**
+         * For somebody who is already PAYING, free days have to mean a later
+         * charge — not a window in our database.
+         *
+         * A paying customer already has every feature, so granting access on
+         * top changes nothing they can see. The only thing that helps them is
+         * Stripe taking the money later, and Stripe is the only system that can
+         * do that. This is the half that used to be missing, and the reason an
+         * admin had to open Stripe by hand.
+         *
+         * Failure here is reported but does NOT undo the window above: the
+         * grant is still real and still logged, and silently rolling it back
+         * because a third party was unreachable would be worse than saying so.
+         */
+        let billingMoved: { moved: boolean; reason?: string } = { moved: false };
+        if (days > 0 && sub.stripeSubscriptionId && stripe.isConfigured()) {
+          try {
+            await stripe.pushBillingDate(sub.stripeSubscriptionId, days);
+            billingMoved = { moved: true };
+          } catch (e) {
+            billingMoved = {
+              moved: false,
+              reason: e instanceof Error ? e.message : 'Stripe could not be reached.',
+            };
+          }
+        }
+
+        await repo.addAuditLog({
+          actorId: request.user!.id,
+          actorEmail: request.user!.email,
+          action: days > 0
+            ? `Added ${days} days of free access to "${target.name}"`
+              + (billingMoved.moved ? ` and pushed their next charge back ${days} days` : '')
+            : `Took ${Math.abs(days)} days of free access off "${target.name}"`,
+          targetId: id,
+          targetEmail: target.ownerEmail,
+        });
+        return reply.send({ success: true, data: { ...sub, billingMoved } });
+      }
 
       // null clears it; anything else must be a sane number of months.
       let months: number | null = null;
@@ -791,4 +888,96 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
       return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }) as any);
+
+  // ------------------------------------------------------ lifecycle reminders
+
+  const lifecycle = new LifecycleService(options.database);
+  const lifecycleRepo = new LifecycleRepository(options.database);
+
+  /**
+   * Who WOULD receive what, without sending anything.
+   *
+   * The first thing to reach for before any real send. These emails go to real
+   * customers and cannot be recalled, and the triggers are subtle enough that
+   * reading the SQL is not the same as knowing who matches it — 30 of 31
+   * production workspaces are grandfathered, and a preview is how you find out
+   * that the upgrade nudge has one recipient rather than thirty-one.
+   */
+  fastify.get('/v1/admin/lifecycle/preview', { preHandler: pre },
+    (async (_request: AuthenticatedRequest, reply: FastifyReply) => {
+      const result = await lifecycle.run({ dryRun: true });
+      return reply.send({ success: true, data: result });
+    }) as any);
+
+  /** Run the whole batch now, rather than waiting for the cron. */
+  fastify.post('/v1/admin/lifecycle/run', { preHandler: pre },
+    (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+      try {
+        const result = await lifecycle.run({ dryRun: false });
+        await repo.addAuditLog({
+          actorId: request.user!.id,
+          actorEmail: request.user!.email,
+          action: `Ran lifecycle reminders by hand — ${result.sent} email(s) sent`,
+          targetId: null,
+          targetEmail: null,
+        });
+        return reply.send({ success: true, data: result });
+      } catch (error) {
+        request.log.error(error);
+        return reply.status(500).send({ success: false, error: 'Could not run the reminders.' });
+      }
+    }) as any);
+
+  /**
+   * Send one reminder to one person, now.
+   *
+   * Ignores the cadence deliberately — that is what makes it useful for
+   * answering a support question or re-sending something that bounced. It does
+   * NOT ignore an opt-out: honouring an unsubscribe is a legal obligation
+   * rather than a preference, and "an admin pressed the button" is not one of
+   * the exemptions.
+   */
+  fastify.post('/v1/admin/users/:id/lifecycle-email', { preHandler: pre },
+    (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const body = (request.body as { type?: unknown }) || {};
+        const type = String(body.type || '') as ReminderType;
+        if (!(REMINDER_TYPES as readonly string[]).includes(type)) {
+          return reply.status(400).send({
+            success: false,
+            error: `Type must be one of: ${REMINDER_TYPES.join(', ')}`,
+          });
+        }
+        const target = await new UserRepository(options.database).findById(id);
+        if (!target) return reply.status(404).send({ success: false, error: 'User not found' });
+
+        // The actor is passed so a dev machine can send to the admin's own
+        // address — the only safe way to read one of these before it ships.
+        const result = await lifecycle.sendOne(id, type, {
+          id: request.user!.id, email: request.user!.email,
+        });
+        if (!result.sent) {
+          return reply.status(400).send({ success: false, error: result.reason });
+        }
+        await repo.addAuditLog({
+          actorId: request.user!.id,
+          actorEmail: request.user!.email,
+          action: `Sent the "${type}" reminder by hand`,
+          targetId: id,
+          targetEmail: target.email,
+        });
+        return reply.send({ success: true, data: { sent: true } });
+      } catch (error) {
+        request.log.error(error);
+        return reply.status(500).send({ success: false, error: 'Could not send that email.' });
+      }
+    }) as any);
+
+  /** What this person has opted out of, so the panel can say so before sending. */
+  fastify.get('/v1/admin/users/:id/email-preferences', { preHandler: pre },
+    (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      return reply.send({ success: true, data: await lifecycleRepo.preferences(id) });
+    }) as any);
 }

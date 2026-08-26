@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckoutOutcome, MyBilling, dismissTrialPrompt, getBillingStatus, getMyBilling, startCheckout } from "@/lib/api/billing";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
@@ -22,9 +23,18 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
  * Staying on Freemium is a real button rather than only the X, because it is a
  * legitimate answer. A dialog whose only exit is dismissal is a paywall wearing
  * a question mark, and people treat it accordingly.
+ *
+ * It returns every FORTNIGHT rather than once. Asked a single time, the only
+ * people who ever convert are those ready on the exact day their trial lapsed;
+ * anyone busy that week is never asked again.
+ *
+ * PREVIEW: `?trialPreview=end` renders it without writing anything, so the
+ * wording can be checked without first expiring somebody's trial.
  */
 export default function TrialEndedDialog() {
   const { t } = useLanguage();
+  const params = useSearchParams();
+  const preview = params?.get("trialPreview") === "end";
   const [billing, setBilling] = useState<MyBilling | null>(null);
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
   const [busy, setBusy] = useState("");
@@ -38,9 +48,9 @@ export default function TrialEndedDialog() {
      * bought would be worse than staying quiet.
      */
     Promise.all([getMyBilling(), getBillingStatus()])
-      .then(([b, status]) => { if (b.trialEnded && status.configured) setBilling(b); })
+      .then(([b, status]) => { if ((b.trialEnded || preview) && (status.configured || preview)) setBilling(b); })
       .catch(() => { /* never block the dashboard over this */ });
-  }, []);
+  }, [preview]);
 
   /**
    * Stamped on ANSWER, not on appearance.
@@ -52,7 +62,9 @@ export default function TrialEndedDialog() {
    */
   const answer = async () => {
     setClosed(true);
-    try { await dismissTrialPrompt(); } catch { /* it will simply ask once more */ }
+    // A preview must not restart the fortnight for the real customer.
+    if (preview) return;
+    try { await dismissTrialPrompt("end"); } catch { /* it will simply ask again */ }
   };
 
   const buy = async (planKey: string) => {
@@ -75,7 +87,7 @@ export default function TrialEndedDialog() {
       const res: CheckoutOutcome = await startCheckout(planKey, interval);
       // Put the prompt away: they have answered, whether or not they go on to
       // complete the payment on Stripe's page.
-      void dismissTrialPrompt().catch(() => { /* ignore */ });
+      void dismissTrialPrompt("end").catch(() => { /* ignore */ });
       if (res.url) {
         if (tab) tab.location.href = res.url;
         else window.location.href = res.url; // popup blocked — use this tab
@@ -109,6 +121,11 @@ export default function TrialEndedDialog() {
         className="w-full max-w-lg rounded-xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
+        {preview && (
+          <div className="px-5 py-1.5 text-[11px] font-semibold text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200">
+            {t("dashboard", "trialPreviewNote")}
+          </div>
+        )}
         <div className="p-5 border-b border-gray-200 dark:border-gray-700">
           <h2 id="trial-ended-title" className="text-lg font-bold text-gray-900 dark:text-white">
             {t("dashboard", "trialEndTitle")}
@@ -116,6 +133,14 @@ export default function TrialEndedDialog() {
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
             {t("dashboard", "trialEndBody")}
           </p>
+          {/* Naming the date turns a vague "it ended" into something they can
+              place, which is the difference between a nag and a reminder. */}
+          {billing.trialEndsAt && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {t("dashboard", "trialEndEnded")}{" "}
+              {new Date(billing.trialEndsAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+            </p>
+          )}
         </div>
 
         <div className="p-5">

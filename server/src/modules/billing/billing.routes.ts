@@ -79,14 +79,65 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
        * prompting them would be a dead end.
        */
       const grandfatherLive = !!sub?.grandfatheredUntil && new Date(sub.grandfatheredUntil) > new Date();
+      const owner = await billing.isOwnedBy(businessId, request.user!.id);
+
+      /**
+       * The ask comes back every FORTNIGHT, not once.
+       *
+       * Asked once and never again, the only people who ever convert are those
+       * ready on the exact day their trial lapsed. Someone who was busy that
+       * week is never asked again. Fourteen days is far enough apart not to be
+       * nagging and close enough to still be a prompt.
+       *
+       * `trialPromptAt` is therefore not a "has been shown" flag — it is when
+       * the fortnight last restarted.
+       */
+      const FORTNIGHT = 14 * 24 * 60 * 60 * 1000;
+      const promptDue =
+        !sub?.trialPromptAt || Date.now() - new Date(sub.trialPromptAt).getTime() >= FORTNIGHT;
+
       const trialEnded =
         sub?.status === 'trialing'
         && !!sub?.trialEndsAt
         && new Date(sub.trialEndsAt) <= new Date()
         && e.plan === 'freemium'
         && !grandfatherLive
-        && !sub?.trialPromptAt
-        && (await billing.isOwnedBy(businessId, request.user!.id));
+        && promptDue
+        && owner;
+
+      /**
+       * The other half: a trial that has just STARTED.
+       *
+       * It began in silence — onboarding starts one in the background and
+       * nothing ever said so, which means nobody knew they had it, when it
+       * ended, or that verifying their email would add another week. An unused
+       * trial converts nobody, and the verification bonus only tops up a trial
+       * that is still RUNNING, so saying it late is the same as not saying it.
+       */
+      /**
+       * Free access was granted, extended or shortened since anyone last said
+       * so — worth telling the workspace, because the features they can use
+       * just changed underneath them.
+       *
+       * Compares the live end date against the one they were last told about.
+       * Any difference is news; equal means they already know. Shown to every
+       * member, not only the owner: this is about what the workspace can DO,
+       * which affects everybody in it, unlike a plan decision only an owner can
+       * act on.
+       */
+      const noticeUntil = sub?.grandfatheredUntil ?? null;
+      const toldAbout = sub?.accessNoticeUntil ?? null;
+      const accessChanged =
+        !!noticeUntil
+        && new Date(noticeUntil) > new Date()
+        && String(noticeUntil) !== String(toldAbout);
+
+      const trialStarted =
+        sub?.status === 'trialing'
+        && !!sub?.trialEndsAt
+        && new Date(sub.trialEndsAt) > new Date()
+        && !sub?.trialStartPromptAt
+        && owner;
 
       return reply.send({
         success: true,
@@ -104,8 +155,13 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
           grandfatheredUntil: e.grandfatheredUntil,
           daysRemaining: e.daysRemaining,
           trialAvailable,
-          /** Show the end-of-trial plan picker once. */
+          /** Show the end-of-trial plan picker (returns fortnightly). */
           trialEnded,
+          /** Show the "your trial has started" note, once ever. */
+          trialStarted,
+          /** Free access changed since they were last told. */
+          accessChanged,
+          accessUntil: noticeUntil,
           /**
            * When the subscription stops, if a cancellation is scheduled.
            *
@@ -255,9 +311,22 @@ export async function billingRoutes(fastify: FastifyInstance, options: { databas
    * A dashboard can mount twice (a remount, two tabs), and the guard lives in
    * the WHERE clause so the second caller cannot also think it was first.
    */
+  /** They have seen the free-access notice. */
+  fastify.post('/v1/billing/access-notice/seen', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      await billing.acknowledgeAccessNotice(request.businessId!);
+      return reply.send({ success: true, data: { acknowledged: true } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not save that.' });
+    }
+  }) as any);
+
   fastify.post('/v1/billing/trial-prompt/seen', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const claimed = await billing.markTrialPromptShown(request.businessId!);
+      const body = (request.body as { which?: unknown }) || {};
+      const which = body.which === 'start' ? 'start' : 'end';
+      const claimed = await billing.markTrialPromptShown(request.businessId!, which);
       return reply.send({ success: true, data: { claimed } });
     } catch (error) {
       request.log.error(error);

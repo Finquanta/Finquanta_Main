@@ -7,6 +7,7 @@ import { PasswordManager } from './password';
 import { RefreshTokenRepository } from './refresh-token.repository';
 import { TwoFactorService } from './twofa.service';
 import { sendEmail } from '../../infrastructure/email';
+import { appUrl, renderEmail } from '../../infrastructure/email-template';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
 import { BillingRepository } from '../billing/billing.repository';
@@ -202,19 +203,19 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     await this.userRepository.setVerificationToken(userId, tokenHash, expiresAt);
 
-    const base = (process.env.APP_URL || (process.env.CORS_ORIGIN || '').split(',')[0] || '')
-      .trim()
-      .replace(/\/$/, '');
-    const link = `${base}/verify-email?token=${rawToken}`;
-    const html = `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#0f172a">Confirm your Finquanta email</h2>
-        <p style="color:#475569">Welcome! Please confirm your email address to finish setting up your account. This link is valid for 24 hours.</p>
-        <p style="margin:24px 0">
-          <a href="${link}" style="background:#22c55e;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Confirm email</a>
-        </p>
-        <p style="color:#94a3b8;font-size:12px;word-break:break-all">Or paste this link into your browser:<br>${link}</p>
-      </div>`;
+    const link = `${appUrl()}/verify-email?token=${rawToken}`;
+    // No unsubscribe: this is transactional, and there is nothing to opt out of.
+    const html = renderEmail({
+      title: 'Confirm your Finquanta email',
+      sections: [{
+        paragraphs: [
+          'Welcome! Please confirm your email address to finish setting up your account. This link is valid for 24 hours.',
+          'Confirming also adds 7 days to your free trial, as long as the trial is still running.',
+        ],
+        cta: { label: 'Confirm email', url: link },
+      }],
+      rawLink: link,
+    });
     await sendEmail({ to: email, subject: 'Confirm your Finquanta email', html });
   }
 
@@ -447,20 +448,16 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await this.userRepository.setResetToken(user.id, tokenHash, expiresAt);
 
-    const base = (process.env.APP_URL || (process.env.CORS_ORIGIN || '').split(',')[0] || '')
-      .trim()
-      .replace(/\/$/, '');
-    const link = `${base}/reset-password?token=${rawToken}`;
-    const html = `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#0f172a">Reset your Finquanta password</h2>
-        <p style="color:#475569">We received a request to reset your password. This link is valid for 1 hour.</p>
-        <p style="margin:24px 0">
-          <a href="${link}" style="background:#22c55e;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Reset password</a>
-        </p>
-        <p style="color:#94a3b8;font-size:13px">If you didn't request this, you can safely ignore this email — your password won't change.</p>
-        <p style="color:#94a3b8;font-size:12px;word-break:break-all">Or paste this link into your browser:<br>${link}</p>
-      </div>`;
+    const link = `${appUrl()}/reset-password?token=${rawToken}`;
+    const html = renderEmail({
+      title: 'Reset your Finquanta password',
+      sections: [{
+        paragraphs: ['We received a request to reset your password. This link is valid for 1 hour.'],
+        cta: { label: 'Reset password', url: link },
+      }],
+      footerNote: "If you didn't request this, you can safely ignore this email — your password won't change.",
+      rawLink: link,
+    });
     await sendEmail({ to: user.email, subject: 'Reset your Finquanta password', html });
   }
 

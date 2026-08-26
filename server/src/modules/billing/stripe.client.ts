@@ -259,6 +259,49 @@ export async function syncSubscriptionQuantity(input: {
  * again to undo a cancellation you have not yet been charged for is a poor
  * answer.
  */
+/**
+ * Push a paying subscription's NEXT CHARGE later by a number of days.
+ *
+ * This is what "give them 5 free days" has to mean for somebody who is already
+ * paying. Granting a free-access window in our own database does nothing for
+ * them — they already have the features — so the only thing that helps is not
+ * taking the money as soon.
+ *
+ * Done with `trial_end`, which is Stripe's own mechanism for "do not bill until
+ * this date". It is not a trial in our sense: the subscription stays active, the
+ * customer keeps everything, and the next invoice simply lands later. The
+ * billing anchor moves with it, so every future charge shifts by the same amount
+ * rather than snapping back next month.
+ *
+ * `proration_behavior: 'none'` because nothing is being bought or sold — an
+ * unwanted credit note for the shifted days would confuse everybody's books,
+ * ours included.
+ *
+ * Negative days are refused. Pulling a charge FORWARD means billing somebody
+ * earlier than they agreed to, which should never be one click in an admin panel.
+ */
+export async function pushBillingDate(subscriptionId: string, days: number): Promise<any> {
+  if (!Number.isFinite(days) || days <= 0) {
+    throw new Error('Days must be a positive number.');
+  }
+  const sub = await getSubscription(subscriptionId);
+  if (!isLiveSubscription(sub)) {
+    throw new Error('That subscription is not active in Stripe.');
+  }
+
+  // From the later of now and the current period end: a subscription whose
+  // period has already rolled would otherwise be given a date in the past,
+  // which Stripe rejects outright.
+  const currentEnd = Number(sub?.current_period_end) || 0;
+  const base = Math.max(currentEnd, Math.floor(Date.now() / 1000));
+  const trialEnd = base + Math.round(days) * 86_400;
+
+  return call<any>('/subscriptions/' + encodeURIComponent(subscriptionId), {
+    trial_end: trialEnd,
+    proration_behavior: 'none',
+  });
+}
+
 export async function setCancelAtPeriodEnd(id: string, cancel: boolean): Promise<any> {
   return call<any>('/subscriptions/' + encodeURIComponent(id), {
     cancel_at_period_end: cancel,

@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import {
   AdminDeletionBlocker, AdminUser, listAdminUsers, checkAdmin, updateAdminUser, deleteAdminUser,
   getAdminDeletionBlockers, setAdminUserPassword,
+  getAdminEmailPreferences, sendLifecycleEmail,
 } from "@/lib/api/admin";
+import { REMINDER_LABELS, REMINDER_TYPES, ReminderType } from "@/lib/api/lifecycle";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 
 export default function AdminUsersPage() {
@@ -21,6 +23,15 @@ export default function AdminUsersPage() {
   const [deleting, setDeleting] = useState<{ user: AdminUser; businesses: AdminDeletionBlocker[] } | null>(null);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [openMenuId, setOpenMenuId] = useState<string>("");
+  /**
+   * The person a reminder is being sent to by hand, with what they have opted
+   * out of already — shown BEFORE the send, so an admin is not surprised by a
+   * refusal after clicking. The server enforces the opt-out either way; this
+   * only makes it visible.
+   */
+  const [emailFor, setEmailFor] = useState<AdminUser | null>(null);
+  const [emailPrefs, setEmailPrefs] = useState<Record<string, boolean> | null>(null);
+  const [emailNote, setEmailNote] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [form, setForm] = useState({ first: "", last: "", dob: "" });
 
@@ -64,11 +75,46 @@ export default function AdminUsersPage() {
     return users.filter((u) => [u.name, u.email, u.phone, u.role].some((f) => (f || "").toLowerCase().includes(q)));
   }, [users, query]);
 
+  /**
+   * Which way the row menu opens.
+   *
+   * It was always anchored below the button, so on the last few rows of a long
+   * list it opened past the bottom of the window — the actions existed but
+   * could not be reached without scrolling a page that had nothing left to
+   * scroll. Decided when the menu opens, from where the button actually is.
+   */
+  const [menuUp, setMenuUp] = useState(false);
+
+  const openRowMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (openMenuId === id) { setOpenMenuId(""); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Roughly the tallest the menu gets. Flipping a little early is harmless;
+    // flipping late is the bug.
+    setMenuUp(window.innerHeight - rect.bottom < 300);
+    setOpenMenuId(id);
+  };
+
   const act = async (fn: () => Promise<void>, id: string) => {
     setBusyId(id); setError(null); setOpenMenuId("");
     try { await fn(); await load(); }
     catch (e) { const m = e instanceof Error ? e.message : "Action failed."; if (!bounceToLogin(m)) setError(m); }
     finally { setBusyId(""); }
+  };
+
+  const openEmail = async (u: AdminUser) => {
+    setOpenMenuId(""); setEmailNote(null); setEmailPrefs(null); setEmailFor(u);
+    try { setEmailPrefs(await getAdminEmailPreferences(u.id)); }
+    catch { setEmailPrefs(null); }
+  };
+
+  const sendEmail = async (u: AdminUser, type: ReminderType) => {
+    setBusyId(u.id); setError(null); setEmailNote(null);
+    try {
+      await sendLifecycleEmail(u.id, type);
+      setEmailNote(`Sent "${REMINDER_LABELS[type].title}" to ${u.email}.`);
+    } catch (e) {
+      setEmailNote(e instanceof Error ? e.message : "Could not send that email.");
+    } finally { setBusyId(""); }
   };
 
   const startEdit = (u: AdminUser) => {
@@ -242,15 +288,16 @@ This cannot be undone.`
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", position: "relative", textAlign: "right" }}>
                         {!manage ? <span style={{ color: d.muted }}>—</span> : (
                           <>
-                            <button disabled={busy} onClick={() => setOpenMenuId(openMenuId === u.id ? "" : u.id)}
+                            <button disabled={busy} onClick={(e) => openRowMenu(u.id, e)}
                               style={{ background: "transparent", border: `0.5px solid ${d.border}`, borderRadius: 6, padding: "3px 9px", fontSize: 16, lineHeight: 1, cursor: "pointer", color: d.text }}>
                               ⋯
                             </button>
                             {openMenuId === u.id && (
                               <>
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                                <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
+                                <div style={{ position: "absolute", right: 12, ...(menuUp ? { bottom: 40 } : { top: 40 }), zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Edit" onClick={() => startEdit(u)} />}
+                                  <MenuItem label="Send reminder email" onClick={() => void openEmail(u)} />
                                   {(isSelf || canEditName(u.role)) && <MenuItem label="Set password" onClick={() => setPassword(u)} />}
                                   {(isSelf || canEditName(u.role)) && <MenuItem label={u.emailVerified ? "Mark unverified" : "Mark verified"} onClick={() => toggleVerified(u)} />}
                                   {!isSelf && u.role !== "user" && canAssign(u.role, "user") && <MenuItem label={`Remove ${roleLabel(u.role)}`} onClick={() => setRole(u.id, "user")} />}
@@ -273,6 +320,69 @@ This cannot be undone.`
           )}
         </div>
       </div>
+
+      {/*
+        Send one of the four scheduled reminders by hand.
+
+        Useful when somebody asks "I never got that email" — and safer than
+        re-running the whole batch, which would mail everyone else who happens
+        to be due today.
+      */}
+      {emailFor && (
+        <div onClick={() => setEmailFor(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: "90vw", background: d.surface, color: d.text, borderRadius: 14, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,.3)" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Send a reminder email</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: d.muted }}>{emailFor.email}</p>
+
+            {emailNote && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, padding: "8px 10px", borderRadius: 8, background: dark ? "#14532d40" : "#f0fdf4", color: dark ? "#86efac" : "#166534" }}>
+                {emailNote}
+              </p>
+            )}
+
+            <div style={{ display: "grid", gap: 8 }}>
+              {REMINDER_TYPES.map((type) => {
+                // `null` means the lookup failed, not that they opted out — do
+                // not label somebody as unsubscribed on a failed request.
+                const optedOut = emailPrefs ? emailPrefs[type] === false : false;
+                return (
+                  <button
+                    key={type}
+                    disabled={busyId === emailFor.id || optedOut}
+                    onClick={() => void sendEmail(emailFor, type)}
+                    style={{
+                      textAlign: "left", padding: "10px 12px", borderRadius: 10,
+                      border: `1px solid ${d.border}`, background: "transparent",
+                      color: optedOut ? d.muted : d.text,
+                      cursor: optedOut ? "not-allowed" : "pointer",
+                      opacity: optedOut ? 0.6 : 1,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {REMINDER_LABELS[type].title}
+                      {optedOut && <span style={{ fontWeight: 400, color: d.muted }}> · unsubscribed</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: d.muted, marginTop: 2 }}>
+                      {REMINDER_LABELS[type].description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p style={{ margin: "14px 0 0", fontSize: 11, color: d.muted }}>
+              Sends immediately, ignoring the usual schedule. Anything they have unsubscribed from
+              stays off — honouring an opt-out is a legal requirement, not a setting.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setEmailFor(null)} style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${d.border}`, background: "transparent", color: d.text, fontSize: 13, cursor: "pointer" }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editUser && (
         <div onClick={() => setEditUser(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>

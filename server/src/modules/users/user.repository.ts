@@ -19,6 +19,16 @@ export class UserRepository {
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token_hash TEXT`);
     await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ`);
+    /**
+     * Last sign of life, for the workspace re-engagement reminder.
+     *
+     * Nothing tracked activity at all before this: no last login, no last seen.
+     * Written from an onResponse hook and THROTTLED to once an hour per user —
+     * an unthrottled touch would add a database write to every authenticated
+     * request in the entire product, which is a high price for a column read
+     * once a day by a cron job.
+     */
+    await this.database.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`);
     // Two-factor auth (TOTP). The secret has to be usable to compute a live
     // code, so — unlike passwords — it's stored as-is rather than hashed;
     // backup codes ARE effectively one-time passwords, so those are hashed.

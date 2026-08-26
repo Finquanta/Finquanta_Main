@@ -93,9 +93,68 @@ export async function setAdminBusinessGrandfather(id: string, months: number | n
   });
 }
 
+/**
+ * Nudge a free-access window by days, rather than setting one from today.
+ *
+ * Also the only honest way to extend a PAYING customer from the admin panel:
+ * their billing date belongs to Stripe — we copy it from webhooks, so editing
+ * it here would change nothing about when they are charged and would be undone
+ * by the next event. Granting free time on top is something we genuinely can do.
+ */
+export async function adjustAdminBusinessGrandfather(id: string, days: number): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/grandfather`, {
+    method: 'PATCH', body: JSON.stringify({ days }),
+  });
+}
+
 /** List all users (admin only — 403 if the caller isn't an admin). */
 export async function listAdminUsers(): Promise<AdminUser[]> {
   return apiFetch<AdminUser[]>('/v1/admin/users');
+}
+
+// ------------------------------------------------------ lifecycle reminders
+
+export interface LifecycleRunResult {
+  dryRun: boolean;
+  sent: number;
+  recipients: { email: string; types: string[] }[];
+  byType: Record<string, number>;
+}
+
+/**
+ * Who WOULD be emailed, without sending anything.
+ *
+ * Worth reaching for before any real run. The triggers are subtle enough that
+ * reading them is not the same as knowing who matches: most workspaces are
+ * grandfathered, so the upgrade nudge has far fewer recipients than "everyone
+ * on the free plan" suggests.
+ */
+export async function previewLifecycle(): Promise<LifecycleRunResult> {
+  return apiFetch<LifecycleRunResult>('/v1/admin/lifecycle/preview');
+}
+
+/** Run the whole batch now rather than waiting for the daily cron. */
+export async function runLifecycle(): Promise<LifecycleRunResult> {
+  return apiFetch<LifecycleRunResult>('/v1/admin/lifecycle/run', { method: 'POST' });
+}
+
+/**
+ * Send one reminder to one person immediately.
+ *
+ * Ignores the cadence, which is the point — but the server still refuses if
+ * they have unsubscribed from that type, because honouring an opt-out is a
+ * legal obligation rather than a preference.
+ */
+export async function sendLifecycleEmail(userId: string, type: string): Promise<{ sent: boolean }> {
+  return apiFetch(`/v1/admin/users/${userId}/lifecycle-email`, {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
+/** What this person has opted out of, so the panel can say so before sending. */
+export async function getAdminEmailPreferences(userId: string): Promise<Record<string, boolean>> {
+  return apiFetch(`/v1/admin/users/${userId}/email-preferences`);
 }
 
 /** Confirm the current token belongs to an admin and get the caller's role. */

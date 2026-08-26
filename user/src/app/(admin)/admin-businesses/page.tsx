@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AdminBusiness, AdminBillingOverview, checkAdmin, deleteAdminBusiness,
-  extendAdminBusinessTrial, getAdminBillingOverview, listAdminBusinesses,
+  extendAdminBusinessTrial, adjustAdminBusinessGrandfather, getAdminBillingOverview, listAdminBusinesses,
   assignAdminBusinessOwner, setAdminBusinessGrandfather, setAdminBusinessPlan, setAdminBusinessStatus,
   startAdminBusinessTrial, updateAdminBusiness,
 } from "@/lib/api/admin";
@@ -35,6 +35,23 @@ export default function AdminBusinessesPage() {
   /** Which row has its plan dropdown open. */
   const [planFor, setPlanFor] = useState<AdminBusiness | null>(null);
   /** The ownerless workspace being handed to somebody. */
+  /**
+   * The workspace whose trial length is being adjusted, and by how much.
+   *
+   * A dialog rather than `window.prompt`, which could not show the current end
+   * date, could not offer a direction, and rejected anything negative — so
+   * shortening a trial that had been set too generously meant editing the
+   * database by hand.
+   */
+  const [trialFor, setTrialFor] = useState<AdminBusiness | null>(null);
+  const [trialDays, setTrialDays] = useState("14");
+  const [trialDir, setTrialDir] = useState<1 | -1>(1);
+  /**
+   * WHICH window is being moved. A workspace can be on a trial, on a free-access
+   * window, or paying — and "extend them a bit" means a different date in each
+   * case. Defaults to whichever one is actually running.
+   */
+  const [trialTarget, setTrialTarget] = useState<'trial' | 'access'>('trial');
   const [assigning, setAssigning] = useState<AdminBusiness | null>(null);
   const [assignEmail, setAssignEmail] = useState("");
 
@@ -75,6 +92,25 @@ export default function AdminBusinessesPage() {
       [b.name, b.ownerName, b.ownerEmail, b.previousOwnerEmail, b.country, b.industry, b.businessPhone, b.plan, b.effectivePlan, b.badgeLabel].some((f) => (f || "").toLowerCase().includes(q))
     );
   }, [businesses, query]);
+
+  /**
+   * Which way the row menu opens.
+   *
+   * It was always anchored below the button, so on the last few rows of a long
+   * list it opened past the bottom of the window — the actions existed but
+   * could not be reached without scrolling a page that had nothing left to
+   * scroll. Decided when the menu opens, from where the button actually is.
+   */
+  const [menuUp, setMenuUp] = useState(false);
+
+  const openRowMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (openMenuId === id) { setOpenMenuId(""); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Roughly the tallest the menu gets. Flipping a little early is harmless;
+    // flipping late is the bug.
+    setMenuUp(window.innerHeight - rect.bottom < 300);
+    setOpenMenuId(id);
+  };
 
   const act = async (fn: () => Promise<void>, id: string) => {
     setBusyId(id); setError(null); setOpenMenuId("");
@@ -203,13 +239,27 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
     act(() => setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months)), b.id);
   };
 
-  const extendTrial = (b: AdminBusiness) => {
+  const openTrial = (b: AdminBusiness) => {
     setOpenMenuId("");
-    const raw = window.prompt(`Extend the trial for "${b.name}" by how many days?`, "14");
-    if (!raw) return;
-    const days = Number(raw);
-    if (!Number.isFinite(days) || days <= 0) { setError("Enter a number of days."); return; }
-    act(() => extendAdminBusinessTrial(b.id, Math.round(days)), b.id);
+    setTrialDir(1);
+    setTrialDays("14");
+    // Open on whatever is actually running, so the common case is one click.
+    setTrialTarget(b.subscriptionStatus === "trialing" && b.trialEndsAt ? "trial" : "access");
+    setTrialFor(b);
+  };
+
+  const applyTrial = (b: AdminBusiness) => {
+    const n = Number(trialDays);
+    if (!Number.isFinite(n) || n <= 0) { setError("Enter a number of days."); return; }
+    if (n > 365) { setError("365 days at most."); return; }
+    const days = Math.round(n) * trialDir;
+    setTrialFor(null);
+    act(
+      () => trialTarget === "trial"
+        ? extendAdminBusinessTrial(b.id, days)
+        : adjustAdminBusinessGrandfather(b.id, days),
+      b.id
+    );
   };
   const remove = (b: AdminBusiness) => {
     // Spelled out because this is not the same as deleting a note: the cascade
@@ -241,7 +291,12 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
     if (!iso) return null;
     const ms = new Date(iso).getTime() - Date.now();
     if (Number.isNaN(ms)) return null;
-    return Math.max(0, Math.ceil(ms / 86_400_000));
+    // The same minute of tolerance the server uses (`daysUntil`): an end date
+    // is written from the database clock and read afterwards, so the remainder
+    // sits a fraction ABOVE a whole number of days and a bare ceil turned a
+    // 7-day trial into "8 days left". The two must agree — this table and the
+    // customer's own dialog are read side by side.
+    return Math.max(0, Math.ceil((ms - 60_000) / 86_400_000));
   };
 
   /**
@@ -420,14 +475,14 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", position: "relative", textAlign: "right" }}>
                         {!canManage() ? <span style={{ color: d.muted }}>—</span> : (
                           <>
-                            <button disabled={busy} onClick={() => setOpenMenuId(openMenuId === b.id ? "" : b.id)}
+                            <button disabled={busy} onClick={(e) => openRowMenu(b.id, e)}
                               style={{ background: "transparent", border: `0.5px solid ${d.border}`, borderRadius: 6, padding: "3px 9px", fontSize: 16, lineHeight: 1, cursor: "pointer", color: d.text }}>
                               ⋯
                             </button>
                             {openMenuId === b.id && (
                               <>
                                 <div onClick={() => setOpenMenuId("")} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                                <div style={{ position: "absolute", right: 12, top: 40, zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
+                                <div style={{ position: "absolute", right: 12, ...(menuUp ? { bottom: 40 } : { top: 40 }), zIndex: 50, background: d.surface, border: `0.5px solid ${d.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160, overflow: "hidden", paddingTop: 4, paddingBottom: 4 }}>
                                   {/* Only offered where it applies. Reassigning
                                       a workspace that HAS an owner would be
                                       taking a business off somebody, which is
@@ -440,11 +495,11 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
                                   <MenuItem label="Change plan" onClick={() => { setOpenMenuId(""); setPlanFor(b); }} />
                                   {/* A trial can only begin once; after that it
                                       is extended, never restarted. */}
-                                  {b.subscriptionStatus === "trialing"
-                                    ? <MenuItem label="Extend trial" onClick={() => extendTrial(b)} />
-                                    : b.trialEndsAt
-                                      ? <MenuItem label="Extend trial" onClick={() => extendTrial(b)} />
-                                      : <MenuItem label="Start trial" onClick={() => startTrial(b)} />}
+                                  {/* Always offered: even with no trial there
+                                      may be a free-access window to move, and a
+                                      paying workspace can be granted free days. */}
+                                  <MenuItem label="Adjust dates" onClick={() => openTrial(b)} />
+                                  {!b.trialEndsAt && <MenuItem label="Start trial" onClick={() => startTrial(b)} />}
                                   {/* Named "Grandfather", not "Grant early
                                       access". They were always the same
                                       action, but the badge on the row says
@@ -534,6 +589,129 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
       {/* Plan picker. Every plan is offered including Corporate — comping a
           design partner is a real need, and the audit log is the control here
           rather than a permission matrix. */}
+      {/*
+        Adjust a trial, in either direction.
+
+        The current end date and the resulting one are both shown, because the
+        question an admin actually has is "where does this land?" — and doing
+        that arithmetic in your head is how a trial gets set to the wrong month.
+      */}
+      {trialFor && (() => {
+        const n = Number(trialDays);
+        const valid = Number.isFinite(n) && n > 0 && n <= 365;
+        const paying = trialFor.planKey !== "freemium";
+        const src = trialTarget === "trial" ? trialFor.trialEndsAt : trialFor.grandfatheredUntil;
+        const from = src ? new Date(src) : null;
+        // Mirrors the server: measured from whichever is later, now or the
+        // existing end, so a lapsed trial is not extended from a date gone by.
+        const base = from && from.getTime() > Date.now() ? from : new Date();
+        const landing = valid ? new Date(base.getTime() + n * trialDir * 86_400_000) : null;
+        const lapsed = !!landing && landing.getTime() <= Date.now();
+        const noneToShorten = trialDir === -1 && !from;
+        return (
+          <div onClick={() => setTrialFor(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: "90vw", background: d.surface, color: d.text, borderRadius: 14, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,.3)" }}>
+              <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Adjust dates</h2>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: d.muted }}>
+                {trialFor.name} · billed {trialFor.plan}
+              </p>
+
+              {/* WHICH date. A workspace can have a trial, a free-access window,
+                  or a paid subscription, and "give them longer" means a
+                  different date in each case. */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                {([["trial", "Trial"], ["access", "Free access"]] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTrialTarget(key as "trial" | "access")}
+                    style={{
+                      flex: 1, padding: "7px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                      border: `1px solid ${trialTarget === key ? "#22c55e" : d.border}`,
+                      background: trialTarget === key ? (dark ? "#14532d40" : "#f0fdf4") : "transparent",
+                      color: trialTarget === key ? "#16a34a" : d.muted,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <p style={{ margin: "0 0 14px", fontSize: 11.5, color: d.muted }}>
+                {trialTarget === "trial"
+                  ? (from ? `Trial ends ${fmtDate(src)} · ${daysLeft(src)} days left` : "No trial on this workspace.")
+                  : (from ? `Free access until ${fmtDate(src)} · ${daysLeft(src)} days left` : "No free-access window yet.")}
+              </p>
+
+              {/*
+                Said plainly, because it is the one thing an admin would
+                otherwise assume works. The renewal date lives in Stripe — we
+                only copy it from webhooks — so changing anything here does not
+                move a charge, and the next Stripe event would overwrite it.
+                Free access on top is a thing we really can grant.
+              */}
+              {paying && trialTarget === "access" && (
+                <p style={{ margin: "0 0 12px", fontSize: 11.5, padding: "8px 10px", borderRadius: 8, background: dark ? "#78350f33" : "#fffbeb", color: dark ? "#fcd34d" : "#92400e" }}>
+                  This workspace pays for {trialFor.plan}. Their renewal date belongs to Stripe and
+                  cannot be moved from here — change it in Stripe if that is what you need. Adding
+                  days here grants FREE access on top, without touching what they are billed.
+                </p>
+              )}
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {([[1, "Add days"], [-1, "Take off days"]] as const).map(([dir, label]) => (
+                  <button
+                    key={label}
+                    onClick={() => setTrialDir(dir as 1 | -1)}
+                    style={{
+                      flex: 1, padding: "7px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                      border: `1px solid ${trialDir === dir ? "#22c55e" : d.border}`,
+                      background: trialDir === dir ? (dark ? "#14532d40" : "#f0fdf4") : "transparent",
+                      color: trialDir === dir ? "#16a34a" : d.muted,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={trialDays}
+                autoFocus
+                onChange={(e) => setTrialDays(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && valid) applyTrial(trialFor); }}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${d.border}`, background: "transparent", color: d.text, fontSize: 13 }}
+              />
+
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: (lapsed || noneToShorten) ? "#dc2626" : d.muted }}>
+                {noneToShorten
+                  ? `There is no ${trialTarget === "trial" ? "trial" : "free-access window"} here to take days off.`
+                  : !valid
+                    ? "Enter between 1 and 365 days."
+                    : lapsed
+                      ? `Ends ${fmtDate(landing!.toISOString())} — that is in the past, so it ends immediately.`
+                      : `New end date: ${fmtDate(landing!.toISOString())}`}
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+                <button onClick={() => setTrialFor(null)} style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${d.border}`, background: "transparent", color: d.text, fontSize: 13, cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button
+                  disabled={!valid || noneToShorten}
+                  onClick={() => applyTrial(trialFor)}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: (valid && !noneToShorten) ? "#22c55e" : d.border, color: "#fff", fontSize: 13, fontWeight: 600, cursor: (valid && !noneToShorten) ? "pointer" : "default" }}
+                >
+                  {trialDir === 1 ? "Add" : "Take off"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {planFor && billing && (
         <div onClick={() => setPlanFor(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: "90vw", background: d.surface, color: d.text, borderRadius: 14, padding: 24, boxShadow: "0 12px 40px rgba(0,0,0,.3)" }}>

@@ -45,10 +45,22 @@ export interface Entitlements {
   subscription: Subscription;
 }
 
+/**
+ * Whole days left, rounding a PART day up — "1 day left" should hold for the
+ * whole of the final day, not vanish at breakfast.
+ *
+ * The minute of tolerance is not cosmetic. An end date is written from the
+ * DATABASE clock (`NOW() + interval`), and every read happens afterwards, so
+ * the remainder is always a hair OVER a whole number of days — 7 days and one
+ * second. Ceiling that hair produced an extra whole day: a 7-day trial that
+ * reported 8 days left the moment it started, and 15 for a fortnight. Anything
+ * within a minute of a whole day is that whole number.
+ */
+const MINUTE = 60_000;
 const daysUntil = (iso: string | null): number | null => {
   if (!iso) return null;
   const ms = new Date(iso).getTime() - Date.now();
-  return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000);
+  return ms <= 0 ? 0 : Math.max(0, Math.ceil((ms - MINUTE) / 86_400_000));
 };
 
 export class EntitlementsService {

@@ -79,11 +79,24 @@ export interface MyBilling {
    */
   trialEnded: boolean;
   /**
+   * A trial has just started and nobody has been told. One-shot: a trial
+   * begins once, so a second telling would say something already known.
+   */
+  trialStarted: boolean;
+  /**
+   * Free access was granted, extended or shortened since this workspace was
+   * last told. Shown to every member — it changes what the workspace can do,
+   * not just what the owner pays.
+   */
+  accessChanged: boolean;
+  /** When the current free-access window ends. */
+  accessUntil: string | null;
+  /**
    * Plan allowance consumed this month, per metric. Separate from the daily
    * cost caps in ai-usage: this is what the customer bought, not what protects
    * the AI spend. A limit of null means unlimited.
    */
-  usage?: Record<'finna_messages' | 'council_sessions', {
+  usage?: Record<'finna_messages' | 'council_sessions' | 'document_scans', {
     allowed: boolean;
     used: number;
     limit: number | null;
@@ -107,6 +120,9 @@ export interface MemberUsage {
   role: string | null;
   finnaMessages: number;
   councilSessions: number;
+  /** Documents photographed or uploaded. The server has always returned this;
+   * it was simply not read until the scan meter needed it. */
+  documentScans: number;
 }
 
 /** Who in this workspace has used what. Workspace-scoped by the active header. */
@@ -168,8 +184,16 @@ export async function startCheckout(
  * Called for every outcome — bought a plan, chose to stay free, or closed the
  * dialog. All three are an answer, and none of them should be asked twice.
  */
-export async function dismissTrialPrompt(): Promise<{ claimed: boolean }> {
-  return apiFetch('/v1/billing/trial-prompt/seen', { method: 'POST' });
+export async function dismissTrialPrompt(which: 'start' | 'end' = 'end'): Promise<{ claimed: boolean }> {
+  return apiFetch('/v1/billing/trial-prompt/seen', {
+    method: 'POST',
+    body: JSON.stringify({ which }),
+  });
+}
+
+/** Acknowledge the free-access notice so it is not shown again. */
+export async function dismissAccessNotice(): Promise<{ acknowledged: boolean }> {
+  return apiFetch('/v1/billing/access-notice/seen', { method: 'POST' });
 }
 
 /** Open Stripe's hosted portal: payment method, invoices, cancellation. */

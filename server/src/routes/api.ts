@@ -61,6 +61,8 @@ import { nudgesRoutes } from '../modules/nudges/nudges.routes';
 import { NudgesService } from '../modules/nudges/nudges.service';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 import { aiUsageRoutes } from '../modules/ai-usage/ai-usage.routes';
+import { lifecycleRoutes } from '../modules/lifecycle/lifecycle.routes';
+import { LifecycleRepository } from '../modules/lifecycle/lifecycle.repository';
 import { AiUsageRepository } from '../modules/ai-usage/ai-usage.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
@@ -419,6 +421,35 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure admin users');
   }
   await fastify.register(adminRoutes, { database });
+
+  // Lifecycle reminders: the scheduled job endpoint, click tracking,
+  // unsubscribe and per-type preferences.
+  try {
+    await new LifecycleRepository(database).ensureSchema();
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure lifecycle schema');
+  }
+  await fastify.register(lifecycleRoutes, { database });
+
+  /**
+   * Record that somebody is alive, for the re-engagement reminder.
+   *
+   * An `onResponse` hook, so it runs AFTER the reply has been sent and adds
+   * nothing to the latency of any request. `request.user` is populated by then
+   * for anything that authenticated, and absent for anything that did not,
+   * which is exactly the filter needed.
+   *
+   * Fire-and-forget on purpose: this is the least important write in the
+   * system, and it must never turn a working request into a failed one. The
+   * repository throttles to one write per user per hour, so this does not add a
+   * database round trip to every call.
+   */
+  const lifecycleRepo = new LifecycleRepository(database);
+  fastify.addHook('onResponse', async (request) => {
+    const user = (request as { user?: { id?: string } }).user;
+    if (!user?.id) return;
+    void lifecycleRepo.touchActivity(user.id).catch(() => { /* never surface */ });
+  });
 }
 
 export default apiRoutes;

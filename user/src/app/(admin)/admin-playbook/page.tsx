@@ -46,11 +46,30 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "Payments — how money is taken",
+    blurb: "Everything to do with charging customers. Finquanta never sees a card number.",
+    items: [
+      { name: "Stripe", purpose: "Takes every payment and owns the billing schedule. Card details go straight to Stripe and never touch our servers, which is what keeps us out of the strictest card-security rules. Stripe decides WHEN somebody is charged; the admin panel decides what they can USE." },
+      { name: "Stripe Checkout", purpose: "The hosted payment page customers are sent to when they buy a plan." },
+      { name: "Stripe Customer Portal", purpose: "Where customers change their card, download invoices, or cancel — hosted by Stripe, so we do not have to build or secure it." },
+      { name: "Stripe webhooks", purpose: "Messages Stripe sends us when something happens: a payment cleared, a plan changed, a subscription ended. This is how the app finds out — access is granted when money actually arrives, not when someone clicks buy." },
+    ],
+  },
+  {
     title: "AI & communications",
     blurb: "The smart and outreach features.",
     items: [
-      { name: "Anthropic Claude (Haiku model)", purpose: "The AI that powers Finna, the in-app financial assistant." },
-      { name: "Resend", purpose: "Sends automated emails, such as password-reset links." },
+      { name: "Anthropic Claude (Haiku model)", purpose: "The AI that powers Finna, the in-app financial assistant, and the Council." },
+      { name: "Resend", purpose: "Sends every automated email: password resets, email confirmation, workspace invites, and the scheduled reminder emails." },
+      { name: "Render Cron Job", purpose: "Runs once a day and asks the backend to send whichever reminder emails are due. Separate from the server on purpose — a timer inside the server would fire twice if there were ever two copies running." },
+    ],
+  },
+  {
+    title: "Safety & monitoring",
+    blurb: "Keeping bots out and finding out when something breaks.",
+    items: [
+      { name: "Cloudflare Turnstile", purpose: "Checks that a real person is signing up or logging in, rather than a script creating accounts in bulk." },
+      { name: "Sentry", purpose: "Reports crashes and errors from both the website and the server, so problems surface before customers report them." },
     ],
   },
   {

@@ -42,6 +42,10 @@ export interface Subscription {
    * what makes it a once-only prompt rather than one on every page load.
    */
   trialPromptAt: string | null;
+  /** When the "your trial has started" note was shown. Once, ever. */
+  trialStartPromptAt: string | null;
+  /** The free-access end date the workspace has already been told about. */
+  accessNoticeUntil: string | null;
   /** Null throughout phase A. Stripe owns these once billing exists. */
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
@@ -122,6 +126,25 @@ export class BillingRepository {
      * every single dashboard load, forever.
      */
     await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS trial_prompt_at TIMESTAMP WITH TIME ZONE`);
+
+    /**
+     * When the "your trial has started" note was shown. Separate from
+     * `trial_prompt_at` because the two prompts have different lifetimes: a
+     * trial starts exactly once, so that one is genuinely one-shot, while the
+     * end-of-trial ask comes back every fortnight until they decide.
+     */
+    await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS trial_start_prompt_at TIMESTAMP WITH TIME ZONE`);
+
+    /**
+     * The free-access end date the workspace has already been TOLD about.
+     *
+     * Compared against `grandfathered_until` to decide whether there is news:
+     * they differ exactly when an admin has moved the window since the last
+     * time anybody said so. Storing the date rather than a boolean is what
+     * makes a SECOND change notify again — a flag would announce the first
+     * grant and stay silent on every extension after it.
+     */
+    await this.database.query(`ALTER TABLE business_subscriptions ADD COLUMN IF NOT EXISTS access_notice_until TIMESTAMP WITH TIME ZONE`);
 
     /**
      * Grandfathering — every workspace that exists RIGHT NOW keeps the paid
@@ -446,11 +469,32 @@ export class BillingRepository {
    * first. Returns whether this call was the one that claimed it, which is what
    * the caller needs to know to actually show the dialog.
    */
-  async markTrialPromptShown(businessId: string): Promise<boolean> {
+  async markTrialPromptShown(businessId: string, which: 'start' | 'end' = 'end'): Promise<boolean> {
+    /**
+     * The two prompts are stamped differently ON PURPOSE.
+     *
+     * 'start' is one-shot — a trial begins once, and a second telling would be
+     * telling somebody something they already know. The guard lives in the
+     * WHERE so two tabs cannot both believe they were first.
+     *
+     * 'end' RE-stamps every time, because that prompt returns fortnightly until
+     * they choose. The timestamp is not a "has been shown" flag there; it is
+     * when the fortnight last restarted.
+     */
+    if (which === 'start') {
+      const r = await this.database.query(
+        `UPDATE business_subscriptions
+            SET trial_start_prompt_at = NOW(), updated_at = NOW()
+          WHERE business_id = $1 AND trial_start_prompt_at IS NULL
+          RETURNING business_id`,
+        [businessId]
+      );
+      return (r.rowCount ?? 0) > 0;
+    }
     const r = await this.database.query(
       `UPDATE business_subscriptions
           SET trial_prompt_at = NOW(), updated_at = NOW()
-        WHERE business_id = $1 AND trial_prompt_at IS NULL
+        WHERE business_id = $1
         RETURNING business_id`,
       [businessId]
     );
@@ -458,14 +502,41 @@ export class BillingRepository {
   }
 
   /**
-   * Push a trial's end date out. Used both by the admin panel and by the
-   * verification bonus (spec 08 §4.1: verifying grants more trial time).
+   * Move a trial's end date. Positive days push it out, negative days pull it
+   * in. Used by the admin panel and by the verification bonus (spec 08 §4.1:
+   * verifying grants more trial time).
    *
-   * Extends from whichever is later — now, or the existing end. Extending a
+   * Measured from whichever is later — now, or the existing end. Extending a
    * lapsed trial from its old end date would hand out days already gone.
+   *
+   * Taking off more days than remain lands the end date in the past, which is
+   * how a trial is revoked: there is no separate "cancel" to keep in step, and
+   * an expired trial is a state the rest of the system already understands.
    */
   async extendTrial(businessId: string, days: number): Promise<Subscription> {
     await this.ensureFor(businessId);
+
+    /**
+     * Negative days SHORTEN a trial, and may only ever shorten one that exists.
+     *
+     * The statement below fabricates a trial where there is none —
+     * `COALESCE(trial_ends_at, NOW())` plus the interval, with status forced to
+     * 'trialing'. That is what makes it work as "extend", and it is exactly
+     * wrong for "reduce": taking 5 days off a workspace that never had a trial
+     * would CREATE one, already expired, and then the end-of-trial plan prompt
+     * would fire at somebody who was never offered a trial in the first place.
+     *
+     * Checked here rather than folded into the SQL because the test would have
+     * to compare $2 against a number while the same $2 is concatenated as text
+     * — the 42P08 shape that has already broken this file once.
+     */
+    if (days < 0) {
+      const current = await this.get(businessId);
+      if (!current?.trialEndsAt) {
+        throw new Error('There is no trial on this workspace to take days off.');
+      }
+    }
+
     await this.database.query(
       `UPDATE business_subscriptions
           SET status = 'trialing',
@@ -506,6 +577,61 @@ export class BillingRepository {
               updated_at = NOW()
         WHERE business_id = $1`,
       [businessId, String(months)]
+    );
+  }
+
+  /**
+   * Move a grandfather window by a number of days, in either direction.
+   *
+   * Distinct from `setGrandfather`, which sets an absolute window from today —
+   * an admin typing "6" there means six months from now, not six on top of what
+   * is left. This one nudges an existing date, which is what "give them another
+   * fortnight" actually means.
+   *
+   * This is also the ONLY honest way to extend a paying customer's access from
+   * the admin panel. `current_period_end` is Stripe's, not ours: we copy it from
+   * webhooks, so editing it here would change nothing about when they are
+   * charged and would be overwritten by the next event. Granting free time on
+   * top is a thing we CAN do, and this is it.
+   *
+   * Measured from the later of now and the existing end, so a window that has
+   * already lapsed is not extended from a date in the past.
+   */
+  async adjustGrandfather(businessId: string, days: number): Promise<Subscription> {
+    await this.ensureFor(businessId);
+    if (days < 0) {
+      const current = await this.get(businessId);
+      if (!current?.grandfatheredUntil) {
+        throw new Error('There is no free-access window on this workspace to take days off.');
+      }
+    }
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET grandfathered_until =
+                GREATEST(COALESCE(grandfathered_until, NOW()), NOW()) + ($2 || ' days')::interval,
+              updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId, String(days)]
+    );
+    const s = await this.get(businessId);
+    if (!s) throw new Error('Subscription row vanished');
+    return s;
+  }
+
+  /**
+   * Mark the current free-access end date as "they have been told".
+   *
+   * Writes today's `grandfathered_until` into `access_notice_until` rather than
+   * a value passed in, so it cannot record a date that was never shown — and so
+   * a window moved again between the dialog opening and being dismissed still
+   * counts as unannounced.
+   */
+  async acknowledgeAccessNotice(businessId: string): Promise<void> {
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET access_notice_until = grandfathered_until, updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId]
     );
   }
 
@@ -628,6 +754,8 @@ export class BillingRepository {
       pendingPlan: (row.pending_plan as PlanKey) ?? null,
       pendingPlanAt: iso(row.pending_plan_at),
       trialPromptAt: iso(row.trial_prompt_at),
+      trialStartPromptAt: iso(row.trial_start_prompt_at),
+      accessNoticeUntil: iso(row.access_notice_until),
       updatedAt: iso(row.updated_at),
     };
   }
