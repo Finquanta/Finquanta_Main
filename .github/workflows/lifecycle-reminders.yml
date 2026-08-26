@@ -1,0 +1,79 @@
+# Sends the scheduled reminder emails once a day.
+#
+# Here rather than as a Render Cron Job because Render bills those separately and
+# asks for a card, while this repo already runs GitHub Actions for CI. All it
+# does is make one HTTP request, so the heavyweight option was never earning its
+# keep.
+#
+# Everything that decides WHO gets an email lives in the server
+# (`lifecycle.service.ts`). This file only says "now" — it holds no rules, so a
+# change of schedule never has to be kept in step with a change of behaviour.
+name: Lifecycle reminders
+
+on:
+  schedule:
+    # 09:00 UTC daily. GitHub runs scheduled jobs on a best-effort basis and can
+    # be late by a few minutes under load; that is harmless here because the
+    # server decides what is due by DATE, not by assuming this fired on time.
+    - cron: '0 9 * * *'
+
+  # A button in the Actions tab, so a run can be triggered by hand — including a
+  # dry run, which is the safe way to see who would be emailed before any real
+  # send.
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: 'Report who would be emailed, without sending anything'
+        type: boolean
+        default: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the server to send whatever is due
+        env:
+          # Set once under Settings -> Secrets and variables -> Actions.
+          # Never written into this file: it is the only thing standing between
+          # a stranger and the ability to trigger a mailing.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ vars.API_URL || 'https://finquanta-main-2.onrender.com' }}
+          DRY_RUN: ${{ inputs.dryRun && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is not set in this repository's Actions secrets."
+            echo "Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # The API sleeps when idle on Render's smaller plans and can take the
+          # best part of a minute to wake. Without a wake-up call the real
+          # request would spend its whole timeout on the cold start and fail for
+          # a reason that has nothing to do with the reminders.
+          echo "Waking the API..."
+          curl -fsS --max-time 90 "${API_URL}/api/" > /dev/null || true
+
+          echo "Running lifecycle reminders (dryRun=${DRY_RUN})..."
+          # --retry covers a wake-up that took longer than the first attempt
+          # allowed. The endpoint is idempotent — it re-reads what is due and a
+          # second run the same day sends nothing twice — so retrying is safe.
+          http=$(curl -sS --max-time 120 --retry 3 --retry-delay 20 --retry-connrefused \
+            -o response.json -w '%{http_code}' \
+            -X POST "${API_URL}/api/v1/internal/lifecycle/run" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"dryRun\": ${DRY_RUN}}")
+
+          echo "HTTP ${http}"
+          cat response.json || true
+          echo
+
+          case "${http}" in
+            200) echo "Done." ;;
+            401) echo "Rejected: CRON_SECRET here does not match the one on Render."; exit 1 ;;
+            503) echo "Rejected: CRON_SECRET is not set on the Render service itself."; exit 1 ;;
+            404) echo "Not found: the server has not been deployed with this endpoint yet."; exit 1 ;;
+            *)   echo "Unexpected response."; exit 1 ;;
+          esac
