@@ -30,6 +30,11 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    # Without this, GitHub's default is SIX HOURS. The first run sat for 22
+    # minutes with no way to tell whether it was working or wedged, which is the
+    # worst state for a job whose entire output is one number. Ten minutes is far
+    # longer than the work needs; anything past it is a fault, not slowness.
+    timeout-minutes: 10
     steps:
       - name: Ask the server to send whatever is due
         env:
@@ -53,13 +58,14 @@ jobs:
           # request would spend its whole timeout on the cold start and fail for
           # a reason that has nothing to do with the reminders.
           echo "Waking the API..."
-          curl -fsS --max-time 90 "${API_URL}/api/" > /dev/null || true
+          curl -fsS --max-time 60 "${API_URL}/api/" > /dev/null || true
 
           echo "Running lifecycle reminders (dryRun=${DRY_RUN})..."
-          # --retry covers a wake-up that took longer than the first attempt
-          # allowed. The endpoint is idempotent — it re-reads what is due and a
-          # second run the same day sends nothing twice — so retrying is safe.
-          http=$(curl -sS --max-time 120 --retry 3 --retry-delay 20 --retry-connrefused \
+          # One retry, not three. The endpoint is idempotent — it re-reads what
+          # is due, so a second call sends nothing twice — but stacking three
+          # retries on a two-minute timeout is how a job that finishes in under a
+          # second can instead sit for ten minutes looking alive.
+          http=$(curl -sS --max-time 60 --retry 1 --retry-delay 15 \
             -o response.json -w '%{http_code}' \
             -X POST "${API_URL}/api/v1/internal/lifecycle/run" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
