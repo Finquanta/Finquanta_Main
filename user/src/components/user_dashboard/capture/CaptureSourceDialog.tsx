@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AtSign, Camera, Check, Copy, Smartphone, Upload, X } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { ScanAllowance } from "@/lib/api/capture";
-import { getInboundAddress } from "@/lib/api/inbound";
+import { getInboundAddress, getPendingFromEmail } from "@/lib/api/inbound";
+import Link from "next/link";
 
 /**
  * "How do you want to add this document?"
@@ -66,6 +67,25 @@ export default function CaptureSourceDialog({
   const [emailAddress, setEmailAddress] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  /**
+   * What is already waiting.
+   *
+   * Somebody opening this is about to add ANOTHER document. If three are
+   * already sitting unreviewed — forwarded by email while nobody was looking
+   * — that is worth saying before they add a fourth, because none of them are
+   * in the books until somebody checks them.
+   */
+  const [waiting, setWaiting] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    getPendingFromEmail()
+      .then((p) => { if (alive) setWaiting(p.length); })
+      .catch(() => { /* the chooser still works without the count */ });
+    return () => { alive = false; };
+  }, [open]);
 
   const revealEmail = () => {
     setShowEmail(true);
@@ -166,6 +186,26 @@ export default function CaptureSourceDialog({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {waiting > 0 && (
+          <div className={`mx-5 mt-4 rounded-lg border px-3 py-2.5 ${isDark ? "border-amber-800 bg-amber-900/20" : "border-amber-200 bg-amber-50"}`}>
+            <p className={`text-xs font-semibold ${isDark ? "text-amber-300" : "text-amber-800"}`}>
+              {waiting === 1
+                ? t("dashboard", "captureWaitingOne")
+                : t("dashboard", "captureWaitingMany").replace("{n}", String(waiting))}
+            </p>
+            <p className={`mt-0.5 text-[11px] ${isDark ? "text-amber-300/80" : "text-amber-700"}`}>
+              {t("dashboard", "captureWaitingBody")}
+            </p>
+            <Link
+              href="/inbox"
+              onClick={onClose}
+              className={`mt-1.5 inline-block text-[11px] font-semibold underline ${isDark ? "text-amber-300" : "text-amber-800"}`}
+            >
+              {t("dashboard", "captureWaitingLink")}
+            </Link>
+          </div>
+        )}
 
         <div className="p-5 space-y-3">
           {[...options, emailOption].map((o) => {

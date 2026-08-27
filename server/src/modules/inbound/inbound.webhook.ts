@@ -8,6 +8,7 @@ import { UsageService } from '../billing/usage.service';
 import { InboundRepository } from './inbound.repository';
 import { fetchAttachment } from './inbound.attachments';
 import { extractFromBody } from './inbound.body-extraction';
+import { decodeInline, fetchReceivedEmail } from './inbound.fetch';
 import {
   INBOUND_DOMAIN, MAX_ATTACHMENTS_PER_MESSAGE, READABLE_ATTACHMENT_TYPES, parseFromHeader,
 } from './inbound.types';
@@ -76,6 +77,8 @@ export function verifySignature(args: {
 }
 
 export interface NormalisedMail {
+  /** Resend's event name. Only `email.received` is ours. */
+  type: string;
   providerMessageId: string;
   from: string;
   to: string[];
@@ -125,10 +128,17 @@ export function normalisePayload(raw: any): NormalisedMail | null {
     .filter((a: any) => a.url);
 
   return {
+    type: String(raw?.type ?? d?.type ?? ''),
     providerMessageId: String(providerMessageId),
     from,
     to,
     subject: d.subject ?? null,
+    /**
+     * Usually EMPTY, and that is expected. `email.received` carries metadata
+     * only; the body and the attachment bytes are fetched separately once we
+     * know the message is worth reading. These fields stay here because the
+     * payload may carry a preview, and using it saves a call when it does.
+     */
     text: d.text ?? d.plain ?? d.body_plain ?? '',
     attachments,
   };
@@ -313,6 +323,8 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
   );
   const readable = allReadable.slice(0, MAX_ATTACHMENTS_PER_MESSAGE);
   const skipped = allReadable.length - readable.length;
+  /** Filled in below, once we know the sender is worth spending on. */
+  let body = mail.text;
 
   const message = await inbound.createMessage({
     businessId,
@@ -370,12 +382,53 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
   const toRead = readable.slice(0, affordable);
   const unaffordable = readable.length - toRead.length;
 
+  /**
+   * NOW fetch the actual email.
+   *
+   * Deliberately after the trust and allowance checks, not before. The webhook
+   * is metadata only, so a stranger's mail costs us one tiny request and
+   * nothing more — we never download bytes we were not going to read. That is
+   * the same rule as never extracting for an untrusted sender, applied one
+   * step earlier.
+   */
+  let fetched: { filename: string | null; contentType: string; buffer: Buffer }[] = [];
+  try {
+    const full = await fetchReceivedEmail(mail.providerMessageId);
+    if (full.text) body = full.text;
+
+    for (const a of full.attachments) {
+      if (!READABLE_ATTACHMENT_TYPES.includes(a.contentType)) continue;
+      if (fetched.length >= Math.min(MAX_ATTACHMENTS_PER_MESSAGE, affordable)) break;
+      try {
+        const buffer = a.content
+          ? decodeInline(a.content)
+          : a.url
+            ? (await fetchAttachment(a.url)).body
+            : null;
+        if (!buffer || !buffer.byteLength) continue;
+        fetched.push({ filename: a.filename, contentType: a.contentType, buffer });
+      } catch (error) {
+        // One bad attachment must not lose the others.
+        log.error(error);
+      }
+    }
+  } catch (error) {
+    // The metadata told us mail arrived; we simply could not read it. Record
+    // that rather than dropping it, so somebody can see it happened.
+    log.error(error);
+    await inbound.setStatus(
+      message.id,
+      'failed',
+      error instanceof Error ? error.message : 'Could not read that email from Resend.'
+    );
+    return;
+  }
+
   try {
     let produced = 0;
 
-    for (const attachment of toRead) {
+    for (const attachment of fetched) {
       try {
-        const file = await fetchAttachment(attachment.url);
         const capture = await ingestDocument(
           { repo: deps.captures, storage: deps.storage, onError: (e) => log.error(e) },
           {
@@ -383,8 +436,8 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
             // Nobody was there. The email is the actor.
             userId: null,
             captureMethod: 'email',
-            buffer: file.body,
-            mimeType: attachment.contentType || file.contentType,
+            buffer: attachment.buffer,
+            mimeType: attachment.contentType,
             filename: attachment.filename,
             documentType: 'other',
           }
@@ -392,19 +445,19 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
         await inbound.linkCapture(capture.id, message.id);
         produced++;
       } catch (error) {
-        // One bad attachment must not lose the others.
+        // One bad document must not lose the others.
         log.error(error);
       }
     }
 
     // 5. No attachment worth reading — the money may still be described in the
     //    body, which is how nearly every "you got paid" notice arrives.
-    if (produced === 0 && mail.text.trim()) {
+    if (produced === 0 && body.trim()) {
       const result = await extractFromBody({
         subject: mail.subject,
         fromEmail,
         fromName,
-        body: mail.text,
+        body,
       });
       await inbound.markBodyExtracted(message.id);
 
@@ -417,7 +470,7 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
             captureMethod: 'email',
             // The body itself is the document, so the review popup has
             // something to show beside the fields.
-            buffer: Buffer.from(mail.text, 'utf8'),
+            buffer: Buffer.from(body, 'utf8'),
             mimeType: 'text/plain',
             filename: mail.subject ? `${mail.subject.slice(0, 80)}.txt` : 'email.txt',
             documentType: result.documentType,

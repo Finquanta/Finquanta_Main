@@ -50,6 +50,21 @@ jest.mock('../../../src/modules/inbound/inbound.body-extraction', () => ({
   })),
 }));
 
+/**
+ * The follow-up call that actually reads the mail. The webhook is metadata
+ * only, so this is where body and attachment bytes come from.
+ */
+jest.mock('../../../src/modules/inbound/inbound.fetch', () => {
+  const actual = jest.requireActual('../../../src/modules/inbound/inbound.fetch');
+  return {
+    ...actual,
+    fetchReceivedEmail: jest.fn(async () => ({
+      text: '',
+      attachments: [] as any[],
+    })),
+  };
+});
+
 jest.mock('../../../src/modules/inbound/inbound.attachments', () => ({
   fetchAttachment: jest.fn(async () => ({ body: Buffer.from('%PDF'), contentType: 'application/pdf' })),
 }));
@@ -166,6 +181,18 @@ describe('inbound email — one scan per attachment', () => {
         })),
       },
     });
+    // The webhook is metadata only; content comes from the follow-up fetch.
+    const fetchMod = jest.requireMock('../../../src/modules/inbound/inbound.fetch') as any;
+    fetchMod.fetchReceivedEmail.mockResolvedValue({
+      text: '',
+      attachments: Array.from({ length: count }, (_, i) => ({
+        filename: `r${i}.pdf`,
+        contentType: 'application/pdf',
+        content: Buffer.from('%PDF').toString('base64'),
+        url: null,
+      })),
+    });
+
     const ts = String(Math.floor(Date.now() / 1000));
     const res = await app.inject({
       method: 'POST',

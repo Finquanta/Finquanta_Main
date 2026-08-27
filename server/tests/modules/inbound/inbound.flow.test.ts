@@ -62,6 +62,21 @@ jest.mock('../../../src/modules/inbound/inbound.body-extraction', () => ({
   })),
 }));
 
+/**
+ * The follow-up call that actually reads the mail. The webhook is metadata
+ * only, so this is where body and attachment bytes come from.
+ */
+jest.mock('../../../src/modules/inbound/inbound.fetch', () => {
+  const actual = jest.requireActual('../../../src/modules/inbound/inbound.fetch');
+  return {
+    ...actual,
+    fetchReceivedEmail: jest.fn(async () => ({
+      text: '',
+      attachments: [] as any[],
+    })),
+  };
+});
+
 jest.mock('../../../src/modules/inbound/inbound.attachments', () => ({
   fetchAttachment: jest.fn(async () => ({
     body: Buffer.from('%PDF-1.4 fake'),
@@ -243,17 +258,32 @@ describe('inbound email — the flow', () => {
   });
 
   const deliver = async (over: Record<string, unknown> = {}, id = 'em_' + Math.random()) => {
-    const payload = JSON.stringify({
-      data: {
-        email_id: id,
-        from: `Owner <${MEMBER_EMAIL}>`,
-        to: [ADDRESS],
-        subject: 'Invoice 88',
-        text: 'Please find the invoice attached.',
-        attachments: [{ filename: 'inv.pdf', content_type: 'application/pdf', download_url: 'https://resend.com/a' }],
-        ...over,
-      },
+    const data: any = {
+      email_id: id,
+      from: `Owner <${MEMBER_EMAIL}>`,
+      to: [ADDRESS],
+      subject: 'Invoice 88',
+      text: 'Please find the invoice attached.',
+      attachments: [{ filename: 'inv.pdf', content_type: 'application/pdf', download_url: 'https://resend.com/a' }],
+      ...over,
+    };
+
+    /**
+     * Mirror the real two-step flow: the webhook carries metadata, and the
+     * follow-up fetch is where the body and the bytes actually come from.
+     */
+    const fetchMod = jest.requireMock('../../../src/modules/inbound/inbound.fetch') as any;
+    fetchMod.fetchReceivedEmail.mockResolvedValue({
+      text: data.text ?? '',
+      attachments: (data.attachments ?? []).map((a: any) => ({
+        filename: a.filename ?? null,
+        contentType: a.content_type,
+        content: a.download_url ? Buffer.from('%PDF-1.4 fake').toString('base64') : null,
+        url: null,
+      })),
     });
+
+    const payload = JSON.stringify({ data });
     const ts = String(Math.floor(Date.now() / 1000));
     const res = await app.inject({
       method: 'POST',
@@ -342,18 +372,27 @@ describe('inbound email — the flow', () => {
   });
 
   it('lets one unreadable attachment fail without losing the rest', async () => {
-    const { } = mocks();
+    // One served by URL that cannot be downloaded, one inline and fine.
     const attachments = jest.requireMock('../../../src/modules/inbound/inbound.attachments') as any;
-    attachments.fetchAttachment
-      .mockRejectedValueOnce(new Error('gone'))
-      .mockResolvedValue({ body: Buffer.from('%PDF-1.4'), contentType: 'application/pdf' });
+    attachments.fetchAttachment.mockRejectedValueOnce(new Error('gone'));
 
-    await deliver({
+    const fetchMod = jest.requireMock('../../../src/modules/inbound/inbound.fetch') as any;
+    await deliver({});
+    fetchMod.fetchReceivedEmail.mockResolvedValue({
+      text: '',
       attachments: [
-        { filename: 'broken.pdf', content_type: 'application/pdf', download_url: 'https://resend.com/x' },
-        { filename: 'fine.pdf', content_type: 'application/pdf', download_url: 'https://resend.com/y' },
+        { filename: 'broken.pdf', contentType: 'application/pdf', content: null, url: 'https://resend.com/x' },
+        {
+          filename: 'fine.pdf', contentType: 'application/pdf',
+          content: Buffer.from('%PDF-1.4').toString('base64'), url: null,
+        },
       ],
     });
+
+    mocks().captures.__captures.clear();
+    mocks().inbound.__state.messages.clear();
+    mocks().extraction.extractDocument.mockClear();
+    await deliver({}, 'em_partial');
 
     expect(mocks().captures.__captures.size).toBe(1);
     expect([...mocks().inbound.__state.messages.values()][0].status).toBe('processed');
