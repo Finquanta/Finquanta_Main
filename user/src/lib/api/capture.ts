@@ -91,58 +91,133 @@ export const getScanAllowance = () => apiFetch<ScanAllowance>('/v1/captures/usag
 const isHeic = (file: File) =>
   /\.hei[cf]$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
 
+/** The server's list, mirrored: what we may send WITHOUT converting first. */
+const SERVER_ACCEPTS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+
+/** Can this file go up untouched if preparing it fails? */
+const sendableAsIs = (file: File) =>
+  SERVER_ACCEPTS.includes(file.type) && file.size <= MAX_UPLOAD_BYTES;
+
+/** An <img> holding the file, plus the cleanup that frees it. */
+async function loadImageElement(
+  file: File
+): Promise<{ img: HTMLImageElement; release: () => void }> {
+  const url = URL.createObjectURL(file);
+  const release = () => URL.revokeObjectURL(url);
+  try {
+    const img = new Image();
+    img.src = url;
+    // `decode()` is iOS 15.4+; onload works everywhere and is the fallback.
+    if (typeof img.decode === 'function') {
+      await img.decode();
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('image failed to load'));
+      });
+    }
+    return { img, release };
+  } catch (e) {
+    release();
+    throw e;
+  }
+}
+
 /**
  * Convert and shrink an image so the API will take it.
  *
- * Returns the file untouched when it is a PDF (the API reads those directly) or
- * when it is already small enough that re-encoding would only lose detail.
+ * THE PHONE IS THE HARD CASE, and the first version of this got it wrong.
+ * `createImageBitmap(file)` decodes at FULL resolution: a 48-megapixel photo
+ * from a modern phone is roughly 190MB of RGBA before a canvas is even
+ * allocated, which is how an Android browser ends up refusing with a memory
+ * error. Worse, that failure used to abort the whole upload — a photo that
+ * would have uploaded perfectly well was rejected because we tried to be
+ * clever about shrinking it first.
+ *
+ * So this is a ladder, and every rung falls through rather than throwing:
+ *
+ *   1. Resize DURING decode, so the browser never holds the full-size bitmap.
+ *      Needs `createImageBitmap` resize options — Chrome and recent Safari.
+ *   2. Draw from an <img> instead. No `createImageBitmap` at all, which is
+ *      what iOS before 15 has, and mobile browsers may downsample an <img>
+ *      while decoding it rather than materialising every pixel.
+ *   3. Send the original. Most phone JPEGs are 2-5MB, comfortably under the
+ *      10MB ceiling, so shrinking is an optimisation — not a precondition.
+ *
+ * Only a file the server would refuse outright (a HEIC we could not convert)
+ * actually fails, and then it says what to do about it.
  */
 export async function prepareForUpload(file: File): Promise<File> {
   if (file.type === 'application/pdf') return file;
 
-  /**
-   * HEIC needs no library. It comes from iPhones, and Safari — the browser on
-   * an iPhone — decodes it natively, so drawing it to a canvas re-encodes it as
-   * JPEG for free. A desktop browser that cannot decode it throws here, and the
-   * message says what to do rather than failing at the API with a media_type
-   * error the user cannot act on.
-   */
-  let bitmap: ImageBitmap;
+  const heic = isHeic(file);
+  let release = () => {};
+
   try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error(
-      isHeic(file)
-        ? 'This browser cannot read HEIC photos. Open the photo on your phone, or save it as JPEG first.'
-        : 'That image could not be read. Try a JPEG or PNG.'
+    const { img, release: releaseImg } = await loadImageElement(file);
+    release = releaseImg;
+
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    if (!width || !height) throw new Error('no dimensions');
+
+    const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+    // Already small, already a type the server takes: nothing to do.
+    // Re-encoding would only lose detail off a receipt somebody has to read.
+    if (scale === 1 && !heic && file.size <= MAX_UPLOAD_BYTES) return file;
+
+    const targetW = Math.max(1, Math.round(width * scale));
+    const targetH = Math.max(1, Math.round(height * scale));
+
+    // Rung 1 — decode straight to the target size where that is supported.
+    let bitmap: ImageBitmap | null = null;
+    if (scale < 1 && typeof createImageBitmap === 'function') {
+      try {
+        bitmap = await createImageBitmap(file, {
+          resizeWidth: targetW,
+          resizeHeight: targetH,
+          resizeQuality: 'medium',
+        });
+      } catch { /* no resize options here — rung 2 draws from the <img> */ }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+
+    // One call for both rungs: a pre-resized bitmap is drawn 1:1, an <img> is
+    // scaled on the way in. iOS caps canvas area around 16M pixels and the
+    // target here is at most ~5M, so this stays well inside it.
+    ctx.drawImage(bitmap ?? img, 0, 0, targetW, targetH);
+    bitmap?.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY)
     );
+    // Free the backing store now rather than waiting for collection — on a
+    // phone this is the largest thing we allocated.
+    canvas.width = 0;
+    canvas.height = 0;
+    if (!blob) throw new Error('toBlob returned nothing');
+
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    // Rung 3 — shrinking failed, for whatever reason. Send it as it is if the
+    // server will take it, because a slightly expensive upload beats no upload.
+    if (sendableAsIs(file)) return file;
+
+    throw new Error(
+      heic
+        ? 'This phone could not convert that HEIC photo. In Settings > Camera > Formats choose "Most Compatible", then take it again.'
+        : file.size > MAX_UPLOAD_BYTES
+          ? 'That photo is too large to send (max 10MB). Try taking it at a lower resolution.'
+          : 'That image could not be read. Try a JPEG or PNG.'
+    );
+  } finally {
+    release();
   }
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-
-  // Already small and already an accepted type: send it as-is.
-  if (scale === 1 && !isHeic(file) && file.size <= MAX_UPLOAD_BYTES) {
-    bitmap.close();
-    return file;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    bitmap.close();
-    return file;
-  }
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY)
-  );
-  if (!blob) return file;
-
-  const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-  return new File([blob], name, { type: 'image/jpeg' });
 }
 
 /**

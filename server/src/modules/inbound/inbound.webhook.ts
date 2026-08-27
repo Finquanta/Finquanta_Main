@@ -102,8 +102,16 @@ export function normalisePayload(raw: any): NormalisedMail | null {
   const from = typeof d.from === 'string' ? d.from : d.from?.address ?? d.from?.email ?? '';
   if (!from) return null;
 
-  const toRaw = d.to ?? d.recipient ?? d.recipients ?? [];
-  const to = (Array.isArray(toRaw) ? toRaw : [toRaw])
+  /**
+   * Every place a recipient might be named, merged.
+   *
+   * A forwarded message is the awkward case: depending on the client, the
+   * address we care about turns up in `to`, in the SMTP envelope, or only in
+   * cc. Reading one field and hoping is how a forward goes silently missing.
+   */
+  const recipientSources = [d.to, d.cc, d.recipient, d.recipients, d.envelope?.to];
+  const to = recipientSources
+    .flatMap((src: any) => (Array.isArray(src) ? src : src == null ? [] : [src]))
     .map((x: any) => (typeof x === 'string' ? x : x?.address ?? x?.email ?? ''))
     .filter(Boolean)
     .map((x: string) => parseFromHeader(x).email);
@@ -175,7 +183,17 @@ export async function inboundWebhookRoutes(
     const mail = normalisePayload(payload);
     // 200, not 400. An unreadable payload we cannot act on is still a payload
     // Resend should stop retrying.
-    if (!mail) return reply.send({ success: true, data: { ignored: 'unreadable' } });
+    if (!mail) {
+      // The field names in normalisePayload are the one guess in this module.
+      // Log the SHAPE (keys only, never values — this is somebody's mail) so a
+      // mismatch is one glance at the logs rather than a mystery.
+      const top = Object.keys(payload ?? {});
+      const inner = Object.keys((payload as any)?.data ?? {});
+      request.log.warn(
+        `Inbound payload not recognised. Top-level keys: [${top.join(', ')}]. data keys: [${inner.join(', ')}].`
+      );
+      return reply.send({ success: true, data: { ignored: 'unreadable' } });
+    }
 
     /**
      * ACKNOWLEDGE FIRST, WORK AFTER. This is not an optimisation.
@@ -232,8 +250,18 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
 
   // 1. Which workspace? Unknown recipients are dropped silently — bouncing
   //    would confirm to a stranger which addresses are real.
+  /**
+   * Matched on the LOCAL PART ALONE, deliberately — not on the domain.
+   *
+   * Requiring `@INBOUND_DOMAIN` meant a single environment variable being unset
+   * or spelled differently on Render silently dropped every message, with
+   * nothing to show for it. It also broke Resend's own `*.resend.app` receiving
+   * domain, which is the obvious thing to try before wiring up DNS.
+   *
+   * Safe because a local part is 20 random hex characters: nothing else routed
+   * to this server will collide with one by accident.
+   */
   const local = mail.to
-    .filter((addr) => addr.endsWith(`@${INBOUND_DOMAIN}`))
     .map((addr) => (addr.split('@')[0] ?? '').toLowerCase())
     .filter(Boolean);
 
@@ -243,7 +271,13 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
     if (address) break;
   }
   if (!address) {
-    log.info('Inbound email for an unknown address; dropped.');
+    // Logged with what was actually tried. A silent drop here was the single
+    // hardest thing to diagnose about this feature.
+    log.warn(
+      `Inbound email for an unknown address; dropped. Recipients seen: ${
+        mail.to.join(', ') || '(none parsed)'
+      }. Expected domain: ${INBOUND_DOMAIN}.`
+    );
     return;
   }
 
