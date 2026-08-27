@@ -289,6 +289,77 @@ export class TransactionRepository {
     }));
   }
 
+  /**
+   * Insert many transactions as ONE unit: either all of them land, or none do.
+   *
+   * Imports are the only caller. A spreadsheet that half-applies is worse than
+   * one that is refused outright, because the user cannot tell which rows made
+   * it in — and re-running it then duplicates everything that did.
+   *
+   * `create()` above is deliberately left alone. It writes through
+   * `database.query`, which takes whatever connection is free in the pool, and
+   * a BEGIN/COMMIT only holds if every statement goes down the SAME connection.
+   * Threading a client through `create()` would mean changing the manual-entry
+   * write path and all of its callers, which is not what this is about. The
+   * import gets its own insert on its own client instead.
+   *
+   * Rows go in as a single multi-row INSERT per chunk, so 200 rows cost one
+   * round trip to Neon rather than 200. Chunked because Postgres caps a single
+   * statement at 65535 bind parameters, and each row here uses eleven.
+   */
+  async createManyAtomic(
+    businessId: string,
+    userId: string,
+    rows: CreateTransactionData[]
+  ): Promise<Transaction[]> {
+    if (rows.length === 0) return [];
+
+    const COLUMNS = 11;
+    const CHUNK = 500;
+
+    return this.database.transaction(async (client) => {
+      const created: Transaction[] = [];
+
+      for (let start = 0; start < rows.length; start += CHUNK) {
+        const chunk = rows.slice(start, start + CHUNK);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const params: any[] = [];
+        const tuples = chunk.map((data, i) => {
+          params.push(
+            businessId,
+            userId,
+            data.type,
+            data.category,
+            data.subcategory || null,
+            data.amount.toString(),
+            data.description || null,
+            data.date,
+            data.invoice || null,
+            TransactionStatus.COMPLETED,
+            data.metadata || {}
+          );
+          const base = i * COLUMNS;
+          const placeholders = Array.from({ length: COLUMNS }, (_, c) => `$${base + c + 1}`).join(', ');
+          return `(${placeholders}, NOW(), NOW())`;
+        });
+
+        const result = await client.query(
+          `INSERT INTO financial_transactions (
+             business_id, user_id, type, category, subcategory, amount, description, date,
+             invoice, status, metadata, created_at, updated_at
+           ) VALUES ${tuples.join(', ')}
+           RETURNING *`,
+          params
+        );
+
+        for (const row of result.rows) created.push(this.mapRowToTransaction(row));
+      }
+
+      return created;
+    });
+  }
+
   private mapRowToTransaction(row: TransactionRow): Transaction {
     return {
       id: row.id,

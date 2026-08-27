@@ -8,6 +8,15 @@ const MAX_TOTAL_ENTRIES = 200;
 
 /** How many Finna questions an anonymous visitor gets before the cap prompt. */
 export const FINNA_MESSAGE_CAP = 5;
+/**
+ * One free document scan per demo session.
+ *
+ * Deliberately one, not five. Unlike the demo's Finna — which answers from
+ * the demo's own data and costs nothing — a scan is a real vision call on a
+ * real receipt. One is enough to prove it works, and proving it works is the
+ * entire job of the demo.
+ */
+export const DEMO_SCAN_CAP = 1;
 
 function emptyState(): DemoState {
   const now = Date.now();

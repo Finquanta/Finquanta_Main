@@ -192,7 +192,7 @@ export default function CouncilPage() {
               }`}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                  <h3 className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <h3 className={`text-xs font-semibold ${isDark ? "text-amber-400" : "text-amber-600"}`}>
                     {t("dashboard", "councilKeyTension")}
                   </h3>
                 </div>

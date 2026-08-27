@@ -21,7 +21,13 @@ export function NavBarComponent() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm overflow-x-hidden">
+    <nav
+      className="fixed left-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm overflow-x-hidden"
+      // Not `top-0`: the maintenance banner is fixed above this and publishes
+      // its height. Without this the navbar covers it and an admin turning the
+      // notice on sees nothing happen. Falls back to 0 when there is no banner.
+      style={{ top: "var(--maintenance-h, 0px)" }}
+    >
       <div className="container mx-auto px-2 sm:px-4 lg:px-8">
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}

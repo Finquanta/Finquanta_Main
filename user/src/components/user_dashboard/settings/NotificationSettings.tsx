@@ -96,7 +96,7 @@ export default function NotificationSettings(_props: NotificationSettingsProps) 
             )}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className={`mt-8 pt-6 border-t ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
             <h2 className={`text-lg font-semibold mb-1 ${dark ? 'text-white' : 'text-black'}`}>
               Reminder Emails
             </h2>

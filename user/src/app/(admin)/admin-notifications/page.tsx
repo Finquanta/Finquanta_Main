@@ -7,6 +7,7 @@ import {
   Audience, SentNotification, deleteNotification, getSentNotifications, sendNotification,
 } from "@/lib/api/notifications";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
+import ConfirmDialog from "@/components/user_dashboard/ConfirmDialog";
 import { Maintenance, getMaintenance, setMaintenance } from "@/lib/api/site";
 
 const AUDIENCES: { value: Audience; label: string; hint: string }[] = [
@@ -38,7 +39,21 @@ export default function AdminNotificationsPage() {
   const [scheduledFor, setScheduledFor] = useState("");
 
   /** The site-wide maintenance banner. */
-  const [maint, setMaint] = useState<Maintenance>({ enabled: false, message: "" });
+  const [maint, setMaint] = useState<Maintenance>({
+    enabled: false, manual: false, message: "",
+    manualMessage: "", scheduledMessage: "",
+    startsAt: null, endsAt: null, upcoming: false,
+  });
+  /**
+   * The question on screen. Replaces `window.confirm`, which is unstyleable,
+   * prefixed with the host name, and looks exactly like the prompts people are
+   * trained to dismiss without reading — the wrong dialog for "tell every
+   * visitor the product is broken".
+   */
+  const [ask, setAsk] = useState<{
+    title: string; body: React.ReactNode; confirmLabel: string;
+    tone: "default" | "danger" | "warning"; run: () => Promise<void>;
+  } | null>(null);
   const [maintBusy, setMaintBusy] = useState(false);
 
   const load = () => {
@@ -51,14 +66,55 @@ export default function AdminNotificationsPage() {
   };
 
   const toggleMaintenance = async () => {
-    const next = !maint.enabled;
+    // "Take it down" has to mean stop, whatever is currently holding it up —
+    // the manual switch OR a running window.
+    const next = !(maint.manual || maint.enabled);
+
     // Putting it up tells every visitor the product is broken. Worth a beat.
-    if (next && !window.confirm("Show the maintenance banner to everyone, including logged-out visitors?")) {
+    if (next) {
+      setAsk({
+        title: "Show the maintenance banner to everyone, including logged-out visitors?",
+        body: (
+          <>
+            <p>
+              A yellow bar appears across the top of every page — the marketing site, the
+              dashboard, the login screen — for signed-in users and strangers alike.
+            </p>
+            <p style={{ marginTop: 8 }}>
+              Every sidebar also shows an <strong>Under Maintenance</strong> badge, which
+              cannot be dismissed, until you take it down again.
+            </p>
+          </>
+        ),
+        confirmLabel: "Put the banner up",
+        tone: "warning",
+        run: () => applyToggle(true),
+      });
       return;
     }
+
+    await applyToggle(false);
+  };
+
+  /** The write itself, shared by the confirmed path and taking it down. */
+  const applyToggle = async (next: boolean) => {
     setMaintBusy(true);
     try {
-      setMaint(await setMaintenance({ enabled: next, message: maint.message }));
+      /**
+       * Taking it down also cancels a window that has already STARTED —
+       * otherwise the switch goes off and the schedule immediately puts the
+       * banner back, which reads as the button not working.
+       *
+       * A window still in the future is left alone: cancelling maintenance now
+       * is not the same as cancelling next Sunday's, and quietly deleting a
+       * plan somebody made would be worse than leaving it.
+       */
+      const running = !next && !!maint.startsAt && new Date(maint.startsAt) <= new Date();
+      setMaint(await setMaintenance({
+        enabled: next,
+        message: maint.manualMessage,
+        ...(running ? { startsAt: "", endsAt: "" } : {}),
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not update the banner.");
     } finally {
@@ -66,12 +122,53 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  /** `datetime-local` wants `YYYY-MM-DDTHH:mm` in LOCAL time, not an ISO UTC
+   * string — feeding it the latter shows the wrong hour to the admin. */
+  const toLocalInput = (iso: string | null): string => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  /** Save a schedule change. The server validates that end follows start. */
+  const saveWindow = async (startsAt: string, endsAt: string) => {
+    setMaintBusy(true);
+    setError(null);
+    try {
+      setMaint(await setMaintenance({
+        enabled: maint.manual,
+        message: maint.manualMessage,
+        scheduledMessage: maint.scheduledMessage,
+        // A local datetime-local value has no zone; `new Date()` reads it as
+        // local, which is what the admin meant, and toISOString sends UTC.
+        startsAt: startsAt ? new Date(startsAt).toISOString() : "",
+        endsAt: endsAt ? new Date(endsAt).toISOString() : "",
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the schedule.");
+    } finally {
+      setMaintBusy(false);
+    }
+  };
+
   /** Saving the wording on blur — no separate Save button to forget to press. */
   const saveMaintenanceMessage = async () => {
-    if (!maint.message.trim()) return;
+    if (!maint.manualMessage.trim()) return;
     try {
-      await setMaintenance(maint);
+      await setMaintenance({ enabled: maint.manual, message: maint.manualMessage });
     } catch { /* the toggle is the thing that matters; wording can be retried */ }
+  };
+
+  /** The scheduled window's own wording, saved the same way. */
+  const saveScheduledMessage = async () => {
+    try {
+      setMaint(await setMaintenance({
+        enabled: maint.manual,
+        message: maint.manualMessage,
+        scheduledMessage: maint.scheduledMessage,
+      }));
+    } catch { /* retryable */ }
   };
 
   useEffect(() => { setDark(readAdminDark()); }, []);
@@ -104,10 +201,17 @@ export default function AdminNotificationsPage() {
     const timing = when
       ? `It will be delivered on ${when.toLocaleString()}.`
       : "It appears in their notification inbox right away.";
-    if (!window.confirm(`${when ? "Schedule" : "Send"} "${title.trim()}" to ${who}?\n\n${timing}`)) {
-      return;
-    }
+    setAsk({
+      title: `${when ? "Schedule" : "Send"} "${title.trim()}" to ${who}?`,
+      body: <>{timing}</>,
+      confirmLabel: when ? "Schedule it" : "Send it",
+      tone: "default",
+      run: () => doSend(when),
+    });
+  };
 
+  /** The write itself, once the question above has been answered. */
+  const doSend = async (when: Date | null) => {
     setBusy(true);
     try {
       await sendNotification({
@@ -129,17 +233,25 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  const remove = async (n: SentNotification) => {
-    const msg = n.delivered
-      ? `Delete "${n.title}"?\n\nIt disappears from every inbox it was delivered to.`
-      : `Cancel "${n.title}"?\n\nIt hasn't gone out yet, so nobody will ever see it.`;
-    if (!window.confirm(msg)) return;
-    try {
-      await deleteNotification(n.id);
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete that notification.");
-    }
+  const remove = (n: SentNotification) => {
+    // Delivered and not-yet-delivered are different acts with different
+    // consequences, so they get different words rather than one hedged sentence.
+    setAsk({
+      title: n.delivered ? `Delete "${n.title}"?` : `Cancel "${n.title}"?`,
+      body: n.delivered
+        ? <>It disappears from every inbox it was delivered to.</>
+        : <>It has not gone out yet, so nobody will ever see it.</>,
+      confirmLabel: n.delivered ? "Delete it" : "Cancel it",
+      tone: "danger",
+      run: async () => {
+        try {
+          await deleteNotification(n.id);
+          load();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Could not delete that notification.");
+        }
+      },
+    });
   };
 
   const c = {
@@ -164,6 +276,19 @@ export default function AdminNotificationsPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "sans-serif", background: c.bg, color: c.text }}>
+      {/* Every consequential question on this page comes through here. */}
+      <ConfirmDialog
+        open={!!ask}
+        title={ask?.title ?? ""}
+        body={ask?.body ?? null}
+        confirmLabel={ask?.confirmLabel}
+        tone={ask?.tone}
+        busy={maintBusy || busy}
+        isDark={dark}
+        onCancel={() => setAsk(null)}
+        onConfirm={async () => { const pending = ask; setAsk(null); await pending?.run(); }}
+      />
+
       <AdminSidebar active="notifications" dark={dark} setDark={setDark} />
       <div style={{ flex: 1, overflow: "auto" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px" }}>
@@ -182,7 +307,7 @@ export default function AdminNotificationsPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                  Maintenance banner
+                  Maintenance Banner
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
                     color: maint.enabled ? "#f59e0b" : c.muted,
@@ -205,13 +330,13 @@ export default function AdminNotificationsPage() {
                   cursor: maintBusy ? "default" : "pointer", opacity: maintBusy ? 0.6 : 1, flexShrink: 0,
                 }}
               >
-                {maintBusy ? "Saving…" : maint.enabled ? "Take it down" : "Put it up"}
+                {maintBusy ? "Saving…" : (maint.manual || maint.enabled) ? "Take it down" : "Put it up"}
               </button>
             </div>
 
             <textarea
-              value={maint.message}
-              onChange={(e) => setMaint({ ...maint, message: e.target.value })}
+              value={maint.manualMessage}
+              onChange={(e) => setMaint({ ...maint, manualMessage: e.target.value })}
               onBlur={saveMaintenanceMessage}
               placeholder="What the banner says"
               style={{ ...field, minHeight: 58, resize: "vertical", marginTop: 12 }}
@@ -219,6 +344,78 @@ export default function AdminNotificationsPage() {
             <p style={{ fontSize: 11, color: c.muted, margin: "5px 0 0" }}>
               Changing the wording un-dismisses it, so people who hid the old notice still see the new one.
             </p>
+
+            {/* Scheduling. No cron anywhere: the window is stored and the read
+                query compares it to NOW(), exactly as scheduled notifications
+                already work — so a window cannot fail to start because a job
+                did not run. */}
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${c.border}` }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Schedule one for later</div>
+              <div style={{ fontSize: 11, color: c.muted, marginBottom: 10 }}>
+                Separate from the switch above. That one is for right now — something is broken and
+                you need it up this second. This is for planned work: set a window and the banner
+                puts itself up and takes itself down, with its <strong>own wording</strong> and a
+                heads-up notice beforehand so nobody is surprised. You can have both at once.
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 190px" }}>
+                  <label style={label}>STARTS</label>
+                  <input
+                    type="datetime-local"
+                    style={field}
+                    value={toLocalInput(maint.startsAt)}
+                    disabled={maintBusy}
+                    onChange={(e) => saveWindow(e.target.value, toLocalInput(maint.endsAt))}
+                  />
+                </div>
+                <div style={{ flex: "1 1 190px" }}>
+                  <label style={label}>ENDS</label>
+                  <input
+                    type="datetime-local"
+                    style={field}
+                    value={toLocalInput(maint.endsAt)}
+                    disabled={maintBusy}
+                    onChange={(e) => saveWindow(toLocalInput(maint.startsAt), e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <textarea
+                value={maint.scheduledMessage}
+                onChange={(e) => setMaint({ ...maint, scheduledMessage: e.target.value })}
+                onBlur={saveScheduledMessage}
+                placeholder="What the scheduled banner says (optional — a sensible default is used)"
+                style={{ ...field, minHeight: 48, resize: "vertical", marginTop: 10 }}
+              />
+
+              {maint.upcoming && maint.startsAt && (
+                <p style={{ fontSize: 11, color: "#f59e0b", margin: "8px 0 0", fontWeight: 600 }}>
+                  Scheduled for {new Date(maint.startsAt).toLocaleString()}
+                  {maint.endsAt ? ` until ${new Date(maint.endsAt).toLocaleString()}` : ""}. Visitors
+                  are already being told.
+                </p>
+              )}
+              {!maint.upcoming && maint.startsAt && maint.enabled && (
+                <p style={{ fontSize: 11, color: "#ef4444", margin: "8px 0 0", fontWeight: 600 }}>
+                  The scheduled window is running now
+                  {maint.endsAt ? `, ending ${new Date(maint.endsAt).toLocaleString()}` : ""}.
+                </p>
+              )}
+              {(maint.startsAt || maint.endsAt) && (
+                <button
+                  onClick={() => saveWindow("", "")}
+                  disabled={maintBusy}
+                  style={{
+                    marginTop: 8, background: "transparent", border: `1px solid ${c.border}`,
+                    color: c.muted, borderRadius: 8, padding: "5px 12px", fontSize: 11,
+                    fontWeight: 600, cursor: maintBusy ? "default" : "pointer",
+                  }}
+                >
+                  Clear schedule
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Compose */}

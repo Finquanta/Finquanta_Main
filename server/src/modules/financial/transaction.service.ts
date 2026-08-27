@@ -358,4 +358,78 @@ export class TransactionService {
       });
     }
   }
+
+  /**
+   * Validate a whole import without writing anything.
+   *
+   * Returns one result per row, in order, so the preview can show exactly which
+   * lines are wrong and why. NOTHING is created here: a half-applied import is
+   * worse than a refused one, because the user cannot tell which rows landed.
+   *
+   * Applies the same rules manual entry does, MINUS the per-day cap — see
+   * createManyForImport for why.
+   */
+  validateImportRows(rows: CreateTransactionData[]): { index: number; error: string }[] {
+    const problems: { index: number; error: string }[] = [];
+
+    rows.forEach((data, index) => {
+      try {
+        this.validateCreateData(data);
+
+        // Rule 1, kept: a future-dated expense in a spreadsheet is a data error
+        // (usually a mistyped year), and silently accepting it would put a
+        // transaction in the books that has not happened.
+        if (data.type === TransactionType.EXPENSE) {
+          const when = new Date(data.date + 'T00:00:00.000Z');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (when > today) throw new Error('Expense cannot be dated in the future');
+        }
+
+        // Rule 3, kept: still a data-entry guard, and a stray column in a
+        // spreadsheet is exactly how a $10m row gets in.
+        if (data.amount > 10000000) {
+          throw new Error('Amount exceeds the $10,000,000 limit');
+        }
+      } catch (error) {
+        problems.push({ index, error: error instanceof Error ? error.message : 'Invalid row' });
+      }
+    });
+
+    return problems;
+  }
+
+  /**
+   * Create many transactions from a deliberate import.
+   *
+   * Two differences from createTransaction, both deliberate:
+   *
+   *  - **The per-day cap is not applied.** MAX_TRANSACTIONS_PER_DAY guards
+   *    against runaway MANUAL entry; an import is a different act, already
+   *    governed by its own monthly cap (importsPerMonth). Applying it here
+   *    would fail a 150-row day halfway through — and it costs a database
+   *    query per row, so skipping it is also what makes a large import fast.
+   *  - **No per-transaction notification.** 400 rows would fire 400 of them.
+   *    The caller announces the import once instead.
+   *
+   * Rows are expected to have been through validateImportRows already.
+   *
+   * ALL OR NOTHING. The write goes through `createManyAtomic`, which runs every
+   * row inside one database transaction — so an import either lands completely
+   * or leaves the books exactly as it found them. There is no state where some
+   * rows are in and the user cannot tell which.
+   *
+   * That matters more than it sounds: a half-applied import cannot safely be
+   * re-run, because retrying duplicates whatever already made it. Validating
+   * first (above) removes the likely failure, bad data; this removes the
+   * remaining one, the connection dropping mid-write.
+   */
+  async createManyForImport(
+    businessId: string,
+    userId: string,
+    rows: CreateTransactionData[]
+  ): Promise<{ created: number; ids: string[] }> {
+    const transactions = await this.repository.createManyAtomic(businessId, userId, rows);
+    return { created: transactions.length, ids: transactions.map((t) => t.id) };
+  }
 }

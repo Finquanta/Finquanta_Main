@@ -151,7 +151,8 @@ export interface DemoLoanPayment {
  * invoice and is looking at the rendered document. Everything past that point —
  * sending it, marking it paid — needs a real account.
  */
-export type DemoTriggerReason = 'idle' | 'sessionCeiling' | 'interactionCount' | 'finnaCap' | 'invoicePreviewed';
+export type DemoTriggerReason =
+  | 'idle' | 'sessionCeiling' | 'interactionCount' | 'finnaCap' | 'invoicePreviewed' | 'scanCap';
 
 /**
  * The ordered log of everything the visitor created. This is what a real signup
@@ -201,5 +202,11 @@ export interface DemoState {
   loanPayments: DemoLoanPayment[];
   ledger: { entries: DemoJournalEntry[] };
   finna: { messagesUsed: number; messages: DemoChatMessage[] };
+  /**
+   * OPTIONAL on purpose: a session stashed before scanning existed has no
+   * such field, and bumping the state version to add one would throw those
+   * sessions away. Read it as `state.scan?.used ?? 0`.
+   */
+  scan?: { used: number };
   createdOrder: DemoOp[];
 }

@@ -63,6 +63,7 @@ const ROWS: Row[] = [
   { key: 'pfFinnaMsgs', free: '50', starter: '200', entrepreneur: '500', business: '2,000' },
   { key: 'pfCouncilSessions', free: '—', starter: '—', entrepreneur: '10', business: '30' },
   { key: 'pfGroups', free: '3', starter: '10', entrepreneur: 'pfUnlimited', business: 'pfUnlimited' },
+  { key: 'pfScans', free: '5', starter: '25', entrepreneur: '100', business: '500' },
   /**
    * NO WORKSPACES ROW, deliberately.
    *
@@ -81,17 +82,25 @@ const ROWS: Row[] = [
    * Every tier answers every row — a cross, never a blank. An empty cell reads
    * as an oversight; a cross is an answer.
    *
-   * Starter gets bank feeds and document import: they are what turn bookkeeping
-   * from typing into checking, and they are worth paying to move off Freemium
-   * for. The rest of this section stays crossed for Starter, which is where the
-   * line between it and Entrepreneur actually falls.
+   * Starter gets bank feeds: they are what turn bookkeeping from typing into
+   * checking, and they are worth paying to move off Freemium for. The rest of
+   * this section stays crossed for Starter, which is where the line between it
+   * and Entrepreneur actually falls.
+   *
+   * DOCUMENT IMPORT USED TO SIT ON THAT LINE TOO, and deliberately no longer
+   * does. Freemium now gets 5 scans a month (see pfScans above, and
+   * scansPerMonth in server/src/modules/billing/plans.ts). The trade was made
+   * knowingly: watching a photograph fill in your own books once sells the
+   * feature far better than a row on this table describing it, and the cap is
+   * small enough that it stays a taste rather than a free tier. It has also
+   * shipped, so it is no longer marked `soon`.
    *
    * The tiers are drawn to sell, not to describe a persona — "for freelancers"
    * is how Starter is MARKETED, and nothing here should be reasoned about as
    * though the plan were technically limited to one person.
    */
   { key: 'pfBank', free: false, starter: true, entrepreneur: true, business: true, soon: true },
-  { key: 'pfDocImport', free: false, starter: true, entrepreneur: true, business: true, soon: true },
+  { key: 'pfDocImport', free: true, starter: true, entrepreneur: true, business: true },
   { key: 'pfForecasting', free: false, starter: false, entrepreneur: true, business: true, soon: true },
   { key: 'pfTaxes', free: false, starter: false, entrepreneur: true, business: true, soon: true },
   { key: 'pfPayroll', free: false, starter: false, entrepreneur: true, business: true, soon: true },

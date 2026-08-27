@@ -180,9 +180,9 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
           completes checkout and everything downstream behaves like a real
           sale — so this has to be said out loud, not inferred. */}
       {testMode && (
-        <div className="border border-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3">
-          <p className="text-sm font-semibold text-purple-800 dark:text-purple-300">Stripe is in test mode</p>
-          <p className="text-xs text-purple-700 dark:text-purple-300/80">
+        <div className={`border border-purple-400 rounded-xl p-3 ${isDark ? "bg-purple-900/20" : "bg-purple-50"}`}>
+          <p className={`text-sm font-semibold ${isDark ? "text-purple-300" : "text-purple-800"}`}>Stripe is in test mode</p>
+          <p className={`text-xs ${isDark ? "text-purple-300/80" : "text-purple-700"}`}>
             Payments made here are not real and no money changes hands.
           </p>
         </div>
@@ -190,9 +190,9 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
 
       {/* The two states a paying customer can be in without knowing it. */}
       {pastDue && (
-        <div className="border border-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl p-3">
-          <p className="text-sm font-semibold text-red-700 dark:text-red-400">Your last payment failed</p>
-          <p className="text-xs text-red-700 dark:text-red-300/80">
+        <div className={`border border-red-400 rounded-xl p-3 ${isDark ? "bg-red-900/20" : "bg-red-50"}`}>
+          <p className={`text-sm font-semibold ${isDark ? "text-red-400" : "text-red-700"}`}>Your last payment failed</p>
+          <p className={`text-xs ${isDark ? "text-red-300/80" : "text-red-700"}`}>
             Update your card to keep your plan. We will retry it for you in the meantime.
           </p>
         </div>
@@ -201,11 +201,11 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
       {/* A downgrade they have already chosen. Without this the change looks
           like it failed: nothing on the page moves until the date arrives. */}
       {billing.pendingPlan && billing.pendingPlanAt && (
-        <div className="border border-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3">
-          <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+        <div className={`border border-blue-400 rounded-xl p-3 ${isDark ? "bg-blue-900/20" : "bg-blue-50"}`}>
+          <p className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-800"}`}>
             Changing to {billing.pendingPlanName} on {fmtDate(billing.pendingPlanAt)}
           </p>
-          <p className="text-xs text-blue-700 dark:text-blue-300/80">
+          <p className={`text-xs ${isDark ? "text-blue-300/80" : "text-blue-700"}`}>
             You keep {billing.badgeLabel} until then — you have already paid for this period. Nothing
             is charged or refunded in the meantime.
           </p>
@@ -213,11 +213,11 @@ export default function BillingSettings({ isDark }: { isDark: boolean }) {
       )}
 
       {cancelling && (
-        <div className="border border-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3">
-          <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+        <div className={`border border-amber-400 rounded-xl p-3 ${isDark ? "bg-amber-900/20" : "bg-amber-50"}`}>
+          <p className={`text-sm font-semibold ${isDark ? "text-amber-300" : "text-amber-800"}`}>
             Your plan ends on {fmtDate(billing.cancelAt)}
           </p>
-          <p className="text-xs text-amber-700 dark:text-amber-300/80">
+          <p className={`text-xs ${isDark ? "text-amber-300/80" : "text-amber-700"}`}>
             You keep everything until then. Reactivate any time under Manage billing.
           </p>
         </div>

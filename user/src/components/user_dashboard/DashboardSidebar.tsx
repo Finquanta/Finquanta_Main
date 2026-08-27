@@ -8,9 +8,11 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
 import { getMe, finquantaAccountId } from "@/lib/api/me";
 import { checkAdmin } from "@/lib/api/admin";
 import { logoutAndRedirect } from "@/lib/auth";
+import MaintenanceChip from "./MaintenanceChip";
 import PlanChip from "./PlanChip";
 import VerifyEmailChip from "./VerifyEmailChip";
 import PhoneChip from "./PhoneChip";
+import { DASHBOARD_VERSION } from "@/lib/version";
 
 const FEEDBACK_FORM = "https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form";
 
@@ -92,9 +94,12 @@ export default function DashboardSidebar({
       )}
 
       <div className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 flex-shrink-0 ${colors.sidebar} border-r flex flex-col py-6 px-4 overflow-y-auto transform transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
-        <div className="mb-8 flex items-center justify-between">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+        <div className="mb-8 flex items-start justify-between">
+          <div className="flex flex-col items-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+            <MaintenanceChip />
+          </div>
           <button onClick={onClose} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>
@@ -126,11 +131,9 @@ export default function DashboardSidebar({
             <PhoneChip isDark={isDark} />
           </div>
           {accountId && <p className={`mt-4 ${colors.subtext}`}>{t("dashboard", "finquantaId")}: {accountId}</p>}
-          {/* 2.0.0 (2026-08-11) — a major bump because the product changed shape,
-              not just improved: the Company Brain arrived as a new pillar above
-              Dashboard, the UI gained 10 languages, and auth gained 2FA. The
-              admin panel tracks its own number and stays on 1.3.0. */}
-          <p className={colors.subtext}>{t("dashboard", "version")} 2.0.0</p>
+          {/* One constant, shared with the inline copy of this sidebar on the
+              dashboard page — see lib/version.ts for why. */}
+          <p className={colors.subtext}>{t("dashboard", "version")} {DASHBOARD_VERSION}</p>
           <a href={FEEDBACK_FORM} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 mt-1 font-medium text-green-600 hover:text-green-700 hover:underline">
             <MessageSquare className="h-3.5 w-3.5" />

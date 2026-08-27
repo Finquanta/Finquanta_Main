@@ -42,6 +42,9 @@ import { siteRoutes } from '../modules/site/site.routes';
 import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
+import { captureRoutes } from '../modules/capture/capture.routes';
+import { inboundRoutes } from '../modules/inbound/inbound.routes';
+import { inboundWebhookRoutes } from '../modules/inbound/inbound.webhook';
 import { GroupsRepository } from '../modules/groups/groups.repository';
 import { brainRoutes } from '../modules/brain/brain.routes';
 import { BrainRepository } from '../modules/brain/brain.repository';
@@ -325,6 +328,23 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure groups schema');
   }
   await fastify.register(groupsRoutes, { database });
+  // Document Capture — photograph or upload a bill and read it into the books.
+  await fastify.register(captureRoutes, { database });
+
+  /**
+   * Inbound email — forward a bill to a private address and have it read.
+   *
+   * Registered AFTER capture, and that ordering is load-bearing: its
+   * ensureSchema adds a column to `document_captures`, which capture creates.
+   *
+   * The webhook is a SEPARATE registration because it replaces the JSON body
+   * parser with a raw-string one to verify a signature over the exact bytes
+   * sent. Fastify scopes that to the plugin instance, so isolating it here
+   * keeps every other route parsing JSON normally — same reason the Stripe
+   * webhook is registered on its own below.
+   */
+  await fastify.register(inboundRoutes, { database });
+  await fastify.register(inboundWebhookRoutes, { database });
 
   // Company Brain — the business's knowledge graph: categories, notes and the
   // connections between them, plus read-only pins onto live financial data.

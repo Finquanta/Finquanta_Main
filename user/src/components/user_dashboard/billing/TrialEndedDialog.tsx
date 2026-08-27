@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckoutOutcome, MyBilling, dismissTrialPrompt, getBillingStatus, getMyBilling, startCheckout } from "@/lib/api/billing";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { themeClasses } from "@/lib/theme";
+import { useTheme } from "@/hooks/context/ThemeContext";
 
 /**
  * Asked once, when a free trial has run out: what would you like to do now?
@@ -33,6 +35,9 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
  */
 export default function TrialEndedDialog() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const c = themeClasses(isDark);
   const params = useSearchParams();
   const preview = params?.get("trialPreview") === "end";
   const [billing, setBilling] = useState<MyBilling | null>(null);
@@ -118,25 +123,25 @@ export default function TrialEndedDialog() {
     >
       {/* Stop a click inside the card from counting as dismissal. */}
       <div
-        className="w-full max-w-lg rounded-xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-y-auto"
+        className={`w-full max-w-lg rounded-xl shadow-xl max-h-[90vh] overflow-y-auto ${c.surface}`}
         onClick={(e) => e.stopPropagation()}
       >
         {preview && (
-          <div className="px-5 py-1.5 text-[11px] font-semibold text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200">
+          <div className={`px-5 py-1.5 text-[11px] font-semibold ${isDark ? "bg-amber-900/40 text-amber-200" : "bg-amber-100 text-amber-800"}`}>
             {t("dashboard", "trialPreviewNote")}
           </div>
         )}
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="trial-ended-title" className="text-lg font-bold text-gray-900 dark:text-white">
+        <div className={`p-5 border-b ${c.line}`}>
+          <h2 id="trial-ended-title" className={`text-lg font-bold ${c.heading}`}>
             {t("dashboard", "trialEndTitle")}
           </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+          <p className={`mt-1 text-sm ${c.body}`}>
             {t("dashboard", "trialEndBody")}
           </p>
           {/* Naming the date turns a vague "it ended" into something they can
               place, which is the difference between a nag and a reminder. */}
           {billing.trialEndsAt && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className={`mt-2 text-xs ${c.muted}`}>
               {t("dashboard", "trialEndEnded")}{" "}
               {new Date(billing.trialEndsAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
             </p>
@@ -154,8 +159,8 @@ export default function TrialEndedDialog() {
                 onClick={() => setInterval(i)}
                 className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
                   interval === i
-                    ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                    : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
+                    ? `border-green-500 ${isDark ? "bg-green-900/20 text-green-300" : "bg-green-50 text-green-700"}`
+                    : isDark ? "border-gray-600 text-gray-300" : "border-gray-200 text-gray-600"
                 }`}
               >
                 {t("dashboard", i === "monthly" ? "trialEndMonthly" : "trialEndYearly")}
@@ -171,10 +176,10 @@ export default function TrialEndedDialog() {
                   key={p.key}
                   disabled={!!busy}
                   onClick={() => buy(p.key)}
-                  className="w-full flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 disabled:opacity-60"
+                  className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left disabled:opacity-60 ${isDark ? "border-gray-600 hover:bg-gray-700/40" : "border-gray-200 hover:bg-gray-50"}`}
                 >
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{p.name}</span>
-                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                  <span className={`text-sm font-semibold ${c.heading}`}>{p.name}</span>
+                  <span className={`text-xs ${c.body}`}>
                     {busy === p.key
                       ? t("dashboard", "trialEndOpening")
                       : `$${unit}${interval === "monthly" ? t("dashboard", "trialEndPerMo") : t("dashboard", "trialEndPerYr")}`}
@@ -185,24 +190,24 @@ export default function TrialEndedDialog() {
           </div>
 
           {/* Per seat, said here rather than found out later on an invoice. */}
-          <p className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+          <p className={`mt-3 text-[11px] ${c.muted}`}>
             {t("dashboard", "trialEndPerSeat")}
           </p>
 
-          {error && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className={`mt-3 text-xs ${c.danger}`}>{error}</p>}
         </div>
 
         <div className="p-5 pt-0 flex flex-col gap-2">
           <button
             onClick={answer}
             disabled={!!busy}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40 disabled:opacity-60"
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-60 ${isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700/40" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
           >
             {t("dashboard", "trialEndStayFree")}
           </button>
           {/* What staying free actually costs them, so it is an informed
               choice rather than the path of least resistance. */}
-          <p className="text-[11px] text-center text-gray-500 dark:text-gray-400">
+          <p className={`text-[11px] text-center ${c.muted}`}>
             {t("dashboard", "trialEndStayFreeHint")}
           </p>
         </div>

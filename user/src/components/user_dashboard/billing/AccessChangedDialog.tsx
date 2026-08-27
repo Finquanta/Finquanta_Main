@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MyBilling, dismissAccessNotice, getMyBilling } from "@/lib/api/billing";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { themeClasses } from "@/lib/theme";
+import { useTheme } from "@/hooks/context/ThemeContext";
 
 /**
  * Told when free access is granted, extended or shortened.
@@ -25,6 +27,9 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
  */
 export default function AccessChangedDialog() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const c = themeClasses(isDark);
   const params = useSearchParams();
   const preview = params?.get("trialPreview") === "access";
 
@@ -66,20 +71,20 @@ export default function AccessChangedDialog() {
       onClick={close}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-y-auto"
+        className={`w-full max-w-md rounded-xl shadow-xl max-h-[90vh] overflow-y-auto ${c.surface}`}
         onClick={(e) => e.stopPropagation()}
       >
         {preview && (
-          <div className="px-5 py-1.5 text-[11px] font-semibold text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200">
+          <div className={`px-5 py-1.5 text-[11px] font-semibold ${isDark ? "bg-amber-900/40 text-amber-200" : "bg-amber-100 text-amber-800"}`}>
             {t("dashboard", "trialPreviewNote")}
           </div>
         )}
 
         <div className="p-5">
-          <h2 id="access-changed-title" className="text-lg font-bold text-gray-900 dark:text-white">
+          <h2 id="access-changed-title" className={`text-lg font-bold ${c.heading}`}>
             {t("dashboard", "accessChangedTitle")}
           </h2>
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+          <p className={`mt-2 text-sm ${c.label}`}>
             {t("dashboard", "accessChangedBody")}
           </p>
 
@@ -87,7 +92,7 @@ export default function AccessChangedDialog() {
               date is something nobody can plan around, and the day it stops is
               the day the product looks broken. */}
           {ends && (
-            <p className="mt-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-2 text-sm font-semibold text-green-800 dark:text-green-200">
+            <p className={`mt-3 rounded-lg border px-3 py-2 text-sm font-semibold ${c.successTint} ${c.success}`}>
               {t("dashboard", "accessChangedUntil")} {ends}
               {typeof days === "number" && (
                 <span className="font-normal">
@@ -97,7 +102,7 @@ export default function AccessChangedDialog() {
             </p>
           )}
 
-          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className={`mt-3 text-xs ${c.muted}`}>
             {t("dashboard", "accessChangedNote")}
           </p>
         </div>
@@ -105,7 +110,7 @@ export default function AccessChangedDialog() {
         <div className="p-5 pt-0">
           <button
             onClick={close}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40"
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold ${isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700/40" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
           >
             {t("dashboard", "trialStartGotIt")}
           </button>

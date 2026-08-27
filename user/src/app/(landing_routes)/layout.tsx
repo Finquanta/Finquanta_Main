@@ -30,7 +30,12 @@ export default function RootLayout({
     <>
       <div className={cn("overflow-x-hidden min-w-[320px] max-w-[2560px] mx-auto", inter.className)}>
         <NavBarComponent />
-        <main className="pt-16 w-full">{children}</main>
+        <main
+          className="w-full"
+          // 4rem clears the fixed navbar; the variable clears the maintenance
+          // banner above it, and is 0px when there is no banner.
+          style={{ paddingTop: "calc(4rem + var(--maintenance-h, 0px))" }}
+        >{children}</main>
         <Footer onContactClick={() => setContactModalOpen(true)} />
       </div>
       <ClientOnly>

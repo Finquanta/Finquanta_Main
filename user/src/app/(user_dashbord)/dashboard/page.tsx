@@ -27,9 +27,13 @@ import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
+import ConfirmDialog from '@/components/user_dashboard/ConfirmDialog';
+import CaptureButton from '@/components/user_dashboard/capture/CaptureButton';
 import PlanChip from '@/components/user_dashboard/PlanChip';
 import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
 import PhoneChip from '@/components/user_dashboard/PhoneChip';
+import { DASHBOARD_VERSION } from '@/lib/version';
+import MaintenanceChip from '@/components/user_dashboard/MaintenanceChip';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
 
@@ -52,6 +56,53 @@ export default function DashboardPage() {
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
   const [bookkeepingEditing, setBookkeepingEditing] = useState<BookkeepingEditing | null>(null);
   const [bookkeepingRefresh, setBookkeepingRefresh] = useState(0);
+
+  /**
+   * The destructive question currently on screen.
+   *
+   * One slot, because only one of these can be asked at a time — modelling it
+   * as a single value makes that true by construction rather than by luck. Same
+   * shape WorkspaceSwitcher uses.
+   *
+   * This replaces `window.confirm` for everything that removes something from
+   * the books. The browser's own box cannot be styled, is prefixed with
+   * "localhost:3000 says", and looks exactly like the scam prompts people have
+   * been trained to dismiss without reading — which is precisely the wrong
+   * dialog for "this erases an entry from your accounts".
+   */
+  const [ask, setAsk] = useState<{
+    title: string;
+    body: React.ReactNode;
+    confirmLabel: string;
+    tone: 'default' | 'danger' | 'warning';
+    run: () => Promise<void>;
+  } | null>(null);
+  const [askBusy, setAskBusy] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+
+  /**
+   * Run the pending action, and keep the dialog open if it fails.
+   *
+   * The failures used to surface through `alert()` — the same unstyleable box,
+   * one beat after the one we just replaced. Reporting it inside the dialog
+   * keeps the whole interaction in the app, and leaves the question on screen
+   * so the user can simply press the button again.
+   */
+  const runAsk = async () => {
+    if (!ask) return;
+    setAskBusy(true);
+    setAskError(null);
+    try {
+      await ask.run();
+      setAsk(null);
+    } catch (e) {
+      setAskError(e instanceof Error ? e.message : t('dashboard', 'genericError'));
+    } finally {
+      setAskBusy(false);
+    }
+  };
+
+  const closeAsk = () => { setAsk(null); setAskError(null); };
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
@@ -253,16 +304,25 @@ export default function DashboardPage() {
     setBookkeepingModalOpen(true);
   };
 
-  const deleteLedgerRow = async (tx: LedgerTransaction) => {
-    if (!tx.transactionId) return;
-    if (!window.confirm(`Delete “${tx.category ?? tx.description}”?`)) return;
-    try {
-      await deleteTransaction(tx.transactionId);
-      setBookkeepingRefresh((n) => n + 1);
-      refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : t("dashboard","errDeleteEntry"));
-    }
+  const deleteLedgerRow = (tx: LedgerTransaction) => {
+    const id = tx.transactionId;
+    if (!id) return;
+    setAsk({
+      title: 'Delete this entry?',
+      body: (
+        <>
+          <strong>{tx.category ?? tx.description}</strong> will be removed from your books. This
+          cannot be undone.
+        </>
+      ),
+      confirmLabel: 'Delete',
+      tone: 'danger',
+      run: async () => {
+        await deleteTransaction(id);
+        setBookkeepingRefresh((n) => n + 1);
+        refresh();
+      },
+    });
   };
 
   /**
@@ -271,20 +331,28 @@ export default function DashboardPage() {
    * books completely. The document goes to the recycle bin, and restoring it
    * puts the same entries back.
    */
-  const deleteInvoiceRow = async (tx: LedgerTransaction) => {
-    if (!tx.sourceId) return;
-    const ok = window.confirm(
-      'This removes the invoice from your books completely, as if it had never been raised.\n\n' +
-      'It goes to Invoices → Recycle Bin, where you can restore it. Continue?'
-    );
-    if (!ok) return;
-    try {
-      await deleteInvoice(tx.sourceId);
-      setBookkeepingRefresh((n) => n + 1);
-      refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not delete that invoice.');
-    }
+  const deleteInvoiceRow = (tx: LedgerTransaction) => {
+    const sourceId = tx.sourceId;
+    if (!sourceId) return;
+    setAsk({
+      title: 'Remove this invoice from your books?',
+      body: (
+        <>
+          <p>It will be erased from your accounts completely, as if it had never been raised.</p>
+          <p className="mt-2">
+            The document goes to <strong>Invoices → Recycle Bin</strong>, where you can restore it —
+            which puts the same entries back.
+          </p>
+        </>
+      ),
+      confirmLabel: 'Remove from books',
+      tone: 'danger',
+      run: async () => {
+        await deleteInvoice(sourceId);
+        setBookkeepingRefresh((n) => n + 1);
+        refresh();
+      },
+    });
   };
 
   /**
@@ -381,28 +449,42 @@ export default function DashboardPage() {
   const deleteLedgerEntry = async (tx: LedgerTransaction) => {
     const isLoanPayment = tx.sourceType === 'loan_payment' || tx.sourceType === 'loan_repayment_received';
     const isLoanPrincipal = tx.sourceType === 'loan_received' || tx.sourceType === 'loan_issued';
-    const ok = window.confirm(
-      isLoanPayment
-        ? 'Reverse this payment? The loan balance will be restored.'
+    // Three different things behind one button, so the question has to say
+    // which one is about to happen — a loan principal takes its payments with
+    // it, and that is not something to discover afterwards.
+    setAsk({
+      title: isLoanPayment
+        ? 'Reverse this payment?'
         : isLoanPrincipal
-          ? 'Delete this loan and every payment recorded against it? This cannot be undone.'
-          : `Delete “${tx.description}”? This cannot be undone.`
-    );
-    if (!ok) return;
-    try {
-      if (isLoanPayment) {
-        await deleteLoanPayment(tx.id);
-      } else if (isLoanPrincipal) {
-        if (!tx.sourceId) return;
-        await deleteLoan(tx.sourceId);
-      } else {
-        await deleteEntry(tx.id);
-      }
-      setBookkeepingRefresh((n) => n + 1);
-      refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : t("dashboard","errDeleteEntry"));
-    }
+          ? 'Delete this loan?'
+          : 'Delete this entry?',
+      body: isLoanPayment ? (
+        <>The payment is removed and the loan balance is restored to what it was before it.</>
+      ) : isLoanPrincipal ? (
+        <>
+          This deletes the loan <strong>and every payment recorded against it</strong>. This cannot
+          be undone.
+        </>
+      ) : (
+        <>
+          <strong>{tx.description}</strong> will be removed from your books. This cannot be undone.
+        </>
+      ),
+      confirmLabel: isLoanPayment ? 'Reverse payment' : 'Delete',
+      tone: 'danger',
+      run: async () => {
+        if (isLoanPayment) {
+          await deleteLoanPayment(tx.id);
+        } else if (isLoanPrincipal) {
+          if (!tx.sourceId) return;
+          await deleteLoan(tx.sourceId);
+        } else {
+          await deleteEntry(tx.id);
+        }
+        setBookkeepingRefresh((n) => n + 1);
+        refresh();
+      },
+    });
   };
 
   const openNewBookkeeping = () => { setBookkeepingEditing(null); setBookkeepingModalOpen(true); };
@@ -481,10 +563,16 @@ export default function DashboardPage() {
     });
     setGoalModalOpen(true);
   };
-  const handleDeleteGoal = async (id: string) => {
-    if (!window.confirm('Delete this goal? This cannot be undone.')) return;
-    try { await deleteGoal(id); await refresh(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Could not delete this goal.'); }
+  // Not strictly "the books", but it is the last `window.confirm` left on this
+  // page, and one browser box among four styled dialogs reads as an oversight.
+  const handleDeleteGoal = (id: string) => {
+    setAsk({
+      title: 'Delete this goal?',
+      body: <>This cannot be undone. Your entries are not affected.</>,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+      run: async () => { await deleteGoal(id); await refresh(); },
+    });
   };
 
   const startEditName = () => {
@@ -577,7 +665,16 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className={`flex h-screen ${colors.bg}`} onClick={() => setClickCount(c => c + 1)}>
+    <div
+      className={`flex ${colors.bg}`}
+      onClick={() => setClickCount(c => c + 1)}
+      // Shortened by the maintenance banner's height and pushed below it.
+      // 0px when there is no banner. See components/MaintenanceBanner.tsx.
+      style={{
+        marginTop: "var(--maintenance-h, 0px)",
+        height: "calc(100vh - var(--maintenance-h, 0px))",
+      }}
+    >
       {/* Mobile/tablet overlay behind the drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
@@ -585,8 +682,11 @@ export default function DashboardPage() {
 
       {/* SIDEBAR — static on desktop, off-canvas drawer on tablet/mobile */}
       <div className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="mb-8 flex items-center justify-between">
-          <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+        <div className="mb-8 flex items-start justify-between">
+          <div className="flex flex-col items-start">
+            <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
+            <MaintenanceChip />
+          </div>
           <button onClick={() => setSidebarOpen(false)} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>
@@ -643,10 +743,10 @@ export default function DashboardPage() {
             <PhoneChip isDark={isDark} />
           </div>
           <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          {/* Duplicated from DashboardSidebar.tsx — keep the two in step until
-              this inline copy is finally removed, or the version a user sees
-              depends on which page they happen to be on. */}
-          <p className={colors.subtext}>{t('dashboard', 'version')} 2.0.0</p>
+          {/* This whole block is still duplicated from DashboardSidebar.tsx and
+              removing it is an open cleanup — but the version at least can no
+              longer drift, because both read the same constant. */}
+          <p className={colors.subtext}>{t('dashboard', 'version')} {DASHBOARD_VERSION}</p>
           <a
             href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
             target="_blank"
@@ -909,6 +1009,10 @@ export default function DashboardPage() {
               className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               <FileText className="h-4 w-4" />{t("dashboard","dashCreateInvoice")}</Link>
+            {/* Photograph a bill instead of typing it. Sits beside the other two
+                because it is a third way to make the same entry, not a feature
+                somewhere else. */}
+            <CaptureButton onSaved={refreshAfterBookkeeping} />
           </div>
 
           {/* Summary Cards */}
@@ -1141,6 +1245,24 @@ export default function DashboardPage() {
         editing={goalEditing}
         onClose={() => setGoalModalOpen(false)}
         onSaved={refresh}
+      />
+
+      {/* Every destructive question on this page comes through here. */}
+      <ConfirmDialog
+        open={!!ask}
+        title={ask?.title ?? ''}
+        body={
+          <>
+            {ask?.body}
+            {askError && <p className="mt-3 text-sm text-red-500">{askError}</p>}
+          </>
+        }
+        confirmLabel={ask?.confirmLabel}
+        tone={ask?.tone}
+        busy={askBusy}
+        isDark={isDark}
+        onConfirm={runAsk}
+        onCancel={closeAsk}
       />
 
       {/* Goals check-in reminder */}

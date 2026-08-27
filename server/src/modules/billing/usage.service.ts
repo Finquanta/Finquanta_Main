@@ -28,12 +28,17 @@ import { PlanLimits } from './plans';
  * downgrading simply lowers the ceiling back down over the same count.
  */
 
-export type UsageMetric = 'finna_messages' | 'council_sessions';
+export type UsageMetric = 'finna_messages' | 'council_sessions' | 'document_scans' | 'imports';
 
 /** Which plan limit governs which metric. */
 const LIMIT_FOR: Record<UsageMetric, keyof PlanLimits> = {
   finna_messages: 'finnaMessagesPerMonth',
   council_sessions: 'councilSessionsPerMonth',
+  document_scans: 'scansPerMonth',
+  // Counted per FILE, not per row: one spreadsheet is one import however many
+  // lines it carries, or the cap would mean nothing on a small sheet and be
+  // unusable on a large one.
+  imports: 'importsPerMonth',
 };
 
 /**
@@ -50,6 +55,8 @@ export interface MemberUsageRow {
   role: string | null;
   finnaMessages: number;
   councilSessions: number;
+  documentScans: number;
+  imports: number;
 }
 
 export interface UsageCheck {
@@ -231,7 +238,9 @@ export class UsageService {
               NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), '') AS name,
               m.role,
               COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'finna_messages'), 0)::int AS finna,
-              COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'council_sessions'), 0)::int AS council
+              COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'council_sessions'), 0)::int AS council,
+              COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'document_scans'), 0)::int AS scans,
+              COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'imports'), 0)::int AS imports
          FROM business_members m
          JOIN users u ON u.id = m.user_id
          LEFT JOIN billing_usage_by_user bu
@@ -246,7 +255,9 @@ export class UsageService {
         -- Spend whose member row is gone: they left, or the account was closed.
         SELECT 'removed', NULL, NULL, NULL, NULL,
                COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'finna_messages'), 0)::int,
-               COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'council_sessions'), 0)::int
+               COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'council_sessions'), 0)::int,
+               COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'document_scans'), 0)::int,
+               COALESCE(SUM(bu.used) FILTER (WHERE bu.metric = 'imports'), 0)::int
           FROM billing_usage_by_user bu
          WHERE bu.business_id = $1 AND bu.period = $2
            AND (bu.user_id IS NULL
@@ -263,6 +274,8 @@ export class UsageService {
       role: row.role ?? null,
       finnaMessages: Number(row.finna) || 0,
       councilSessions: Number(row.council) || 0,
+      documentScans: Number(row.scans) || 0,
+      imports: Number(row.imports) || 0,
     }));
   }
 
@@ -280,7 +293,10 @@ export class UsageService {
    * entitlements pays nothing for them here either.
    */
   async summary(businessId: string, resolved?: Entitlements): Promise<Record<UsageMetric, UsageCheck>> {
-    const metrics: UsageMetric[] = ['finna_messages', 'council_sessions'];
+    // Document scans belong here for the same reason the other two do: the
+    // workspace bought an allowance and needs to see what is left of it before
+    // it runs out, not at the moment a scan is refused.
+    const metrics: UsageMetric[] = ['finna_messages', 'council_sessions', 'document_scans'];
     const e = resolved ?? await this.entitlements.for(businessId);
     const entries = await Promise.all(
       metrics.map(async (m) => [m, await this.check(businessId, m, e)] as const)

@@ -9,7 +9,15 @@ export default function LoginPage() {
   const { t } = useLanguage();
  
   return (
-    <div className="flex h-screen w-full">
+    <div
+      className="flex w-full"
+      // Shortened by the maintenance banner's height and pushed below it.
+      // 0px when there is no banner. See components/MaintenanceBanner.tsx.
+      style={{
+        marginTop: "var(--maintenance-h, 0px)",
+        height: "calc(100vh - var(--maintenance-h, 0px))",
+      }}
+    >
       {/* Left Column - Branding */}
       <div className="hidden w-2/5 bg-gray-100 flex-col items-center justify-center lg:flex">
         <div className="flex flex-col items-center justify-center space-y-8">

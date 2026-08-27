@@ -99,6 +99,35 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 /**
+ * A feature the plan does not include, or an allowance already spent.
+ *
+ * The server answers 402 for these (never 403, which this client treats as a
+ * dead session and bounces to /login). It puts the reason in the body —
+ * `feature`, the cheapest plan that includes it, and for a metered feature how
+ * much has been used — so the UI can offer a real upgrade instead of printing
+ * a sentence and stopping.
+ *
+ * Typed here rather than at each call site because EVERY gated feature returns
+ * this shape: Company Brain's graph and backlinks, auto-summarisation, Council
+ * and document scans all go through requireFeature on the server.
+ */
+export class PaymentRequiredError extends Error {
+  readonly feature: string | null;
+  readonly requiredPlan: string | null;
+  readonly used: number | null;
+  readonly limit: number | null;
+
+  constructor(message: string, data?: Record<string, unknown>) {
+    super(message);
+    this.name = 'PaymentRequiredError';
+    this.feature = typeof data?.feature === 'string' ? data.feature : null;
+    this.requiredPlan = typeof data?.requiredPlan === 'string' ? data.requiredPlan : null;
+    this.used = typeof data?.used === 'number' ? data.used : null;
+    this.limit = typeof data?.limit === 'number' ? data.limit : null;
+  }
+}
+
+/**
  * Build an Error from a failed response, preferring the backend's own error
  * message ({ error } or { message }) over the bare status code.
  */
@@ -107,10 +136,14 @@ async function errorFromResponse(res: Response): Promise<Error> {
     const body = await res.json();
     // Prefer a specific message; Fastify's `error` is often just "Bad Request".
     const message = body?.message || body?.error;
+    if (res.status === 402) {
+      return new PaymentRequiredError(message || 'Your plan does not include this.', body?.data);
+    }
     if (message) return new Error(message);
   } catch {
     /* response had no/invalid JSON body */
   }
+  if (res.status === 402) return new PaymentRequiredError('Your plan does not include this.');
   return new Error(`API error: ${res.status} ${res.statusText}`);
 }
 

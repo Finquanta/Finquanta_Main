@@ -17,6 +17,7 @@ import { RevenueMetric } from '@/lib/api/dashboard';
 import HealthScoreCard from '@/components/user_dashboard/health/HealthScoreCard';
 import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import DemoBookkeepingModal, { DemoEditableEntry } from '@/components/demo/DemoBookkeepingModal';
+import DemoCaptureButton from '@/components/demo/DemoCaptureButton';
 import { demoErrorText } from '@/lib/demo/errors';
 
 /**
@@ -158,6 +159,27 @@ export default function DemoDashboardPage() {
         >
           <FileText className="h-4 w-4" /> {t('demo', 'createInvoice')}
         </Link>
+        {/* The demo's one real AI moment. What it reads goes into the SAME entry
+            modal a typed entry uses — the demo must not teach a shortcut the
+            product does not have. */}
+        <DemoCaptureButton
+          isDark={isDark}
+          onAdd={(fields) => {
+            recordInteraction();
+            setEditing({
+              kind: 'cash',
+              // A scanned receipt is money going out. The modal still lets them
+              // change it, exactly as the real review popup does.
+              type: 'expense',
+              category: fields.vendor?.trim() || t('demo', 'dScanReadTitle'),
+              description: fields.documentNumber ? `#${fields.documentNumber}` : '',
+              amount: fields.total ?? 0,
+              date: fields.documentDate || new Date().toISOString().slice(0, 10),
+              groupId: null,
+            });
+            setModalOpen(true);
+          }}
+        />
       </div>
 
       {/* Summary Cards. The titles are translated here rather than in

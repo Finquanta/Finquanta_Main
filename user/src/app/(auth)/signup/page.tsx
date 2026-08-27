@@ -10,7 +10,15 @@ export default function SignupPage() {
   const { t } = useLanguage();
  
   return (
-    <div className="flex h-screen w-full">
+    <div
+      className="flex w-full"
+      // Shortened by the maintenance banner's height and pushed below it.
+      // 0px when there is no banner. See components/MaintenanceBanner.tsx.
+      style={{
+        marginTop: "var(--maintenance-h, 0px)",
+        height: "calc(100vh - var(--maintenance-h, 0px))",
+      }}
+    >
       {/* No-op unless the visitor came from the Try-It Demo. */}
       <DemoHandoff />
       {/* Left Column - Branding */}

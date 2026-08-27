@@ -116,6 +116,44 @@ export default function FinnaSettings({ isDark }: { isDark: boolean }) {
         )}
       </div>
 
+      {/* Document scans get their own card rather than a third bar in the one
+          above, because they are not Finna — a scan is a photograph being read,
+          not a conversation. Same shape and same reset date, so it still reads
+          as one family of allowances. */}
+      <div className={`border rounded-xl p-4 ${card}`}>
+        <p className="font-semibold text-sm">Documents scanned this month</p>
+        <p className={`text-xs mb-2 ${muted}`}>
+          Photographed or uploaded bills and receipts. Counted when you confirm one into your
+          books — previewing a scan and discarding it costs nothing.
+        </p>
+
+        {!billing ? (
+          <p className={`text-sm ${muted}`}>Loading…</p>
+        ) : (
+          <>
+            <UsageMeter
+              label="Document scans"
+              used={billing.usage?.document_scans?.used ?? 0}
+              limit={billing.usage?.document_scans?.limit ?? null}
+              isDark={isDark}
+            />
+            {(() => {
+              const s = billing.usage?.document_scans;
+              if (!s || s.limit === null || s.limit === 0) return null;
+              const left = Math.max(0, s.limit - s.used);
+              if (left > s.limit * 0.2) return null;
+              return (
+                <p className="text-xs text-amber-600 mt-2">
+                  {left === 0
+                    ? "You have used this month's scans. They reset on the 1st, or you can upgrade in Billing."
+                    : `${left} scan${left === 1 ? "" : "s"} left this month.`}
+                </p>
+              );
+            })()}
+          </>
+        )}
+      </div>
+
       {/* Where the shared allowance is actually going. Directly under the
           meters, because "how much is left" and "who is using it" are the same
           question asked twice. */}

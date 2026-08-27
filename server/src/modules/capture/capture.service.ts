@@ -1,0 +1,161 @@
+import crypto from 'crypto';
+import { CaptureRepository } from './capture.repository';
+import { StorageDriver } from '../../infrastructure/object-storage';
+import { extractDocument } from './capture.extraction';
+import {
+  CaptureMethod, ConfidenceScores, DocumentCapture, DocumentType, ExtractedFields,
+} from './capture.types';
+
+/**
+ * Storing a document and reading it — the ONE path that does this.
+ *
+ * Lives here rather than inside `captureRoutes` because it now has three
+ * callers, not one: a desktop upload, a photo sent from a phone over the QR
+ * handoff, and an attachment that arrived by email. All three must produce an
+ * identical capture. A second copy of this logic would be a second set of bugs
+ * and, worse, a second set of rules about what reaches somebody's books.
+ */
+
+/** The abuse ceiling. Cost is spent at extraction, which the visible per-plan
+ * cap does not govern, so this is the thing standing between a script and the
+ * balance. */
+const GLOBAL_DAILY_LIMIT = Number(process.env.CAPTURE_GLOBAL_DAILY_LIMIT || 500);
+
+/**
+ * Extraction attempts today, platform-wide. Separate from the plan quota.
+ *
+ * Module scope on purpose: this used to be a closure inside `captureRoutes`,
+ * which meant each registration got its own counter. Now that email ingestion
+ * is a second entry point, one shared ceiling is the only version that actually
+ * bounds the spend.
+ *
+ * Still per-process, so it resets on deploy and each Render instance counts
+ * separately — moving it into `billing_usage` keyed by workspace and day is the
+ * known fix, and is worth doing before this is public.
+ */
+let extractionsToday = 0;
+let extractionDay = new Date().toISOString().slice(0, 10);
+
+export function underGlobalCeiling(): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== extractionDay) {
+    extractionDay = today;
+    extractionsToday = 0;
+  }
+  return extractionsToday < GLOBAL_DAILY_LIMIT;
+}
+
+export interface IngestDeps {
+  repo: CaptureRepository;
+  storage: StorageDriver;
+  /** Where a failed reading gets logged. The caller owns its own logger. */
+  onError: (error: unknown) => void;
+}
+
+export interface IngestInput {
+  businessId: string;
+  /** Null for a document that arrived unattended — nobody was there to do it. */
+  userId: string | null;
+  captureMethod: CaptureMethod;
+  buffer: Buffer;
+  mimeType: string;
+  filename: string | null;
+  documentType: DocumentType;
+}
+
+/**
+ * Store a document and read it.
+ *
+ * Never throws for a failed reading. The image is stored BEFORE extraction is
+ * attempted, so a capture always exists to review by hand, and the error is
+ * recorded on the row rather than returned as a failure. Refusing the whole
+ * thing because the model had a bad day would leave the user worse off than the
+ * manual entry they had before.
+ */
+export async function storeExtractedDocument(
+  deps: Pick<IngestDeps, 'repo' | 'storage'>,
+  input: Omit<IngestInput, 'documentType'> & {
+    documentType: DocumentType;
+    fields: ExtractedFields;
+    confidence: ConfidenceScores;
+  }
+): Promise<DocumentCapture> {
+  /**
+   * A capture whose fields are ALREADY known — no AI call here.
+   *
+   * The email body path needs this: the reading happened over text, so by the
+   * time we have something worth keeping the extraction is done. Running
+   * `extractDocument` over a text blob would be a second charge for an answer
+   * we already hold.
+   */
+  const storageKey = `captures/${input.businessId}/${crypto.randomUUID()}`;
+  await deps.storage.put(storageKey, input.buffer, input.mimeType);
+
+  const capture = await deps.repo.create({
+    businessId: input.businessId,
+    capturedBy: input.userId,
+    captureMethod: input.captureMethod,
+    storageKey,
+    mimeType: input.mimeType,
+    originalFilename: input.filename,
+    documentType: input.documentType,
+  });
+
+  await deps.repo.saveExtraction(
+    capture.id,
+    input.businessId,
+    input.fields,
+    input.confidence,
+    input.documentType
+  );
+
+  return {
+    ...capture,
+    extractedFields: input.fields,
+    confidenceScores: input.confidence,
+  };
+}
+
+export async function ingestDocument(
+  deps: IngestDeps,
+  input: IngestInput
+): Promise<DocumentCapture> {
+  const { repo, storage } = deps;
+  const { businessId, userId, buffer, mimeType, documentType } = input;
+
+  // Store first, so the document survives even if reading it fails.
+  const storageKey = `captures/${businessId}/${crypto.randomUUID()}`;
+  await storage.put(storageKey, buffer, mimeType);
+
+  const capture = await repo.create({
+    businessId,
+    capturedBy: userId,
+    captureMethod: input.captureMethod,
+    storageKey,
+    mimeType,
+    originalFilename: input.filename,
+    documentType,
+  });
+
+  if (!underGlobalCeiling()) {
+    await repo.saveExtractionError(capture.id, businessId, 'Daily reading limit reached.');
+    return { ...capture, extractionError: 'Too many documents read today. Enter this one by hand.' };
+  }
+
+  try {
+    extractionsToday += 1;
+    const result = await extractDocument(buffer, mimeType, documentType);
+    await repo.saveExtraction(capture.id, businessId, result.fields, result.confidence, result.documentType);
+    return {
+      ...capture,
+      documentType: result.documentType,
+      extractedFields: result.fields,
+      confidenceScores: result.confidence,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not read that document.';
+    deps.onError(error);
+    await repo.saveExtractionError(capture.id, businessId, message);
+    return { ...capture, extractionError: message };
+  }
+}

@@ -41,7 +41,16 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50";
 
   return (
-    <div className={`flex h-screen ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div
+      className={`flex ${isDark ? "bg-gray-900" : "bg-gray-50"}`}
+      // Was `h-screen`. With a fixed banner above it, a full 100vh starting
+      // under the banner runs the bottom of the app off the screen — so the
+      // shell is shortened by exactly the banner height and pushed below it.
+      style={{
+        marginTop: "var(--maintenance-h, 0px)",
+        height: "calc(100vh - var(--maintenance-h, 0px))",
+      }}
+    >
       <DashboardSidebar isDark={isDark} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">

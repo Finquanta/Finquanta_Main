@@ -8,7 +8,7 @@
  * a dismissed reason again.
  */
 import { DemoState, DemoTriggerReason } from './types';
-import { FINNA_MESSAGE_CAP } from './store';
+import { DEMO_SCAN_CAP, FINNA_MESSAGE_CAP } from './store';
 
 /**
  * No activity for this long, with work on the books, reads as "about to leave".
@@ -36,6 +36,11 @@ type T = (ns: string, key: string) => string;
  */
 export function triggerCopy(t: T): Record<DemoTriggerReason, TriggerCopy> {
   return {
+    scanCap: {
+      title: t('demo', 'tgScanCapTitle'),
+      body: t('demo', 'tgScanCapBody'),
+      cta: t('demo', 'tgScanCapCta'),
+    },
     finnaCap: {
       title: t('demo', 'tgFinnaCapTitle'),
       body: t('demo', 'tgFinnaCapBody'),
@@ -71,6 +76,13 @@ export function triggerCopy(t: T): Record<DemoTriggerReason, TriggerCopy> {
 export function nextTrigger(state: DemoState, now = Date.now()): DemoTriggerReason | null {
   const dismissed = (r: DemoTriggerReason) => state.meta.dismissedTriggers[r] != null;
   const hasWork = state.createdOrder.length > 0;
+
+  /**
+   * Above the invoice preview, and that is deliberate. Watching a photograph
+   * of a real receipt fill in its own entry is the most convincing thing the
+   * demo does, and the moment right after it is the best moment to ask.
+   */
+  if (!dismissed('scanCap') && (state.scan?.used ?? 0) >= DEMO_SCAN_CAP) return 'scanCap';
 
   if (!dismissed('finnaCap') && state.finna.messagesUsed >= FINNA_MESSAGE_CAP) return 'finnaCap';
 

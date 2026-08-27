@@ -71,6 +71,16 @@ export interface PlanLimits {
   groups: number | null;
   importsPerMonth: number | null;
   /**
+   * Document captures (photo / PDF scans) per month.
+   *
+   * Freemium gets a real allowance rather than nothing: watching a photograph
+   * fill in your own books once sells this better than any pricing row
+   * describing it. The pricing table advertises these exact numbers — see the
+   * pfScans row in user/src/components/pricing/ComparisonTable.tsx, and keep
+   * the two in step, because that table is a promise to a customer.
+   */
+  scansPerMonth: number | null;
+  /**
    * Workspaces allowed. `null` on every tier — workspaces are not capped.
    *
    * A workspace is the thing a plan is bought FOR, not something a plan doles
@@ -121,6 +131,8 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 0,
       groups: 3,
       importsPerMonth: 3,
+      // A taste, not a trial: enough to scan a few real bills and see it work.
+      scansPerMonth: 5,
       businesses: null,
     },
   },
@@ -159,6 +171,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 0,
       groups: 10,
       importsPerMonth: 20,
+      scansPerMonth: 25,
       businesses: null,
     },
   },
@@ -196,6 +209,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 10,
       groups: null,
       importsPerMonth: 50,
+      scansPerMonth: 100,
       /**
        * One, like every self-serve tier.
        *
@@ -229,6 +243,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: 30,
       groups: null,
       importsPerMonth: null,
+      scansPerMonth: 500,
       businesses: null,
     },
   },
@@ -253,6 +268,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       councilSessionsPerMonth: null,
       groups: null,
       importsPerMonth: null,
+      scansPerMonth: null,
       businesses: null,
     },
   },

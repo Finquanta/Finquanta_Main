@@ -58,7 +58,7 @@ const ANON_GLOBAL_KEY = 'global:anon';
  * Falls back to `request.ip` when the header is absent (direct connection, or
  * local development).
  */
-function observedAddress(request: FastifyRequest): string {
+export function observedAddress(request: FastifyRequest): string {
   const header = request.headers['x-forwarded-for'];
   const raw = Array.isArray(header) ? header.join(',') : header ?? '';
   const hops = raw.split(',').map((h) => h.trim()).filter(Boolean);

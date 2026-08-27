@@ -6,6 +6,8 @@ import { MyBilling, dismissTrialPrompt, getMyBilling } from "@/lib/api/billing";
 import { getMe } from "@/lib/api/me";
 import { resendVerification } from "@/lib/api/verify";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { themeClasses } from "@/lib/theme";
+import { useTheme } from "@/hooks/context/ThemeContext";
 
 /**
  * Told once, when a free trial begins: you have one, here is when it ends, and
@@ -28,6 +30,9 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
  */
 export default function TrialStartedDialog() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const c = themeClasses(isDark);
   const params = useSearchParams();
   const preview = params?.get("trialPreview") === "start";
 
@@ -76,30 +81,30 @@ export default function TrialStartedDialog() {
       onClick={close}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-y-auto"
+        className={`w-full max-w-md rounded-xl shadow-xl max-h-[90vh] overflow-y-auto ${c.surface}`}
         onClick={(e) => e.stopPropagation()}
       >
         {preview && (
-          <div className="px-5 py-1.5 text-[11px] font-semibold text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200">
+          <div className={`px-5 py-1.5 text-[11px] font-semibold ${isDark ? "bg-amber-900/40 text-amber-200" : "bg-amber-100 text-amber-800"}`}>
             {t("dashboard", "trialPreviewNote")}
           </div>
         )}
 
         <div className="p-5">
-          <h2 id="trial-started-title" className="text-lg font-bold text-gray-900 dark:text-white">
+          <h2 id="trial-started-title" className={`text-lg font-bold ${c.heading}`}>
             {t("dashboard", "trialStartTitle")}
           </h2>
 
           {/* The end date is the whole point of showing this at all — a trial
               nobody can name the end of is one they cannot plan around. */}
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+          <p className={`mt-2 text-sm ${c.label}`}>
             {t("dashboard", "trialStartBody")}
           </p>
           {ends && (
-            <p className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-700/40 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white">
+            <p className={`mt-3 rounded-lg px-3 py-2 text-sm font-semibold ${isDark ? "bg-gray-700/40" : "bg-gray-50"} ${c.heading}`}>
               {t("dashboard", "trialStartEnds")} {ends}
               {typeof days === "number" && (
-                <span className="font-normal text-gray-600 dark:text-gray-300">
+                <span className={`font-normal ${c.body}`}>
                   {` · ${days} ${days === 1 ? t("dashboard", "trialStartDay") : t("dashboard", "trialStartDays")}`}
                 </span>
               )}
@@ -110,11 +115,11 @@ export default function TrialStartedDialog() {
               customer already has the full fortnight, so telling them how to
               earn a week they were given at signup reads as a mistake. */}
           {!verified && (
-            <div className="mt-4 rounded-lg border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-3">
-              <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+            <div className={`mt-4 rounded-lg border p-3 ${c.successTint}`}>
+              <p className={`text-sm font-semibold ${c.success}`}>
                 {t("dashboard", "trialStartBonusTitle")}
               </p>
-              <p className="mt-1 text-xs text-green-800/90 dark:text-green-200/90">
+              <p className={`mt-1 text-xs ${c.success}`}>
                 {t("dashboard", "trialStartBonusBody")}
               </p>
               <button
@@ -131,7 +136,7 @@ export default function TrialStartedDialog() {
         <div className="p-5 pt-0">
           <button
             onClick={close}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/40"
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold ${isDark ? "border-gray-600 text-gray-200 hover:bg-gray-700/40" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
           >
             {t("dashboard", "trialStartGotIt")}
           </button>

@@ -842,7 +842,7 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
               <button
                 onClick={leave}
                 disabled={!!busyId}
-                className="w-full border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:hover:bg-red-900/20 font-semibold py-2 rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                className={`w-full border font-semibold py-2 rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 ${isDark ? "border-red-700 text-red-400 hover:bg-red-900/20" : "border-red-300 text-red-600 hover:bg-red-50"}`}
               >
                 <LogOut className="h-4 w-4" />{busyId === "leave" ? "Leaving…" : "Leave workspace"}
               </button>
