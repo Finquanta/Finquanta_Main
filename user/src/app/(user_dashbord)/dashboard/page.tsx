@@ -34,6 +34,7 @@ import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
 import PhoneChip from '@/components/user_dashboard/PhoneChip';
 import { DASHBOARD_VERSION } from '@/lib/version';
 import MaintenanceChip from '@/components/user_dashboard/MaintenanceChip';
+import InboundArrivalToast from '@/components/user_dashboard/InboundArrivalToast';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
 
@@ -679,6 +680,9 @@ export default function DashboardPage() {
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       )}
+
+      {/* Email lands while nobody is looking — this is how you find out. */}
+      <InboundArrivalToast />
 
       {/* SIDEBAR — static on desktop, off-canvas drawer on tablet/mobile */}
       <div className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>

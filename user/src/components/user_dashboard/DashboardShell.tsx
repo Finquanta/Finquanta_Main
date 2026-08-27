@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Menu, Globe, ChevronDown, LogOut } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import InboundArrivalToast from "./InboundArrivalToast";
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from "@/hooks/context/LanguageContext";
 import { logoutAndRedirect } from "@/lib/auth";
 import { isFinnaHidden, setFinnaHidden } from "@/lib/finnaVisibility";
@@ -51,6 +52,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         height: "calc(100vh - var(--maintenance-h, 0px))",
       }}
     >
+      {/* Email lands while nobody is looking — this is how you find out. */}
+      <InboundArrivalToast />
+
       <DashboardSidebar isDark={isDark} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
