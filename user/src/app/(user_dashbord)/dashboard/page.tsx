@@ -706,6 +706,9 @@ export default function DashboardPage() {
           <Link href="/dashboard" className="text-[13px] font-semibold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
+          <Link href="/inbox" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            {t('dashboard', 'inbTitle')}
+          </Link>
           <Link href="/invoices" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'invoices')}
           </Link>
