@@ -447,6 +447,15 @@ export default function InboxPage() {
                     {(() => {
                       const rows: [string, string][] = [
                         ['Talking to', apiBase],
+                        /**
+                         * The exact URL Resend must be pointed at.
+                         *
+                         * "Talking to" is the app's API base, which is NOT the
+                         * webhook URL — reading one as the other is an easy and
+                         * completely invisible mistake. Spelling it out here
+                         * means it can be copied rather than assembled.
+                         */
+                        ['Webhook URL for Resend', `${apiBase.replace(/\/$/, '')}/v1/inbound/resend`],
                         ['This workspace’s address', diag.address],
                         ['Receiving domain', diag.inboundDomain],
                         ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
@@ -491,7 +500,7 @@ export default function InboxPage() {
                     {isLocal
                       ? 'Nothing here indicates a problem — a local server is not connected to Resend at all.'
                       : diag.webhook.total === 0
-                      ? 'Resend has not called this server since it last restarted. Check the webhook exists and points at /api/v1/inbound/resend.'
+                      ? 'Resend has not called this server since it last restarted. Check the webhook exists, points at the URL above, and is SUBSCRIBED TO INBOUND EMAIL — a webhook listening only to sending events never fires when mail arrives.'
                       : diag.webhook.unknownAddress > 0
                         ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
                         : diag.webhook.badSignature > 0
@@ -502,7 +511,11 @@ export default function InboxPage() {
                               : 'Deliveries are being refused: the signing secret here does not match the one on THIS webhook. If you have more than one webhook in Resend, each has its own secret.')
                           : 'Deliveries are arriving and routing. If a document is missing, look in Received above for its status.'}
                   </p>
-                  <p className={`mt-1 ${c.muted}`}>Counts reset whenever the server restarts.</p>
+                  <p className={`mt-1 ${c.muted}`}>
+                    Counts reset whenever the server restarts, and they count EVERY request to the
+                    webhook — including a manual test. Compare them against Resend’s own delivery
+                    log rather than reading them as proof Resend called.
+                  </p>
                 </>
               )}
             </div>
