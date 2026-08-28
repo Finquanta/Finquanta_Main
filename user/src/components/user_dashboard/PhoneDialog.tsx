@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Phone, X } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { themeClasses } from "@/lib/theme";
@@ -18,6 +19,18 @@ import { saveMyPhone } from "@/lib/api/me";
  * The country list is the SHARED one in lib/countries.ts, extended with dialling
  * codes rather than given a second list of its own — that file exists precisely
  * because the country list had been written out three times and drifted.
+ *
+ * RENDERED THROUGH A PORTAL, and it has to be.
+ *
+ * This is opened from PhoneChip, which lives in the sidebar — and the sidebar
+ * carries `transform` for its mobile slide-in. A transformed ancestor becomes
+ * the containing block for `position: fixed` descendants, so `fixed inset-0`
+ * resolved against a 56-pixel column instead of the viewport, and the
+ * sidebar's `overflow-y-auto` clipped whatever was left. The dialog appeared
+ * squeezed inside the sidebar. Nothing about the markup was wrong; CSS simply
+ * gave it nowhere else to go. A portal to <body> escapes that ancestor.
+ *
+ * Any future dialog opened from inside the sidebar needs the same treatment.
  */
 export default function PhoneDialog({
   open, onClose, onSaved, defaultCountry,
@@ -36,6 +49,9 @@ export default function PhoneDialog({
   const [number, setNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** `document` does not exist during the server render. */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   /**
    * Pre-select from the workspace's country when we have one.
@@ -56,7 +72,7 @@ export default function PhoneDialog({
     [country]
   );
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const save = async () => {
     // Digits only, so "(555) 123 4567" and "5551234567" store identically.
@@ -79,7 +95,7 @@ export default function PhoneDialog({
 
   const field = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${c.input}`;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4"
       role="dialog"
@@ -170,6 +186,7 @@ export default function PhoneDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

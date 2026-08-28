@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/context/ThemeContext';
 import { themeClasses } from '@/lib/theme';
 import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureReviewModal';
 import { DocumentCapture, ScanAllowance, getScanAllowance } from '@/lib/api/capture';
+import { serverApiUrl } from '@/lib/api/client';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
   InboundDiagnostics, getInboundDiagnostics,
@@ -45,6 +46,9 @@ export default function InboxPage() {
   /** Collapsed by default: useful when something is wrong, noise otherwise. */
   const [diag, setDiag] = useState<InboundDiagnostics | null>(null);
   const [showDiag, setShowDiag] = useState(false);
+  /** Which API this page is actually pointed at — local or the live server. */
+  const apiBase = serverApiUrl('');
+  const isLocal = /localhost|127\.0\.0\.1|192\.168\./.test(apiBase);
 
   const load = useCallback(() => {
     getInboundAddress().then(setAddress).catch(() => setAddress(null));
@@ -415,8 +419,25 @@ export default function InboxPage() {
                 <p className={c.muted}>Loading…</p>
               ) : (
                 <>
+                  {/* WHICH SERVER AM I READING? First, and on its own, because
+                      every confusing hour this feature has caused came from a
+                      local answer being read as if it described production.
+                      Resend cannot reach localhost, so a local server will
+                      never receive a webhook and its counters are all zero by
+                      definition. */}
+                  {isLocal && (
+                    <p className={`mb-3 rounded-lg border px-3 py-2 ${isDark ? 'border-amber-800 bg-amber-900/20 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <strong>This is your local server.</strong> Resend can only deliver to the
+                      live site, so everything below describes a server that will never receive
+                      email. Open this page on the live site to diagnose delivery — and note the
+                      address above is a different one, because local and production use separate
+                      databases.
+                    </p>
+                  )}
+
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
                     {([
+                      ['Talking to', apiBase],
                       ['This workspace’s address', diag.address],
                       ['Receiving domain', diag.inboundDomain],
                       ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
@@ -435,7 +456,9 @@ export default function InboxPage() {
                   </dl>
 
                   <p className={`mt-3 ${c.muted}`}>
-                    {diag.webhook.total === 0
+                    {isLocal
+                      ? 'Nothing here indicates a problem — a local server is not connected to Resend at all.'
+                      : diag.webhook.total === 0
                       ? 'Resend has not called this server since it last restarted. Check the webhook exists and points at /api/v1/inbound/resend.'
                       : diag.webhook.unknownAddress > 0
                         ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
