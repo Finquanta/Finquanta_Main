@@ -1,6 +1,324 @@
 {
-  "generatedAt": "2026-08-04T15:06:04.642Z",
+  "generatedAt": "2026-08-28T17:50:25.183Z",
   "commits": [
+    {
+      "hash": "5dbcd90",
+      "author": "gio",
+      "date": "2026-08-28T12:59:12-04:00",
+      "subject": "fix(inbound): stop the diagnostics counters reading as proof Resend called"
+    },
+    {
+      "hash": "9977c03",
+      "author": "gio",
+      "date": "2026-08-28T12:50:36-04:00",
+      "subject": "fix(inbound): say WHY a signature was rejected, not just that it was"
+    },
+    {
+      "hash": "0ee65b9",
+      "author": "gio",
+      "date": "2026-08-28T12:28:10-04:00",
+      "subject": "fix(inbound): accept any content type, and say why a signature failed"
+    },
+    {
+      "hash": "0e4d766",
+      "author": "gio",
+      "date": "2026-08-28T12:20:17-04:00",
+      "subject": "fix(profile): user_profiles.address was NOT NULL, so every first save 500'd"
+    },
+    {
+      "hash": "0c97dbe",
+      "author": "gio",
+      "date": "2026-08-28T12:08:24-04:00",
+      "subject": "fix(profile): log the real error behind a 500, and complete the country list"
+    },
+    {
+      "hash": "ee6b8d8",
+      "author": "gio",
+      "date": "2026-08-28T11:44:34-04:00",
+      "subject": "fix(ui): phone dialog escaped the sidebar; diagnostics say which server"
+    },
+    {
+      "hash": "ce20ab2",
+      "author": "gio",
+      "date": "2026-08-28T11:28:05-04:00",
+      "subject": "feat(phone): a real dialog with a country picker; surface inbound diagnostics"
+    },
+    {
+      "hash": "8d06d8b",
+      "author": "gio",
+      "date": "2026-08-28T02:37:09-04:00",
+      "subject": "fix(inbound): stop the webhook being silent, and correct an event filter"
+    },
+    {
+      "hash": "97d2198",
+      "author": "gio",
+      "date": "2026-08-28T02:27:42-04:00",
+      "subject": "feat(inbound): three columns, unread dots, recycle bin, workspace-aware"
+    },
+    {
+      "hash": "5ae8897",
+      "author": "gio",
+      "date": "2026-08-28T02:03:45-04:00",
+      "subject": "fix(inbound): move Inbox to an icon by the bell, and theme its heading"
+    },
+    {
+      "hash": "4d65ad4",
+      "author": "gio",
+      "date": "2026-08-28T01:39:04-04:00",
+      "subject": "fix(inbound): put Inbox in the sidebar — the page had no way in"
+    },
+    {
+      "hash": "296ff2b",
+      "author": "gio",
+      "date": "2026-08-27T15:24:20-04:00",
+      "subject": "fix(inbound): fetch the actual email — the webhook is metadata only"
+    },
+    {
+      "hash": "162c4ac",
+      "author": "gio",
+      "date": "2026-08-27T15:01:42-04:00",
+      "subject": "feat(inbound): tell people on the dashboard when a document arrives by email"
+    },
+    {
+      "hash": "a0f1ef5",
+      "author": "gio",
+      "date": "2026-08-27T14:45:58-04:00",
+      "subject": "fix(admin): unblock the Vercel build — lockfile and manifest disagreed"
+    },
+    {
+      "hash": "3df4224",
+      "author": "gio",
+      "date": "2026-08-27T14:33:28-04:00",
+      "subject": "fix(capture): stop the phone running out of memory, and stop email vanishing"
+    },
+    {
+      "hash": "7d4d66a",
+      "author": "gio",
+      "date": "2026-08-27T14:05:22-04:00",
+      "subject": "feat(capture): read documents from a photo, a phone, or an email"
+    },
+    {
+      "hash": "939226c",
+      "author": "gio",
+      "date": "2026-08-26T13:40:21-04:00",
+      "subject": "ci: cap the reminder job at 10 minutes instead of six hours"
+    },
+    {
+      "hash": "7750da8",
+      "author": "gio",
+      "date": "2026-08-26T13:11:31-04:00",
+      "subject": "ci: run the lifecycle reminders daily from GitHub Actions"
+    },
+    {
+      "hash": "eea3a94",
+      "author": "gio",
+      "date": "2026-08-26T11:26:19-04:00",
+      "subject": "feat(lifecycle): scheduled reminder emails, and tell people when access changes"
+    },
+    {
+      "hash": "98bf370",
+      "author": "gio",
+      "date": "2026-08-24T01:46:32-04:00",
+      "subject": "fix(billing): stop losing a running trial, and say something when one ends"
+    },
+    {
+      "hash": "8c83211",
+      "author": "gio",
+      "date": "2026-08-22T23:53:29-04:00",
+      "subject": "fix(workspace): point Upgrade at workspace billing, and switch workspaces in place"
+    },
+    {
+      "hash": "40d62b8",
+      "author": "gio",
+      "date": "2026-08-22T23:21:50-04:00",
+      "subject": "docs: add a plain-English guide to running locally"
+    },
+    {
+      "hash": "08474fa",
+      "author": "gio",
+      "date": "2026-08-22T23:21:39-04:00",
+      "subject": "perf(i18n): load one language instead of ten"
+    },
+    {
+      "hash": "5a2463e",
+      "author": "gio",
+      "date": "2026-08-22T23:21:23-04:00",
+      "subject": "feat(workspace): per-workspace settings, deletion records, per-member usage"
+    },
+    {
+      "hash": "3b357e6",
+      "author": "gio",
+      "date": "2026-08-22T23:21:01-04:00",
+      "subject": "perf(server): run one-time backfills once, inside a transaction"
+    },
+    {
+      "hash": "d5143a6",
+      "author": "gio",
+      "date": "2026-08-22T23:20:47-04:00",
+      "subject": "fix(billing): make webhook failures visible, and wait out a cold server"
+    },
+    {
+      "hash": "7541ba8",
+      "author": "gio",
+      "date": "2026-08-22T23:20:33-04:00",
+      "subject": "fix(billing): one trial per person, and only the owner's to spend"
+    },
+    {
+      "hash": "d32e4a1",
+      "author": "gio",
+      "date": "2026-08-22T23:20:10-04:00",
+      "subject": "feat(billing): add the Starter tier"
+    },
+    {
+      "hash": "5141da1",
+      "author": "gio",
+      "date": "2026-08-20T00:00:40-04:00",
+      "subject": "feat(seats): show the cost on free windows too, and drop the \"Other\" role"
+    },
+    {
+      "hash": "881e8d6",
+      "author": "gio",
+      "date": "2026-08-19T23:41:44-04:00",
+      "subject": "feat(seats): say how the seat count is arrived at, not just the total"
+    },
+    {
+      "hash": "a45d1f9",
+      "author": "gio",
+      "date": "2026-08-19T19:57:22-04:00",
+      "subject": "chore(pricing): word the Corporate subject as an inquiry"
+    },
+    {
+      "hash": "62bbe11",
+      "author": "gio",
+      "date": "2026-08-19T17:00:24-04:00",
+      "subject": "chore(pricing): brand the Corporate enquiry subject line"
+    },
+    {
+      "hash": "4c85959",
+      "author": "gio",
+      "date": "2026-08-19T16:38:54-04:00",
+      "subject": "feat(pricing): soften Corporate to an enquiry, and wire the dead button"
+    },
+    {
+      "hash": "e32d12d",
+      "author": "gio",
+      "date": "2026-08-19T16:28:05-04:00",
+      "subject": "feat(workspaces): country per workspace, contact sales, and two ownerless fixes"
+    },
+    {
+      "hash": "e364bf5",
+      "author": "gio",
+      "date": "2026-08-19T15:38:06-04:00",
+      "subject": "feat(billing): cancel plan in the app, and a Finna settings tab"
+    },
+    {
+      "hash": "5329a7b",
+      "author": "gio",
+      "date": "2026-08-19T15:04:45-04:00",
+      "subject": "fix(billing): cancel Stripe when an account or workspace is deleted"
+    },
+    {
+      "hash": "cccf466",
+      "author": "gio",
+      "date": "2026-08-19T13:19:33-04:00",
+      "subject": "feat(billing): Stripe subscriptions, seats, ownership and admin overview"
+    },
+    {
+      "hash": "080c8a2",
+      "author": "gio",
+      "date": "2026-08-14T13:59:49-04:00",
+      "subject": "fix(db): stop the dev server operating on the production database"
+    },
+    {
+      "hash": "d1a31cd",
+      "author": "gio",
+      "date": "2026-08-14T13:59:06-04:00",
+      "subject": "ci: typecheck both projects and run server tests on push and PR"
+    },
+    {
+      "hash": "748e7b5",
+      "author": "gio",
+      "date": "2026-08-14T13:58:21-04:00",
+      "subject": "feat(chat): bring Finna back to the marketing site"
+    },
+    {
+      "hash": "d1ea9b2",
+      "author": "gio",
+      "date": "2026-08-14T11:21:38-04:00",
+      "subject": "fix(profile): allow a one-word name, and stop hiding failed name saves"
+    },
+    {
+      "hash": "c95174a",
+      "author": "gio",
+      "date": "2026-08-14T10:41:38-04:00",
+      "subject": "feat(invites): decline button, and default the workspace name to \"My Finances\""
+    },
+    {
+      "hash": "9e26e1c",
+      "author": "gio",
+      "date": "2026-08-13T16:44:02-04:00",
+      "subject": "fix(invites): carry the invite through login so people can actually join"
+    },
+    {
+      "hash": "063a457",
+      "author": "gio",
+      "date": "2026-08-13T11:21:13-04:00",
+      "subject": "feat(admin): businesses tab, and stop the user list duplicating owners"
+    },
+    {
+      "hash": "399cc9f",
+      "author": "gio",
+      "date": "2026-08-12T14:26:24-04:00",
+      "subject": "fix(ai): key the anon cap off the observed address, leave trustProxy alone"
+    },
+    {
+      "hash": "cfb7eae",
+      "author": "gio",
+      "date": "2026-08-12T14:03:32-04:00",
+      "subject": "feat(council): Finna Council, guided advisor, nudges and saved chats"
+    },
+    {
+      "hash": "5e2d919",
+      "author": "gio",
+      "date": "2026-08-12T14:02:59-04:00",
+      "subject": "fix(ai): bound Finna spend and stop spoofable per-IP limits"
+    },
+    {
+      "hash": "5845571",
+      "author": "gio",
+      "date": "2026-08-11T15:31:48-04:00",
+      "subject": "feat(brain): make auto-summarization visible and cap its spend"
+    },
+    {
+      "hash": "bd09d42",
+      "author": "gio",
+      "date": "2026-08-11T12:31:20-04:00",
+      "subject": "feat(brain): graph 2D/3D, tree view, archiving, ledger refs, auto-linking and access levels"
+    },
+    {
+      "hash": "24d9e81",
+      "author": "gio",
+      "date": "2026-08-06T05:31:22-04:00",
+      "subject": "fix(admin): cover delete-user with ledger entries"
+    },
+    {
+      "hash": "ffec449",
+      "author": "gio",
+      "date": "2026-08-06T05:31:10-04:00",
+      "subject": "test(server): revive the test suite and fix the mocks it was lying with"
+    },
+    {
+      "hash": "29df520",
+      "author": "gio",
+      "date": "2026-08-06T03:47:10-04:00",
+      "subject": "fix(admin): stop delete-user 500ing on users with ledger entries"
+    },
+    {
+      "hash": "9862253",
+      "author": "gio",
+      "date": "2026-08-06T02:59:12-04:00",
+      "subject": "feat: Try-It Demo, 10-language i18n, and code-review fixes"
+    },
     {
       "hash": "48f6fd5",
       "author": "gio",
