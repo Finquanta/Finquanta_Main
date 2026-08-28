@@ -198,6 +198,22 @@ export async function inboundWebhookRoutes(
     (_req, body, done) => done(null, body)
   );
 
+  /**
+   * CATCH-ALL, and it is not belt and braces.
+   *
+   * The signature covers the exact bytes sent, so the body must reach us as a
+   * string. Registering only for `application/json` meant any other content
+   * type — `text/plain`, a charset variant Fastify does not match, an absent
+   * header — left `request.body` as something else, the check compared against
+   * an empty string, and the delivery was rejected as a bad signature. From
+   * outside that is indistinguishable from Resend never calling.
+   */
+  fastify.addContentTypeParser(
+    '*',
+    { parseAs: 'string' },
+    (_req, body, done) => done(null, body)
+  );
+
   fastify.post('/v1/inbound/resend', async (request: FastifyRequest, reply: FastifyReply) => {
     webhookStats.total += 1;
     const secret = process.env.RESEND_INBOUND_SIGNING_SECRET || '';
@@ -216,7 +232,22 @@ export async function inboundWebhookRoutes(
     });
     if (!ok) {
       webhookStats.badSignature += 1;
-      request.log.warn('Rejected an inbound email with a bad signature.');
+      /**
+       * Say WHY it could not be verified. "Bad signature" covers three very
+       * different situations — the wrong secret, headers under other names, or
+       * a body that never arrived as text — and they need different fixes.
+       */
+      const h = request.headers as Record<string, unknown>;
+      request.log.warn(
+        'Rejected an inbound email with a bad signature. ' +
+        `content-type=${String(h['content-type'] ?? 'none')} ` +
+        `body=${typeof request.body} ` +
+        `svix-id=${h['svix-id'] ? 'present' : 'MISSING'} ` +
+        `svix-timestamp=${h['svix-timestamp'] ? 'present' : 'MISSING'} ` +
+        `svix-signature=${h['svix-signature'] ? 'present' : 'MISSING'} ` +
+        `webhook-id=${h['webhook-id'] ? 'present' : 'missing'} ` +
+        `headers=[${Object.keys(h).join(',')}]`
+      );
       return reply.status(401).send({ success: false, error: 'Invalid signature' });
     }
 
