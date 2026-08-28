@@ -28,6 +28,41 @@ import {
  * hostile until it has been checked.
  */
 
+/**
+ * Event names that are definitely NOT inbound mail.
+ *
+ * A DENYLIST, not an allowlist, and the distinction is the whole point. An
+ * earlier attempt required the type to equal exactly `email.received` — a
+ * string I had guessed. Had it applied, any other spelling would have silently
+ * eaten every delivery, which looks identical to nothing arriving. It never
+ * applied, so nothing was lost, but the shape was wrong.
+ *
+ * Failing open is safe: an outbound event that slips through is addressed to a
+ * customer, not to a docs- address, so it fails to route and is dropped.
+ */
+const OUTBOUND_EVENTS = [
+  'email.sent', 'email.delivered', 'email.delivery_delayed',
+  'email.bounced', 'email.complained', 'email.opened', 'email.clicked',
+];
+
+/**
+ * What this process has seen since it started.
+ *
+ * In memory, reset by every deploy, and that is fine: the question it answers
+ * is "is Resend calling us at all", which you ask now. Without it a webhook
+ * that never arrives and one that is rejected look identical from inside the
+ * product — which is exactly where this feature kept getting stuck.
+ */
+export const webhookStats = {
+  total: 0,
+  badSignature: 0,
+  unreadable: 0,
+  ignoredType: 0,
+  unknownAddress: 0,
+  routed: 0,
+  startedAt: new Date().toISOString(),
+};
+
 /** How far out of step a timestamp may be before it reads as a replay. */
 const TOLERANCE_SECONDS = 5 * 60;
 
@@ -164,6 +199,7 @@ export async function inboundWebhookRoutes(
   );
 
   fastify.post('/v1/inbound/resend', async (request: FastifyRequest, reply: FastifyReply) => {
+    webhookStats.total += 1;
     const secret = process.env.RESEND_INBOUND_SIGNING_SECRET || '';
     if (!secret) {
       request.log.error('Inbound email received but RESEND_INBOUND_SIGNING_SECRET is not set.');
@@ -179,6 +215,7 @@ export async function inboundWebhookRoutes(
       body: typeof request.body === 'string' ? request.body : '',
     });
     if (!ok) {
+      webhookStats.badSignature += 1;
       request.log.warn('Rejected an inbound email with a bad signature.');
       return reply.status(401).send({ success: false, error: 'Invalid signature' });
     }
@@ -197,6 +234,7 @@ export async function inboundWebhookRoutes(
       // The field names in normalisePayload are the one guess in this module.
       // Log the SHAPE (keys only, never values — this is somebody's mail) so a
       // mismatch is one glance at the logs rather than a mystery.
+      webhookStats.unreadable += 1;
       const top = Object.keys(payload ?? {});
       const inner = Object.keys((payload as any)?.data ?? {});
       request.log.warn(
@@ -218,6 +256,13 @@ export async function inboundWebhookRoutes(
      * So the reply goes back immediately and the reading happens behind it. The
      * message row carries the state, which is what the inbox reads.
      */
+    // Outbound events for our OWN mail are not documents. Anything unrecognised
+    // is processed rather than discarded — see OUTBOUND_EVENTS.
+    if (mail.type && OUTBOUND_EVENTS.includes(mail.type)) {
+      webhookStats.ignoredType += 1;
+      return reply.send({ success: true, data: { ignored: mail.type } });
+    }
+
     const work = handleMail({ inbound, captures, storage, usage, log: request.log }, mail)
       .catch((error) => request.log.error(error))
       .finally(() => { inFlight.delete(work); });
@@ -283,6 +328,7 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
   if (!address) {
     // Logged with what was actually tried. A silent drop here was the single
     // hardest thing to diagnose about this feature.
+    webhookStats.unknownAddress += 1;
     log.warn(
       `Inbound email for an unknown address; dropped. Recipients seen: ${
         mail.to.join(', ') || '(none parsed)'
@@ -290,6 +336,8 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
     );
     return;
   }
+
+  webhookStats.routed += 1;
 
   // 2. Already handled? Webhooks retry until acknowledged.
   const seen = await inbound.findByProviderId(mail.providerMessageId);

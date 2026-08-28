@@ -5,6 +5,7 @@ import { withBusiness } from '../shared/business-context';
 import { InboundRepository } from './inbound.repository';
 import { CaptureRepository } from '../capture/capture.repository';
 import { SENDER_STATUSES, SenderStatus, addressFor, normaliseEmail } from './inbound.types';
+import { webhookStats } from './inbound.webhook';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -112,6 +113,36 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
       request.log.error(error);
       // Failing to mark something read must not look like a failed action.
       return reply.send({ success: true, data: { read: false } });
+    }
+  }) as any);
+
+  /**
+   * Is Resend actually calling us?
+   *
+   * The single question this feature kept failing to answer. A webhook that
+   * never arrives and one that is rejected at the door look identical from
+   * inside the product, so this reports what the process has actually seen.
+   * Counts reset on deploy — that is fine, because you ask this now.
+   */
+  fastify.get('/v1/inbound/diagnostics', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const address = await repo.ensureAddress(request.businessId!);
+      return reply.send({
+        success: true,
+        data: {
+          address: addressFor(address),
+          /** Which env this actually is — the whole point when a dev branch and
+           *  production each mint their own addresses. */
+          inboundDomain: process.env.INBOUND_EMAIL_DOMAIN || 'in.finquanta.ai',
+          signingSecretSet: !!process.env.RESEND_INBOUND_SIGNING_SECRET,
+          apiKeySet: !!process.env.RESEND_API_KEY,
+          webhook: webhookStats,
+          messagesEverReceived: (await repo.listMessages(request.businessId!, 1)).length > 0,
+        },
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not read diagnostics.' });
     }
   }) as any);
 
