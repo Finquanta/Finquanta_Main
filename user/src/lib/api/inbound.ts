@@ -49,6 +49,10 @@ export const rotateInboundAddress = () =>
 
 export const getInboundMessages = () => apiFetch<InboundMessage[]>('/v1/inbound/messages');
 
+/** Just the number, for the header icon. Cheap enough to call on every load. */
+export const getPendingCount = () =>
+  apiFetch<{ count: number }>('/v1/inbound/pending/count');
+
 /** Documents waiting for a human — what the queue shows. */
 export const getPendingFromEmail = () => apiFetch<DocumentCapture[]>('/v1/inbound/pending');
 

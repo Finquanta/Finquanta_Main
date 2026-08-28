@@ -31,10 +31,6 @@ const NAV: SidebarNavItem[] = [
   // which is reachable from every product page. /council still exists as the
   // full-transcript destination the widget links to.
   { href: "/dashboard", labelKey: "title", label: "Dashboard" },
-  // Where emailed documents land. Without this the page existed but was
-  // reachable only by typing the URL, which made the whole email feature
-  // invisible to anyone who had not been told about it.
-  { href: "/inbox", labelKey: "inbTitle", label: "Inbox" },
   { href: "/invoices", labelKey: "invoices", label: "Invoices" },
   { href: "/customers", labelKey: "customers", label: "Customers" },
   { href: "/activity", labelKey: "activity", label: "Activity" },

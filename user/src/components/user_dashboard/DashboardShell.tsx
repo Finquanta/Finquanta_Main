@@ -10,6 +10,7 @@ import { isFinnaHidden, setFinnaHidden } from "@/lib/finnaVisibility";
 import AccountNameChip from "./AccountNameChip";
 import DashboardSidebar from "./DashboardSidebar";
 import NotificationBell from "./NotificationBell";
+import InboxBell from "./InboxBell";
 import ReferralIdChip from "./ReferralIdChip";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
@@ -78,6 +79,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
             {/* Bell and search were only ever on the Dashboard page's own bar,
                 so they disappeared on every other tab. Both live here now. */}
+            <InboxBell isDark={isDark} />
             <NotificationBell isDark={isDark} />
 
             <input

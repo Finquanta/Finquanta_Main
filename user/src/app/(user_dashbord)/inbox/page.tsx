@@ -94,7 +94,7 @@ export default function InboxPage() {
   return (
     <DashboardShell>
       <div className="p-6 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-1 flex items-center gap-2">
+        <h1 className={`text-3xl font-bold mb-1 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
           <Inbox className="h-7 w-7 text-purple-500" />
           Inbox
         </h1>

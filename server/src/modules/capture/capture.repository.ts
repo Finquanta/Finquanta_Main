@@ -133,6 +133,16 @@ export class CaptureRepository {
     return r.rows.map((row: any) => this.toCapture(row));
   }
 
+  /** How many are waiting. COUNT rather than fetching the rows to length them. */
+  async countPendingFromEmail(businessId: string): Promise<number> {
+    const r = await this.database.query(
+      `SELECT COUNT(*)::int AS n FROM document_captures
+        WHERE business_id = $1 AND status = 'pending_review' AND capture_method = 'email'`,
+      [businessId]
+    );
+    return Number(r.rows[0]?.n) || 0;
+  }
+
   /** Mark confirmed and point at whatever it became. */
   async markConfirmed(
     id: string,

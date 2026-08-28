@@ -75,6 +75,23 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     }
   }) as any);
 
+  /**
+   * Just the number, for the header icon.
+   *
+   * `/pending` returns up to a hundred captures with their extracted fields —
+   * fine for the queue, wasteful for a badge that renders one digit on every
+   * dashboard load.
+   */
+  fastify.get('/v1/inbound/pending/count', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: { count: await captures.countPendingFromEmail(request.businessId!) } });
+    } catch (error) {
+      request.log.error(error);
+      // A badge is not worth an error state; it simply does not show.
+      return reply.send({ success: true, data: { count: 0 } });
+    }
+  }) as any);
+
   fastify.get('/v1/inbound/senders', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       return reply.send({ success: true, data: await repo.listSenders(request.businessId!) });

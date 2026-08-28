@@ -35,6 +35,7 @@ import PhoneChip from '@/components/user_dashboard/PhoneChip';
 import { DASHBOARD_VERSION } from '@/lib/version';
 import MaintenanceChip from '@/components/user_dashboard/MaintenanceChip';
 import InboundArrivalToast from '@/components/user_dashboard/InboundArrivalToast';
+import InboxBell from '@/components/user_dashboard/InboxBell';
 
 const RECENTLY_DELETED_KEY = 'recentlyDeletedTx';
 
@@ -706,9 +707,6 @@ export default function DashboardPage() {
           <Link href="/dashboard" className="text-[13px] font-semibold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-lg">
             {t('dashboard', 'title')}
           </Link>
-          <Link href="/inbox" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'inbTitle')}
-          </Link>
           <Link href="/invoices" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
             {t('dashboard', 'invoices')}
           </Link>
@@ -824,6 +822,10 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             {/* Finquanta ID — click to copy your referral link */}
             <ReferralIdChip isDark={isDark} />
+
+            {/* Emailed documents. Beside the bell because it is the same
+                kind of thing: something that happened while you were away. */}
+            <InboxBell isDark={isDark} />
 
             {/* Notification Bell */}
             <div className="relative" ref={notifRef}>
