@@ -137,6 +137,36 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     }
   }) as any);
 
+  /** Put the unread dot back. */
+  fastify.post('/v1/inbound/messages/:id/unread', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      await repo.markUnread(id, request.businessId!);
+      return reply.send({ success: true, data: { read: false } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not update that message.' });
+    }
+  }) as any);
+
+  /**
+   * Remove a received message.
+   *
+   * Deletes the record of the EMAIL only. Anything it produced keeps its place
+   * in the books — see deleteMessage.
+   */
+  fastify.delete('/v1/inbound/messages/:id', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const gone = await repo.deleteMessage(id, request.businessId!);
+      if (!gone) return reply.status(404).send({ success: false, error: 'No such message.' });
+      return reply.send({ success: true, data: { deleted: true } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not delete that message.' });
+    }
+  }) as any);
+
   /**
    * Is Resend actually calling us?
    *

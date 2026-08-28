@@ -76,6 +76,19 @@ export const restoreCapture = (id: string) =>
 export const getMessageCaptures = (id: string) =>
   apiFetch<DocumentCapture[]>(`/v1/inbound/messages/${id}/captures`);
 
+/** Put the unread dot back — reading something is not the same as dealing with it. */
+export const markMessageUnread = (id: string) =>
+  apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/unread`, { method: 'POST' });
+
+/**
+ * Remove a received message from the list.
+ *
+ * Deletes the record of the EMAIL only. Documents it produced keep their place
+ * in the books; they simply stop knowing which email carried them.
+ */
+export const deleteInboundMessage = (id: string) =>
+  apiFetch<{ deleted: boolean }>(`/v1/inbound/messages/${id}`, { method: 'DELETE' });
+
 export const markMessageRead = (id: string) =>
   apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/read`, { method: 'POST' });
 

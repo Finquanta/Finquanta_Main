@@ -260,6 +260,39 @@ export class InboundRepository {
     );
   }
 
+  /**
+   * Back to unread.
+   *
+   * Opening a message marks it read, which is right, but it makes the dot a
+   * one-way door: glance at something, get interrupted, and the only signal
+   * that it still needs attention is gone. This puts it back.
+   */
+  async markUnread(id: string, businessId: string): Promise<void> {
+    await this.database.query(
+      'UPDATE inbound_messages SET opened_at = NULL WHERE id = $1 AND business_id = $2',
+      [id, businessId]
+    );
+  }
+
+  /**
+   * Remove a received message from the list.
+   *
+   * This deletes the RECORD OF THE EMAIL, not what came out of it. Captures
+   * point here through `inbound_message_id`, which is ON DELETE SET NULL, so a
+   * document already confirmed into the books stays exactly where it is and
+   * simply stops knowing which email carried it.
+   *
+   * Deleting the documents too would make this a destructive action wearing the
+   * clothes of a tidy-up.
+   */
+  async deleteMessage(id: string, businessId: string): Promise<boolean> {
+    const r = await this.database.query(
+      'DELETE FROM inbound_messages WHERE id = $1 AND business_id = $2',
+      [id, businessId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
   async markBodyExtracted(id: string): Promise<void> {
     await this.database.query(
       `UPDATE inbound_messages SET body_extracted = TRUE WHERE id = $1`,

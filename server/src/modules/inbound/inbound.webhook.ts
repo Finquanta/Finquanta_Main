@@ -615,6 +615,22 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
         log.error(error);
       }
     }
+    /**
+     * Nothing usable came back, but something was attached.
+     *
+     * The likeliest cause is a content type we do not accept, or one Resend
+     * did not label at all — and that is invisible from the product, where it
+     * simply looks as though the document was ignored. Log the types actually
+     * seen so the answer is one glance at the logs rather than a guess.
+     */
+    if (fetched.length === 0 && full.attachments.length > 0) {
+      log.warn(
+        `Inbound email ${mail.providerMessageId}: none of its ${full.attachments.length} ` +
+        `attachments were readable. Types seen: [${
+          full.attachments.map((a) => a.contentType || '(none given)').join(', ')
+        }]. Accepted: [${READABLE_ATTACHMENT_TYPES.join(', ')}].`
+      );
+    }
   } catch (error) {
     // The metadata told us mail arrived; we simply could not read it. Record
     // that rather than dropping it, so somebody can see it happened.

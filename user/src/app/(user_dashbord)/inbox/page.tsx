@@ -2,19 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, Check, Copy, FileText, Inbox, Mail, RefreshCw, RotateCcw, ShieldOff, Trash2, X,
+  AlertTriangle, Check, Copy, ExternalLink, FileText, Inbox, Mail, RefreshCw, RotateCcw,
+  ShieldOff, Trash2, X,
 } from 'lucide-react';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { themeClasses } from '@/lib/theme';
 import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureReviewModal';
-import { DocumentCapture, ScanAllowance, getScanAllowance } from '@/lib/api/capture';
+import { DocumentCapture, ScanAllowance, getCaptureFileUrl, getScanAllowance } from '@/lib/api/capture';
 import { serverApiUrl } from '@/lib/api/client';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
   InboundDiagnostics, getInboundDiagnostics,
-  getMessageCaptures,
+  deleteInboundMessage, getMessageCaptures, markMessageUnread,
   getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
 
@@ -48,6 +49,68 @@ function when(iso: string | null | undefined): string {
   });
 }
 
+/**
+ * The document itself, inside the message.
+ *
+ * Opening an email and being told only that a document "came from" it is a
+ * strange kind of answer — the thing people want to see is the thing they
+ * sent. The bytes are already stored, so showing them costs one fetch.
+ *
+ * PDFs go through <object>, images through <img>, and both carry a link out to
+ * the browser's own viewer: <object> renders nothing at all in some browsers,
+ * and a preview that silently fails to appear is worse than no preview.
+ */
+function AttachmentPreview({ capture, isDark }: { capture: DocumentCapture; isDark: boolean }) {
+  const { t } = useLanguage();
+  const c = themeClasses(isDark);
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    let made: string | null = null;
+    getCaptureFileUrl(capture.id)
+      .then((u) => {
+        // Revoke immediately if the dialog closed while this was in flight,
+        // otherwise the object URL leaks for the life of the page.
+        if (!alive) { URL.revokeObjectURL(u); return; }
+        made = u;
+        setUrl(u);
+      })
+      .catch(() => { /* the row still works without a picture */ });
+    return () => {
+      alive = false;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [capture.id]);
+
+  if (!url) return null;
+  const isPdf = capture.mimeType === 'application/pdf';
+  const isImage = capture.mimeType.startsWith('image/');
+  if (!isPdf && !isImage) return null;
+
+  return (
+    <div className="space-y-1">
+      <div className={`rounded-lg border overflow-hidden ${c.line} ${c.panel}`}>
+        {isPdf ? (
+          <object data={url} type="application/pdf" className="w-full h-64" aria-label={capture.originalFilename ?? 'PDF'} />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={capture.originalFilename ?? ''} className="max-h-64 w-auto mx-auto object-contain" />
+        )}
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-500 hover:underline"
+      >
+        <ExternalLink className="h-3 w-3" />
+        {t("dashboard", "captureOpenInTab")}
+      </a>
+    </div>
+  );
+}
+
 export default function InboxPage() {
   const { t } = useLanguage();
   const { theme } = useTheme();
@@ -62,6 +125,8 @@ export default function InboxPage() {
   /** The message being looked at, and what it produced. null = still loading. */
   const [detail, setDetail] = useState<InboundMessage | null>(null);
   const [detailCaptures, setDetailCaptures] = useState<DocumentCapture[] | null>(null);
+  /** Deleting asks first, in the dialog — not through a browser confirm box. */
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -178,6 +243,49 @@ export default function InboxPage() {
   };
 
   /**
+   * The status in words.
+   *
+   * These were rendered straight from the database — "quarantined", "ignored" —
+   * which are the names the code uses, not answers to the question somebody is
+   * asking, which is always "so what happened to my document?". "ignored" in
+   * particular reads as though the product could not be bothered.
+   */
+  const statusLabel = (status: InboundMessage['status']): string =>
+    t("dashboard",
+      status === 'quarantined' ? 'inboxStatusQuarantined'
+        : status === 'processing' ? 'inboxStatusProcessing'
+          : status === 'processed' ? 'inboxStatusProcessed'
+            : status === 'failed' ? 'inboxStatusFailed'
+              : 'inboxStatusIgnored');
+
+  /** Reading something is not the same as having dealt with it. */
+  const setRead = async (m: InboundMessage, read: boolean) => {
+    setMessages((prev) =>
+      prev.map((x) => (x.id === m.id ? { ...x, openedAt: read ? new Date().toISOString() : null } : x))
+    );
+    setDetail((d) => (d && d.id === m.id ? { ...d, openedAt: read ? new Date().toISOString() : null } : d));
+    try {
+      await (read ? markMessageRead(m.id) : markMessageUnread(m.id));
+    } catch {
+      // Cosmetic. The next poll corrects it either way.
+    }
+  };
+
+  const removeMessage = async (m: InboundMessage) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteInboundMessage(m.id);
+      setMessages((prev) => prev.filter((x) => x.id !== m.id));
+      setDetail(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrDelete"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
    * Open a received message.
    *
    * This used to do nothing but clear the unread dot, which made the Received
@@ -189,6 +297,7 @@ export default function InboxPage() {
   const open = (m: InboundMessage) => {
     setDetail(m);
     setDetailCaptures(null);
+    setConfirmDelete(false);
     getMessageCaptures(m.id).then(setDetailCaptures).catch(() => setDetailCaptures([]));
 
     // Marking it read is optimistic — the dot is cosmetic and not worth an error.
@@ -335,8 +444,10 @@ export default function InboxPage() {
                                 : c.muted
                         }`}
                       >
-                        {m.status}
-                        {m.attachmentCount > 0 ? ` · ${m.attachmentCount} attached` : ''}
+                        {statusLabel(m.status)}
+                        {m.attachmentCount > 0
+                          ? ` · ${t("dashboard", "inboxAttached").replace("{n}", String(m.attachmentCount))}`
+                          : ''}
                       </span>
                       {m.error && (
                         <span className={`block text-[11px] mt-0.5 ${c.muted}`}>{m.error}</span>
@@ -686,8 +797,8 @@ export default function InboxPage() {
                       : t("dashboard", "inboxManyDocs").replace("{n}", String(detailCaptures.length))}
                   </p>
                   {detailCaptures.map((d) => (
+                    <div key={d.id} className="space-y-2">
                     <button
-                      key={d.id}
                       onClick={() => { setReviewing(d); setDetail(null); }}
                       className={`w-full flex items-center gap-2 text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
                     >
@@ -711,8 +822,52 @@ export default function InboxPage() {
                         {t("dashboard", "inboxOpen")}
                       </span>
                     </button>
+                      <AttachmentPreview capture={d} isDark={isDark} />
+                    </div>
                   ))}
                 </>
+              )}
+            </div>
+
+            {/* Actions on the EMAIL itself, separated from what it produced. */}
+            <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-t ${c.line}`}>
+              <button
+                onClick={() => setRead(detail, !detail.openedAt)}
+                className={`text-xs font-medium underline ${c.muted}`}
+              >
+                {detail.openedAt
+                  ? t("dashboard", "inboxMarkUnread")
+                  : t("dashboard", "inboxMarkRead")}
+              </button>
+
+              {confirmDelete ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className={`text-[11px] ${c.muted}`}>
+                    {t("dashboard", "inboxDeleteConfirm")}
+                  </span>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={busy}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${c.line} ${c.body} ${c.hover}`}
+                  >
+                    {t("dashboard", "phoneCancel")}
+                  </button>
+                  <button
+                    onClick={() => removeMessage(detail)}
+                    disabled={busy}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60"
+                  >
+                    {busy ? t("dashboard", "inboxDeleting") : t("dashboard", "inboxDelete")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="flex items-center gap-1 text-xs font-medium text-red-500 hover:underline"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("dashboard", "inboxDelete")}
+                </button>
               )}
             </div>
           </div>
