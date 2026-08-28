@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Wrench } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { getMaintenanceShared } from "@/lib/api/site";
 
 /**
@@ -20,6 +21,7 @@ import { getMaintenanceShared } from "@/lib/api/site";
  * out of step.
  */
 export default function MaintenanceChip() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [on, setOn] = useState(false);
@@ -38,7 +40,7 @@ export default function MaintenanceChip() {
 
   return (
     <span
-      title="An admin has put the site into maintenance mode."
+      title={t("dashboard", "maintChipTitle")}
       className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${
         isDark
           ? "border-amber-800 bg-amber-900/30 text-amber-300"
@@ -46,7 +48,7 @@ export default function MaintenanceChip() {
       }`}
     >
       <Wrench className="h-2.5 w-2.5" />
-      Under Maintenance
+      {t("dashboard", "maintChipLabel")}
     </span>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarClock, X } from "lucide-react";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { themeClasses } from "@/lib/theme";
 import { DueItem, getRecurringDue, skipRecurring } from "@/lib/api/recurring";
@@ -73,6 +74,7 @@ function pretty(iso: string): string {
 }
 
 export default function RecurringDueDialog() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const c = themeClasses(isDark);
@@ -139,7 +141,6 @@ export default function RecurringDueDialog() {
   if (!mounted || !current) return null;
 
   const isIncome = current.type === "income";
-  const verb = isIncome ? "receive" : "pay";
 
   const openReview = () => {
     setName(current.name);
@@ -162,7 +163,7 @@ export default function RecurringDueDialog() {
       await skipRecurring(current.seriesKey, current.dueDate);
       advance();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not record that.");
+      setError(e instanceof Error ? e.message : t("dashboard", "recurErrSkip"));
     } finally {
       setBusy(false);
     }
@@ -170,9 +171,9 @@ export default function RecurringDueDialog() {
 
   const save = async () => {
     const value = Number(amount);
-    if (!name.trim()) return setError("Give it a name.");
-    if (!(value > 0)) return setError("The amount has to be more than zero.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setError("Pick a date.");
+    if (!name.trim()) return setError(t("dashboard", "recurErrName"));
+    if (!(value > 0)) return setError(t("dashboard", "recurErrAmount"));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setError(t("dashboard", "recurErrDate"));
 
     setBusy(true);
     setError(null);
@@ -195,10 +196,10 @@ export default function RecurringDueDialog() {
     } catch (e) {
       setError(
         e instanceof PaymentRequiredError
-          ? "That is more entries than your plan allows this month."
+          ? t("dashboard", "recurErrPlan")
           : e instanceof Error
             ? e.message
-            : "Could not add that to the books."
+            : t("dashboard", "recurErrSave")
       );
     } finally {
       setBusy(false);
@@ -219,10 +220,16 @@ export default function RecurringDueDialog() {
           <div className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5 text-amber-500" />
             <h2 id="recurring-title" className={`text-lg font-bold ${c.heading}`}>
-              {step === "ask" ? "Does this still happen?" : "Check it before it goes in"}
+              {step === "ask"
+                ? t("dashboard", "recurAskTitle")
+                : t("dashboard", "recurReviewTitle")}
             </h2>
           </div>
-          <button onClick={notNow} aria-label="Close" className={`flex-shrink-0 ${c.quietControl}`}>
+          <button
+            onClick={notNow}
+            aria-label={t("dashboard", "inboxClose")}
+            className={`flex-shrink-0 ${c.quietControl}`}
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -230,19 +237,25 @@ export default function RecurringDueDialog() {
         {step === "ask" ? (
           <div className="p-5 space-y-4">
             <p className={`text-sm ${c.body}`}>
-              You recorded{" "}
-              <span className={`font-semibold ${c.heading}`}>{current.name}</span> as{" "}
-              {current.recurrence === "monthly" ? "a monthly" : "a yearly"}{" "}
-              {isIncome ? "payment in" : "expense"}, last on{" "}
-              <span className="font-medium">{pretty(current.lastDate)}</span>.
+              {t(
+                "dashboard",
+                isIncome
+                  ? current.recurrence === "monthly"
+                    ? "recurRecordedIncomeMonthly"
+                    : "recurRecordedIncomeYearly"
+                  : current.recurrence === "monthly"
+                    ? "recurRecordedExpenseMonthly"
+                    : "recurRecordedExpenseYearly"
+              )
+                .replace("{name}", current.name)
+                .replace("{date}", pretty(current.lastDate))}
             </p>
-            <p className={`text-sm ${c.body}`}>
-              Did you {verb} it again on{" "}
-              <span className={`font-semibold ${c.heading}`}>{pretty(current.dueDate)}</span>?
+            <p className={`text-sm font-semibold ${c.heading}`}>
+              {t("dashboard", isIncome ? "recurAskReceived" : "recurAskPaid")
+                .replace("{date}", pretty(current.dueDate))}
             </p>
             <p className={`text-xs ${c.muted}`}>
-              Nothing is added to your books yet — you can change the amount, name, group and date
-              on the next step.
+              {t("dashboard", "recurNothingYet")}
             </p>
 
             {error && <p className="text-sm text-red-500">{error}</p>}
@@ -253,21 +266,21 @@ export default function RecurringDueDialog() {
                 disabled={busy}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium ${c.body} ${c.hover}`}
               >
-                Not now
+                {t("dashboard", "recurNotNow")}
               </button>
               <button
                 onClick={sayNo}
                 disabled={busy}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium border ${c.line} ${c.body} ${c.hover}`}
               >
-                No, it stopped
+                {t("dashboard", "recurStopped")}
               </button>
               <button
                 onClick={openReview}
                 disabled={busy}
                 className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
               >
-                Yes, I did
+                {t("dashboard", "recurYes")}
               </button>
             </div>
           </div>
@@ -275,14 +288,14 @@ export default function RecurringDueDialog() {
           <div className="p-5 space-y-3">
             <div>
               <label className={`block text-xs font-semibold mb-1 ${c.label}`}>
-                {isIncome ? "Income name" : "Expense name"}
+                {isIncome ? t("dashboard", "recurIncomeName") : t("dashboard", "recurExpenseName")}
               </label>
               <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={`block text-xs font-semibold mb-1 ${c.label}`}>Amount (USD)</label>
+                <label className={`block text-xs font-semibold mb-1 ${c.label}`}>{t("dashboard", "recurAmountUsd")}</label>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -294,13 +307,12 @@ export default function RecurringDueDialog() {
                 />
                 {current.currency && current.currency !== "USD" && (
                   <p className={`mt-1 text-[11px] ${c.muted}`}>
-                    Originally billed in {current.currency}. Your books are kept in USD, so put the
-                    USD value here.
+                    {t("dashboard", "recurOriginalCurrency").replace("{currency}", current.currency)}
                   </p>
                 )}
               </div>
               <div>
-                <label className={`block text-xs font-semibold mb-1 ${c.label}`}>Date</label>
+                <label className={`block text-xs font-semibold mb-1 ${c.label}`}>{t("dashboard", "recurDate")}</label>
                 <input
                   type="date"
                   value={date}
@@ -315,14 +327,14 @@ export default function RecurringDueDialog() {
             {groups.length > 0 && (
               <div>
                 <label className={`block text-xs font-semibold mb-1 ${c.label}`}>
-                  Business group
+                  {t("dashboard", "recurGroup")}
                 </label>
                 <select
                   value={groupId}
                   onChange={(e) => setGroupId(e.target.value)}
                   className={field}
                 >
-                  <option value="">No group</option>
+                  <option value="">{t("dashboard", "recurNoGroup")}</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
@@ -334,13 +346,13 @@ export default function RecurringDueDialog() {
 
             <div>
               <label className={`block text-xs font-semibold mb-1 ${c.label}`}>
-                Note (optional)
+                {t("dashboard", "recurNote")}
               </label>
               <input value={note} onChange={(e) => setNote(e.target.value)} className={field} />
             </div>
 
             <p className={`text-[11px] ${c.muted}`}>
-              This stays marked as {current.recurrence}, so you will be asked again next time.
+              {t("dashboard", current.recurrence === "monthly" ? "recurStaysMonthly" : "recurStaysYearly")}
             </p>
 
             {error && <p className="text-sm text-red-500">{error}</p>}
@@ -354,14 +366,14 @@ export default function RecurringDueDialog() {
                 disabled={busy}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium ${c.body} ${c.hover}`}
               >
-                Back
+                {t("dashboard", "recurBack")}
               </button>
               <button
                 onClick={save}
                 disabled={busy}
                 className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
               >
-                {busy ? "Adding…" : "Add to books"}
+                {busy ? t("dashboard", "recurAdding") : t("dashboard", "recurAdd")}
               </button>
             </div>
           </div>

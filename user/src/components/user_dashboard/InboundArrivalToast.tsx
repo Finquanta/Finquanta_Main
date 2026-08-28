@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Mail, X } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { themeClasses } from "@/lib/theme";
 import { getPendingFromEmail } from "@/lib/api/inbound";
 import { DocumentCapture } from "@/lib/api/capture";
@@ -48,6 +49,7 @@ function writeSeen(ids: string[]): void {
 }
 
 export default function InboundArrivalToast() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const c = themeClasses(isDark);
@@ -128,15 +130,15 @@ export default function InboundArrivalToast() {
           <div className="min-w-0 flex-1">
             <p className={`text-sm font-semibold ${c.heading}`}>
               {fresh.length === 1
-                ? "A document arrived by email"
-                : `${fresh.length} documents arrived by email`}
+                ? t("dashboard", "toastDocArrived")
+                : t("dashboard", "toastDocsArrived").replace("{n}", String(fresh.length))}
             </p>
             <p className={`mt-0.5 text-xs truncate ${c.body}`}>
-              {vendor || latest.originalFilename || "Ready to review"}
+              {vendor || latest.originalFilename || t("dashboard", "toastReadyToReview")}
               {total != null ? ` · ${`${currency} ${total}`.trim()}` : ""}
             </p>
             <p className={`mt-1 text-[11px] ${c.muted}`}>
-              Nothing is in your books until you check it.
+              {t("dashboard", "toastNotInBooks")}
             </p>
 
             <Link
@@ -144,13 +146,13 @@ export default function InboundArrivalToast() {
               onClick={() => setFresh([])}
               className="mt-2 inline-block rounded-lg bg-purple-500 hover:bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white"
             >
-              Review it
+              {t("dashboard", "toastReviewIt")}
             </Link>
           </div>
 
           <button
             onClick={() => setFresh([])}
-            aria-label="Dismiss"
+            aria-label={t("dashboard", "toastDismiss")}
             className={`flex-shrink-0 ${c.quietControl}`}
           >
             <X className="h-4 w-4" />

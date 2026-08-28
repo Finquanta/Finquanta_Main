@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Phone, X } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 import { themeClasses } from "@/lib/theme";
 import { DIAL_CODES } from "@/lib/countries";
 import { saveMyPhone } from "@/lib/api/me";
@@ -41,6 +42,7 @@ export default function PhoneDialog({
   /** The workspace's country, when known — a sensible first guess. */
   defaultCountry?: string;
 }) {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const c = themeClasses(isDark);
@@ -77,8 +79,8 @@ export default function PhoneDialog({
   const save = async () => {
     // Digits only, so "(555) 123 4567" and "5551234567" store identically.
     const digits = number.replace(/[^\d]/g, "");
-    if (!dial) return setError("Pick a country first.");
-    if (digits.length < 4) return setError("That number looks too short.");
+    if (!dial) return setError(t("dashboard", "phoneErrCountry"));
+    if (digits.length < 4) return setError(t("dashboard", "phoneErrShort"));
 
     setSaving(true);
     setError(null);
@@ -87,7 +89,7 @@ export default function PhoneDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save that number.");
+      setError(e instanceof Error ? e.message : t("dashboard", "phoneErrSave"));
     } finally {
       setSaving(false);
     }
@@ -111,28 +113,27 @@ export default function PhoneDialog({
           <div className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-blue-500" />
             <h2 id="phone-dialog-title" className={`text-lg font-bold ${c.heading}`}>
-              Add your phone number
+              {t("dashboard", "phoneTitle")}
             </h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className={`flex-shrink-0 ${c.quietControl}`}>
+          <button onClick={onClose} aria-label={t("dashboard", "inboxClose")} className={`flex-shrink-0 ${c.quietControl}`}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="p-5 space-y-3">
           <p className={`text-xs ${c.body}`}>
-            This is your personal number, not the business one. It is only used to reach you about
-            your own account.
+            {t("dashboard", "phoneIntro")}
           </p>
 
           <div>
-            <label className={`block text-xs font-semibold mb-1 ${c.label}`}>Country</label>
+            <label className={`block text-xs font-semibold mb-1 ${c.label}`}>{t("dashboard", "phoneCountry")}</label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className={field}
             >
-              <option value="">Select a country…</option>
+              <option value="">{t("dashboard", "phoneSelectCountry")}</option>
               {DIAL_CODES.map((d) => (
                 // Country + code, keyed on both: several countries share a code,
                 // so the name alone is what makes each row distinguishable.
@@ -144,7 +145,7 @@ export default function PhoneDialog({
           </div>
 
           <div>
-            <label className={`block text-xs font-semibold mb-1 ${c.label}`}>Phone number</label>
+            <label className={`block text-xs font-semibold mb-1 ${c.label}`}>{t("dashboard", "phoneNumber")}</label>
             <div className="flex gap-2">
               <span
                 className={`flex items-center rounded-lg border px-3 text-sm font-mono ${c.input} ${dial ? "" : c.muted}`}
@@ -163,7 +164,7 @@ export default function PhoneDialog({
               />
             </div>
             <p className={`mt-1 text-[11px] ${c.muted}`}>
-              Without the country code — that is the box on the left.
+              {t("dashboard", "phoneNoCountryCode")}
             </p>
           </div>
 
@@ -174,14 +175,14 @@ export default function PhoneDialog({
               onClick={onClose}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium ${c.body} ${c.hover}`}
             >
-              Cancel
+              {t("dashboard", "phoneCancel")}
             </button>
             <button
               onClick={save}
               disabled={saving || !dial || !number.trim()}
               className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-60"
             >
-              {saving ? "Saving…" : "Save number"}
+              {saving ? t("dashboard", "phoneSaving") : t("dashboard", "phoneSave")}
             </button>
           </div>
         </div>
