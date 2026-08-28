@@ -5,6 +5,7 @@ import {
   AlertTriangle, Check, Copy, FileText, Inbox, Mail, RefreshCw, RotateCcw, ShieldOff, Trash2, X,
 } from 'lucide-react';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
+import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { themeClasses } from '@/lib/theme';
 import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureReviewModal';
@@ -48,6 +49,7 @@ function when(iso: string | null | undefined): string {
 }
 
 export default function InboxPage() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const c = themeClasses(isDark);
@@ -134,7 +136,7 @@ export default function InboxPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Could not copy. Select the address and copy it by hand.');
+      setError(t("dashboard", "inboxErrCopy"));
     }
   };
 
@@ -144,7 +146,7 @@ export default function InboxPage() {
     try {
       setAddress(await rotateInboundAddress());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not change the address.');
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrRotate"));
     } finally {
       setBusy(false);
     }
@@ -157,7 +159,7 @@ export default function InboxPage() {
       await setInboundSender(email, status);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update that sender.');
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrSender"));
     } finally {
       setBusy(false);
     }
@@ -169,7 +171,7 @@ export default function InboxPage() {
       await restoreCapture(id);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not restore that document.');
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrRestore"));
     } finally {
       setBusy(false);
     }
@@ -237,27 +239,25 @@ export default function InboxPage() {
       <div className="p-4 sm:p-6 max-w-7xl">
         <h1 className={`text-2xl font-bold mb-1 flex items-center gap-2 ${c.heading}`}>
           <Inbox className="h-6 w-6 text-purple-500" />
-          Inbox
-          {unread > 0 && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="unread" />}
+          {t("dashboard", "inboxTitle")}
+          {unread > 0 && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label={t("dashboard", "inboxUnreadLabel")} />}
         </h1>
         <p className={`mb-5 text-sm ${c.body}`}>
-          Send or forward bills and payment notices to your workspace address — attach as many as
-          you like in one email. Nothing reaches your books until you confirm it.
+          {t("dashboard", "inboxIntro")}
         </p>
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
         {/* The address, full width above the columns. */}
         <div className={`border rounded-xl p-4 mb-5 ${c.surface} ${c.line}`}>
-          <p className={`font-semibold text-sm mb-1 ${c.heading}`}>Your workspace email address</p>
+          <p className={`font-semibold text-sm mb-1 ${c.heading}`}>{t("dashboard", "inboxAddressTitle")}</p>
           <p className={`text-xs mb-3 ${c.muted}`}>
-            Attach a whole batch and send it, give it to a supplier, or set a forwarding rule so
-            their invoices arrive by themselves. Each workspace has its own address.
+            {t("dashboard", "inboxAddressHelp")}
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <code className={`flex-1 min-w-[16rem] rounded-lg px-3 py-2 text-sm font-mono ${c.panel} ${c.heading}`}>
-              {address?.email ?? 'Loading…'}
+              {address?.email ?? t("dashboard", "inboxLoading")}
             </code>
             <button
               onClick={copy}
@@ -265,7 +265,7 @@ export default function InboxPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-purple-500 hover:bg-purple-600 disabled:opacity-60 text-white"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t("dashboard", "inboxCopied") : t("dashboard", "inboxCopy")}
             </button>
             <button
               onClick={rotate}
@@ -273,32 +273,32 @@ export default function InboxPage() {
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border disabled:opacity-60 ${c.line} ${c.hover} ${c.body}`}
             >
               <RefreshCw className="h-4 w-4" />
-              New address
+              {t("dashboard", "inboxNewAddress")}
             </button>
           </div>
 
           <p className={`text-[11px] mt-2 ${c.muted}`}>
-            Treat it like a password. Anyone who has it can send documents here — if it gets out,
-            take a new one and the old address stops working immediately.
+            {t("dashboard", "inboxAddressWarning")}
           </p>
         </div>
 
         {shortfall && (
           <p className={`mb-4 text-xs ${c.warn}`}>
-            You have {allowance?.remaining ?? 0} scans left and {pending.length} documents waiting.
-            The rest will have to wait for next month, or a larger plan.
+            {t("dashboard", "inboxShortfall")
+              .replace("{n}", String(allowance?.remaining ?? 0))
+              .replace("{m}", String(pending.length))}
           </p>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* 1 — what turned up */}
           <Column
-            title="Received"
+            title={t("dashboard", "inboxColReceived")}
             count={unread}
             accent={unread > 0 ? 'bg-amber-500 text-white' : undefined}
           >
             {messages.length === 0 ? (
-              <Empty text="Nothing yet. Forwarded email shows up here." />
+              <Empty text={t("dashboard", "inboxEmptyReceived")} />
             ) : (
               messages.map((m) => (
                 <button
@@ -320,7 +320,7 @@ export default function InboxPage() {
                           m.openedAt ? c.body : `font-semibold ${c.heading}`
                         }`}
                       >
-                        {m.subject || '(no subject)'}
+                        {m.subject || t("dashboard", "inboxNoSubject")}
                       </span>
                       <span className={`block text-[11px] truncate ${c.muted}`}>{m.fromEmail}</span>
                       <span className={`block text-[11px] ${c.muted}`}>{when(m.receivedAt)}</span>
@@ -350,12 +350,12 @@ export default function InboxPage() {
 
           {/* 2 — what needs me */}
           <Column
-            title="Pending"
+            title={t("dashboard", "inboxColPending")}
             count={pending.length}
             accent={pending.length > 0 ? 'bg-purple-500 text-white' : undefined}
           >
             {pending.length === 0 ? (
-              <Empty text="Nothing waiting. Documents that were read land here to check." />
+              <Empty text={t("dashboard", "inboxEmptyPending")} />
             ) : (
               pending.map((p) => (
                 <button
@@ -366,23 +366,23 @@ export default function InboxPage() {
                   <Mail className="h-4 w-4 flex-shrink-0 text-purple-500" />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-xs font-medium truncate ${c.heading}`}>
-                      {p.extractedFields.vendor || p.originalFilename || 'Document'}
+                      {p.extractedFields.vendor || p.originalFilename || t("dashboard", "inboxDocument")}
                     </span>
                     <span className={`block text-[11px] ${c.muted}`}>
                       {p.extractedFields.total != null
                         ? `${p.extractedFields.currency ?? ''} ${p.extractedFields.total}`.trim()
-                        : 'No amount read'}
+                        : t("dashboard", "inboxNoAmount")}
                       {p.extractedFields.documentDate ? ` · ${p.extractedFields.documentDate}` : ''}
                     </span>
                     {/* The date READ OFF the document above; the date it reached
                         you here. They are different questions and often
                         different days. */}
                     <span className={`block text-[11px] ${c.muted}`}>
-                      Arrived {when(p.createdAt)}
+                      {t("dashboard", "inboxArrived").replace("{when}", when(p.createdAt))}
                     </span>
                   </span>
                   <span className="text-[11px] font-semibold text-purple-500 flex-shrink-0">
-                    Review
+                    {t("dashboard", "inboxReview")}
                   </span>
                 </button>
               ))
@@ -390,9 +390,9 @@ export default function InboxPage() {
           </Column>
 
           {/* 3 — what I threw away */}
-          <Column title="Recycle Bin" count={discarded.length}>
+          <Column title={t("dashboard", "inboxColBin")} count={discarded.length}>
             {discarded.length === 0 ? (
-              <Empty text="Empty. Documents you discard can be put back from here." />
+              <Empty text={t("dashboard", "inboxEmptyBin")} />
             ) : (
               /**
                * The bin is emptied on a schedule, so it has to SAY so. A
@@ -408,7 +408,7 @@ export default function InboxPage() {
                   <Trash2 className={`h-4 w-4 flex-shrink-0 ${c.muted}`} />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-xs truncate ${c.body}`}>
-                      {d.extractedFields.vendor || d.originalFilename || 'Document'}
+                      {d.extractedFields.vendor || d.originalFilename || t("dashboard", "inboxDocument")}
                     </span>
                     <span className={`block text-[11px] ${c.muted}`}>
                       {d.extractedFields.total != null
@@ -420,11 +420,11 @@ export default function InboxPage() {
                   <button
                     onClick={() => restore(d.id)}
                     disabled={busy}
-                    title="Put it back"
+                    title={t("dashboard", "inboxPutItBack")}
                     className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-purple-500 hover:underline disabled:opacity-60"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    Restore
+                    {t("dashboard", "inboxRestore")}
                   </button>
                 </div>
               ))
@@ -432,7 +432,7 @@ export default function InboxPage() {
 
             {discarded.length > 0 && (
               <p className={`pt-1 text-[11px] ${c.muted}`}>
-                Discarded documents are deleted for good after 30 days.
+                {t("dashboard", "inboxBinRetention")}
               </p>
             )}
           </Column>
@@ -444,11 +444,10 @@ export default function InboxPage() {
           <div className={`border rounded-xl p-4 mt-4 ${c.surface} ${c.line}`}>
             <p className={`font-semibold text-sm flex items-center gap-1.5 ${c.heading}`}>
               <AlertTriangle className={`h-4 w-4 ${c.warn}`} />
-              Held back
+              {t("dashboard", "inboxHeldBack")}
             </p>
             <p className={`text-xs mt-0.5 mb-3 ${c.muted}`}>
-              From addresses this workspace has not seen before, so nothing was opened or read.
-              Trust a sender and their future mail is processed automatically.
+              {t("dashboard", "inboxHeldBackHelp")}
             </p>
 
             <div className="space-y-2">
@@ -459,7 +458,7 @@ export default function InboxPage() {
                 >
                   <span className="min-w-0 flex-1">
                     <span className={`block text-sm font-medium truncate ${c.heading}`}>
-                      {m.subject || '(no subject)'}
+                      {m.subject || t("dashboard", "inboxNoSubject")}
                     </span>
                     <span className={`block text-xs truncate ${c.muted}`}>{m.fromEmail}</span>
                   </span>
@@ -468,7 +467,7 @@ export default function InboxPage() {
                     disabled={busy}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white"
                   >
-                    Trust sender
+                    {t("dashboard", "inboxTrustSender")}
                   </button>
                   <button
                     onClick={() => trust(m.fromEmail, 'blocked')}
@@ -476,7 +475,7 @@ export default function InboxPage() {
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60 ${c.line} ${c.hover} ${c.body}`}
                   >
                     <ShieldOff className="h-3 w-3" />
-                    Block
+                    {t("dashboard", "inboxBlock")}
                   </button>
                 </div>
               ))}
@@ -493,7 +492,9 @@ export default function InboxPage() {
             }}
             className={`text-xs font-medium underline ${c.muted}`}
           >
-            {showDiag ? 'Hide troubleshooting' : 'Nothing arriving? Check troubleshooting'}
+            {showDiag
+              ? t("dashboard", "inboxHideTroubleshooting")
+              : t("dashboard", "inboxShowTroubleshooting")}
           </button>
 
           {showDiag && (
@@ -622,16 +623,19 @@ export default function InboxPage() {
             <div className={`flex items-start justify-between gap-3 p-5 border-b ${c.line}`}>
               <div className="min-w-0">
                 <h2 id="message-detail-title" className={`text-base font-bold truncate ${c.heading}`}>
-                  {detail.subject || '(no subject)'}
+                  {detail.subject || t("dashboard", "inboxNoSubject")}
                 </h2>
                 <p className={`text-xs mt-0.5 truncate ${c.muted}`}>
-                  From {detail.fromName ? `${detail.fromName} · ` : ''}{detail.fromEmail}
+                  {t("dashboard", "inboxFrom")}{' '}
+                  {detail.fromName ? `${detail.fromName} · ` : ''}{detail.fromEmail}
                 </p>
-                <p className={`text-xs ${c.muted}`}>Received {when(detail.receivedAt)}</p>
+                <p className={`text-xs ${c.muted}`}>
+                  {t("dashboard", "inboxReceivedAt")} {when(detail.receivedAt)}
+                </p>
               </div>
               <button
                 onClick={() => setDetail(null)}
-                aria-label="Close"
+                aria-label={t("dashboard", "inboxClose")}
                 className={`flex-shrink-0 ${c.quietControl}`}
               >
                 <X className="h-5 w-5" />
@@ -642,45 +646,44 @@ export default function InboxPage() {
               {detail.status === 'quarantined' && (
                 <div className={`rounded-lg border p-3 text-xs ${c.line}`}>
                   <p className={c.body}>
-                    <span className="font-semibold">Held back.</span> This came from an address that
-                    is not on your account, so nothing was read from it — that is what stops a
-                    stranger who learns your inbox address running up charges on it.
+                    <span className="font-semibold">{t("dashboard", "inboxDetailHeldBack")}</span>{' '}
+                    {t("dashboard", "inboxDetailHeldBackBody")}
                   </p>
                   <button
                     onClick={() => { trust(detail.fromEmail, 'trusted'); setDetail(null); }}
                     disabled={busy}
                     className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-500 hover:bg-purple-600 disabled:opacity-60"
                   >
-                    Trust {detail.fromEmail}
+                    {t("dashboard", "inboxTrustThisSender").replace("{email}", detail.fromEmail)}
                   </button>
                   <p className={`mt-1 ${c.muted}`}>
-                    Applies to mail sent from now on. Send this one again once trusted.
+                    {t("dashboard", "inboxTrustApplies")}
                   </p>
                 </div>
               )}
 
               {detail.status === 'failed' && (
                 <p className={`text-xs ${c.danger}`}>
-                  {detail.error || 'This one could not be read.'}
+                  {detail.error || t("dashboard", "inboxCouldNotRead")}
                 </p>
               )}
 
               {detailCaptures === null ? (
-                <p className={`text-xs ${c.muted}`}>Looking…</p>
+                <p className={`text-xs ${c.muted}`}>{t("dashboard", "inboxLooking")}</p>
               ) : detailCaptures.length === 0 ? (
                 <p className={`text-xs ${c.muted}`}>
                   {detail.status === 'quarantined'
-                    ? 'No document was read from this, by design.'
+                    ? t("dashboard", "inboxNoDocByDesign")
                     : detail.attachmentCount > 0
-                      ? 'Nothing could be read from the attachments on this email.'
-                      : 'This email had no attachment, and nothing financial was found in the message itself.'}
+                      ? t("dashboard", "inboxNoDocFromAttachments")
+                      : t("dashboard", "inboxNoDocNoAttachment")}
                 </p>
               ) : (
                 <>
                   <p className={`text-xs font-semibold ${c.label}`}>
                     {detailCaptures.length === 1
-                      ? 'One document came from this email'
-                      : `${detailCaptures.length} documents came from this email`}
+                      ? t("dashboard", "inboxOneDoc")
+                      : t("dashboard", "inboxManyDocs").replace("{n}", String(detailCaptures.length))}
                   </p>
                   {detailCaptures.map((d) => (
                     <button
@@ -691,21 +694,21 @@ export default function InboxPage() {
                       <FileText className="h-4 w-4 flex-shrink-0 text-purple-500" />
                       <span className="min-w-0 flex-1">
                         <span className={`block text-xs font-medium truncate ${c.heading}`}>
-                          {d.extractedFields.vendor || d.originalFilename || 'Document'}
+                          {d.extractedFields.vendor || d.originalFilename || t("dashboard", "inboxDocument")}
                         </span>
                         <span className={`block text-[11px] ${c.muted}`}>
                           {d.status === 'pending_review'
-                            ? 'Waiting for you'
+                            ? t("dashboard", "inboxWaitingForYou")
                             : d.status === 'confirmed'
-                              ? 'Already in your books'
-                              : 'In the recycle bin'}
+                              ? t("dashboard", "inboxAlreadyInBooks")
+                              : t("dashboard", "inboxInBin")}
                           {d.extractedFields.total != null
                             ? ` · ${`${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()}`
                             : ''}
                         </span>
                       </span>
                       <span className="text-[11px] font-semibold text-purple-500 flex-shrink-0">
-                        Open
+                        {t("dashboard", "inboxOpen")}
                       </span>
                     </button>
                   ))}
@@ -723,7 +726,7 @@ export default function InboxPage() {
           onSaved={() => { setReviewing(null); load(); }}
           onOutOfScans={() => {
             setReviewing(null);
-            setError('You have used all of this month’s document scans.');
+            setError(t("dashboard", "inboxErrNoScans"));
           }}
         />
       )}
