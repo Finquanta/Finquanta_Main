@@ -23,7 +23,16 @@ import {
  * and the queue stops being worth opening.
  */
 
-const MODEL = process.env.CAPTURE_MODEL || 'claude-haiku-4-5';
+/**
+ * PINNED TO A DATED ID, and it matters here specifically.
+ *
+ * This call uses structured outputs (`output_config`), and Anthropic documents
+ * support for that against dated model ids — `claude-haiku-4-5-20251001` — not
+ * the bare `claude-haiku-4-5` alias. The alias is fine for an ordinary Messages
+ * call, which is why Council and Finna were unaffected while the two paths that
+ * READ DOCUMENTS both failed: they are the only two using output_config.
+ */
+const MODEL = process.env.CAPTURE_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 1500;
 const CALL_TIMEOUT_MS = 45_000;
 

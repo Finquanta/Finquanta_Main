@@ -300,6 +300,18 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
             <p className={`text-xs ${isDark ? "text-amber-200" : "text-amber-800"}`}>
               {t("dashboard", "captureUnreadable")}
             </p>
+            {/**
+              * The ACTUAL reason, underneath.
+              *
+              * It was being stored on the capture and then thrown away here, so
+              * "the key is missing", "the model rejected the request" and "it
+              * timed out" all reached the user as one identical sentence — and
+              * they need three different fixes. The friendly line still leads;
+              * this is the part that makes the problem reportable.
+              */}
+            <p className={`mt-1 text-[11px] font-mono break-words ${isDark ? "text-amber-300/80" : "text-amber-700/80"}`}>
+              {capture.extractionError}
+            </p>
           </div>
         )}
 

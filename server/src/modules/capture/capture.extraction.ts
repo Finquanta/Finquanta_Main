@@ -19,7 +19,16 @@ import {
  */
 
 /** Haiku unless overridden — the cost lever, kept in config not in code. */
-const MODEL = process.env.CAPTURE_MODEL || 'claude-haiku-4-5';
+/**
+ * PINNED TO A DATED ID, and it matters here specifically.
+ *
+ * This call uses structured outputs (`output_config`), and Anthropic documents
+ * support for that against dated model ids — `claude-haiku-4-5-20251001` — not
+ * the bare `claude-haiku-4-5` alias. The alias is fine for an ordinary Messages
+ * call, which is why Council and Finna were unaffected while the two paths that
+ * READ DOCUMENTS both failed: they are the only two using output_config.
+ */
+const MODEL = process.env.CAPTURE_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 2000;
 const CALL_TIMEOUT_MS = 60_000;
 
@@ -159,7 +168,17 @@ export async function extractDocument(
   }
 
   if (!res.ok) {
-    throw new Error(`Could not read the document (${res.status}).`);
+    /**
+     * Include the body, truncated.
+     *
+     * A bare status code cannot tell an unsupported model from a malformed
+     * schema from an expired key, and this message is the ONLY thing that
+     * reaches the person holding the document.
+     */
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Could not read the document (${res.status})${detail ? `: ${detail.slice(0, 300)}` : ''}.`
+    );
   }
 
   const json = (await res.json()) as { content?: { type: string; text?: string }[] };
