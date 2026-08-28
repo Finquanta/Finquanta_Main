@@ -562,3 +562,43 @@ describe('inbound email — the flow', () => {
     expect([...inbound.__state.messages.values()][0]).toMatchObject({ status: 'failed' });
   });
 });
+
+describe('inbound — working out what an attachment is', () => {
+  const { contentTypeFor } = jest.requireActual('../../../src/modules/inbound/inbound.types');
+
+  it('keeps a type it already accepts', () => {
+    expect(contentTypeFor('bill.pdf', 'application/pdf')).toBe('application/pdf');
+    expect(contentTypeFor('shot.png', 'image/png')).toBe('image/png');
+  });
+
+  it('strips parameters and normalises case', () => {
+    expect(contentTypeFor('bill.pdf', 'APPLICATION/PDF; name=bill.pdf')).toBe('application/pdf');
+  });
+
+  it('rescues a PDF labelled application/octet-stream', () => {
+    /**
+     * THE BUG THIS EXISTS FOR. Mail systems routinely label attachments
+     * octet-stream — it is the honest answer from a sender that did not look
+     * inside the file, and it is especially common for PDFs. Matching the
+     * declared type alone rejected real invoices for being described vaguely,
+     * and from the product that looked exactly like an email with no
+     * attachment at all.
+     */
+    expect(contentTypeFor('invoice.pdf', 'application/octet-stream')).toBe('application/pdf');
+    expect(contentTypeFor('receipt.PNG', 'application/octet-stream')).toBe('image/png');
+    expect(contentTypeFor('photo.jpeg', '')).toBe('image/jpeg');
+  });
+
+  it('leaves a genuinely unreadable attachment alone', () => {
+    // A spreadsheet is not something the extractor can read, and guessing it
+    // into an accepted type would only buy a failed extraction.
+    expect(contentTypeFor('books.xlsx', 'application/octet-stream'))
+      .toBe('application/octet-stream');
+    expect(contentTypeFor(null, 'application/zip')).toBe('application/zip');
+  });
+
+  it('copes with no filename at all', () => {
+    expect(contentTypeFor(null, 'application/pdf')).toBe('application/pdf');
+    expect(contentTypeFor(null, '')).toBe('');
+  });
+});

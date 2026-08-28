@@ -17,6 +17,8 @@
  * vendor client is a dependency here, and adding one risks the Render build.
  */
 
+import { contentTypeFor } from './inbound.types';
+
 const RECEIVING_ENDPOINT = 'https://api.resend.com/emails/receiving';
 const TIMEOUT_MS = 30_000;
 
@@ -44,7 +46,11 @@ export interface ReceivedEmail {
  * that guesses at Resend's field names, so a rename breaks here and nowhere
  * else. Confirm both against one real delivery.
  */
-export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail> {
+export async function fetchReceivedEmail(
+  emailId: string,
+  /** Optional shape logging — keys only, never message content. */
+  log?: (message: string) => void
+): Promise<ReceivedEmail> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     throw new ReceivedFetchError('RESEND_API_KEY is not set, so received email cannot be read.');
@@ -72,13 +78,47 @@ export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail
   const json = (await res.json()) as any;
   const d = json?.data ?? json;
 
-  const rawAttachments = Array.isArray(d?.attachments) ? d.attachments : [];
-  const attachments: ReceivedAttachment[] = rawAttachments.map((a: any) => ({
-    filename: a?.filename ?? a?.name ?? null,
-    contentType: ((a?.content_type ?? a?.contentType ?? '').split(';')[0] ?? '').trim().toLowerCase(),
-    content: typeof a?.content === 'string' ? a.content : null,
-    url: a?.download_url ?? a?.url ?? null,
-  }));
+  // Every plausible spelling, because this is one of only two places that
+  // guesses at Resend's field names.
+  const rawAttachments = Array.isArray(d?.attachments) ? d.attachments
+    : Array.isArray(d?.files) ? d.files
+      : [];
+  const attachments: ReceivedAttachment[] = rawAttachments.map((a: any) => {
+    const filename = a?.filename ?? a?.name ?? null;
+    return {
+      filename,
+      // Resolved from the extension when the declared type is vague — see
+      // contentTypeFor. A PDF labelled application/octet-stream is the common
+      // case, not an edge one.
+      contentType: contentTypeFor(filename, a?.content_type ?? a?.contentType ?? a?.type ?? ''),
+      content: typeof a?.content === 'string' ? a.content
+        : typeof a?.data === 'string' ? a.data
+          : null,
+      url: a?.download_url ?? a?.url ?? a?.href ?? null,
+    };
+  });
+
+  /**
+   * Say what came back, in SHAPE only — keys and content types, never values,
+   * because this is somebody's mail.
+   *
+   * The field names above are a guess against a provider whose response shape
+   * is not pinned down here, and when the guess is wrong the symptom is an
+   * email that appears to have had no attachment. That is invisible from the
+   * product and was being diagnosed by trial and error.
+   */
+  if (rawAttachments.length === 0) {
+    log?.(
+      `Resend returned no attachments for ${emailId}. Top-level keys: ` +
+      `[${Object.keys(json ?? {}).join(', ')}]. data keys: [${Object.keys(d ?? {}).join(', ')}].`
+    );
+  } else {
+    log?.(
+      `Resend returned ${rawAttachments.length} attachment(s) for ${emailId}. ` +
+      `Keys on the first: [${Object.keys(rawAttachments[0] ?? {}).join(', ')}]. ` +
+      `Resolved types: [${attachments.map((a) => a.contentType || '(none)').join(', ')}].`
+    );
+  }
 
   return {
     // `text` preferred over `html`: the extractor reads prose, and stripping

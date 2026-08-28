@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, Check, Copy, ExternalLink, FileText, Inbox, Mail, RefreshCw, RotateCcw,
   ShieldOff, Trash2, X,
@@ -127,6 +127,21 @@ export default function InboxPage() {
   const [detailCaptures, setDetailCaptures] = useState<DocumentCapture[] | null>(null);
   /** Deleting asks first, in the dialog — not through a browser confirm box. */
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /**
+   * Selection mode on the Received list.
+   *
+   * Off by default: a checkbox on every card all the time turns a list you
+   * mostly read into a form you mostly ignore. "Edit" asks for it.
+   */
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  /**
+   * Read by the poll timer, which is created once and must not be torn down
+   * and rebuilt every time a checkbox moves.
+   */
+  const selectingRef = useRef(false);
+  useEffect(() => { selectingRef.current = selecting; }, [selecting]);
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -158,7 +173,13 @@ export default function InboxPage() {
    * nothing because the timer checks visibility before it asks.
    */
   useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') load(); };
+    const tick = () => {
+      // Never while a selection is open: replacing the list under somebody
+      // mid-selection either drops what they picked or, worse, keeps the ids
+      // and applies the action to a list they are no longer looking at.
+      if (selectingRef.current) return;
+      if (document.visibilityState === 'visible') load();
+    };
     const timer = setInterval(tick, 30_000);
     // Coming back to the tab is exactly the moment somebody wants to know.
     document.addEventListener('visibilitychange', tick);
@@ -285,6 +306,49 @@ export default function InboxPage() {
     }
   };
 
+  const toggle = (id: string) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  /** Leave selection mode cleanly — a stale selection is a mis-click waiting. */
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected([]);
+    setConfirmBulk(false);
+  };
+
+  const bulkRead = async (read: boolean) => {
+    if (!selected.length) return;
+    setBusy(true);
+    setError(null);
+    const stamp = read ? new Date().toISOString() : null;
+    try {
+      await Promise.all(selected.map((id) => (read ? markMessageRead(id) : markMessageUnread(id))));
+      setMessages((prev) =>
+        prev.map((m) => (selected.includes(m.id) ? { ...m, openedAt: stamp } : m))
+      );
+      setSelected([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrSender"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (!selected.length) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await Promise.all(selected.map((id) => deleteInboundMessage(id)));
+      setMessages((prev) => prev.filter((m) => !selected.includes(m.id)));
+      stopSelecting();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrDelete"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /**
    * Open a received message.
    *
@@ -318,22 +382,28 @@ export default function InboxPage() {
 
   /** One column definition, so the three cannot drift apart visually. */
   const Column = ({
-    title, count, accent, children,
+    title, count, accent, action, children,
   }: {
-    title: string; count: number; accent?: string; children: React.ReactNode;
+    title: string; count: number; accent?: string;
+    /** A control in the header, right-aligned — "Edit" on Received. */
+    action?: React.ReactNode;
+    children: React.ReactNode;
   }) => (
     <section className={`flex flex-col rounded-xl border ${c.surface} ${c.line}`}>
       <header className={`flex items-center justify-between gap-2 px-4 py-3 border-b ${c.line}`}>
         <h2 className={`text-sm font-semibold ${c.heading}`}>{title}</h2>
-        {count > 0 && (
-          <span
-            className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${
-              accent ?? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-600')
-            }`}
-          >
-            {count}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {count > 0 && (
+            <span
+              className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${
+                accent ?? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-600')
+              }`}
+            >
+              {count}
+            </span>
+          )}
+          {action}
+        </div>
       </header>
       <div className="p-3 space-y-2 overflow-y-auto max-h-[28rem]">{children}</div>
     </section>
@@ -405,17 +475,112 @@ export default function InboxPage() {
             title={t("dashboard", "inboxColReceived")}
             count={unread}
             accent={unread > 0 ? 'bg-amber-500 text-white' : undefined}
+            action={messages.length > 0 ? (
+              <button
+                onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                className={`text-[11px] font-semibold ${selecting ? 'text-purple-500' : c.muted} hover:underline`}
+              >
+                {selecting ? t("dashboard", "inboxDone") : t("dashboard", "inboxEdit")}
+              </button>
+            ) : undefined}
           >
+            {/* The bulk bar, only while selecting. */}
+            {selecting && messages.length > 0 && (
+              <div className={`rounded-lg border p-2 space-y-2 ${c.line} ${c.panel}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className={`text-[11px] font-semibold ${c.body}`}>
+                    {t("dashboard", "inboxSelected").replace("{n}", String(selected.length))}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setSelected(selected.length === messages.length ? [] : messages.map((m) => m.id))
+                    }
+                    className="text-[11px] font-semibold text-purple-500 hover:underline"
+                  >
+                    {selected.length === messages.length
+                      ? t("dashboard", "inboxSelectNone")
+                      : t("dashboard", "inboxSelectAll")}
+                  </button>
+                </div>
+
+                {confirmBulk ? (
+                  <div className="space-y-2">
+                    <p className={`text-[11px] ${c.muted}`}>
+                      {t("dashboard", "inboxBulkDeleteConfirm").replace("{n}", String(selected.length))}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setConfirmBulk(false)}
+                        disabled={busy}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border ${c.line} ${c.body} ${c.hover}`}
+                      >
+                        {t("dashboard", "phoneCancel")}
+                      </button>
+                      <button
+                        onClick={bulkDelete}
+                        disabled={busy}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60"
+                      >
+                        {busy ? t("dashboard", "inboxDeleting") : t("dashboard", "inboxDelete")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => bulkRead(true)}
+                      disabled={busy || !selected.length}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border disabled:opacity-50 ${c.line} ${c.body} ${c.hover}`}
+                    >
+                      {t("dashboard", "inboxMarkRead")}
+                    </button>
+                    <button
+                      onClick={() => bulkRead(false)}
+                      disabled={busy || !selected.length}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border disabled:opacity-50 ${c.line} ${c.body} ${c.hover}`}
+                    >
+                      {t("dashboard", "inboxMarkUnread")}
+                    </button>
+                    <button
+                      onClick={() => setConfirmBulk(true)}
+                      disabled={busy || !selected.length}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-red-500 border border-red-300 disabled:opacity-50 hover:bg-red-500 hover:text-white"
+                    >
+                      {t("dashboard", "inboxDelete")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {messages.length === 0 ? (
               <Empty text={t("dashboard", "inboxEmptyReceived")} />
             ) : (
               messages.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => open(m)}
-                  className={`w-full text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
+                  onClick={() => (selecting ? toggle(m.id) : open(m))}
+                  className={`w-full text-left rounded-lg border px-3 py-2 ${c.hover} ${
+                    selecting && selected.includes(m.id)
+                      ? 'border-purple-500 ring-1 ring-purple-500'
+                      : c.line
+                  }`}
                 >
                   <span className="flex items-start gap-2">
+                    {selecting && (
+                      // Presentational: the whole card is the control, so a real
+                      // checkbox here would be a second tab stop doing the same job.
+                      <span
+                        aria-hidden="true"
+                        className={`mt-0.5 h-4 w-4 flex-shrink-0 rounded border flex items-center justify-center ${
+                          selected.includes(m.id)
+                            ? 'bg-purple-500 border-purple-500 text-white'
+                            : c.line
+                        }`}
+                      >
+                        {selected.includes(m.id) && <Check className="h-3 w-3" />}
+                      </span>
+                    )}
                     {/* The dot IS the unread marker, rather than bolding everything. */}
                     <span
                       className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${

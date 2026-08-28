@@ -10,7 +10,8 @@ import { fetchAttachment } from './inbound.attachments';
 import { extractFromBody } from './inbound.body-extraction';
 import { decodeInline, fetchReceivedEmail } from './inbound.fetch';
 import {
-  INBOUND_DOMAIN, MAX_ATTACHMENTS_PER_MESSAGE, READABLE_ATTACHMENT_TYPES, parseFromHeader,
+  INBOUND_DOMAIN, MAX_ATTACHMENTS_PER_MESSAGE, READABLE_ATTACHMENT_TYPES, contentTypeFor,
+  parseFromHeader,
 } from './inbound.types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -263,11 +264,16 @@ export function normalisePayload(raw: any): NormalisedMail | null {
     .map((x: string) => parseFromHeader(x).email);
 
   const attachments = (Array.isArray(d.attachments) ? d.attachments : [])
-    .map((a: any) => ({
-      filename: a?.filename ?? a?.name ?? null,
-      contentType: ((a?.content_type ?? a?.contentType ?? '').split(';')[0] ?? '').trim().toLowerCase(),
-      url: a?.download_url ?? a?.url ?? '',
-    }))
+    .map((a: any) => {
+      const filename = a?.filename ?? a?.name ?? null;
+      return {
+        filename,
+        // Resolved from the extension when the declared type is vague; see
+        // contentTypeFor. octet-stream is the ordinary label for a PDF in mail.
+        contentType: contentTypeFor(filename, a?.content_type ?? a?.contentType ?? a?.type ?? ''),
+        url: a?.download_url ?? a?.url ?? '',
+      };
+    })
     .filter((a: any) => a.url);
 
   return {
@@ -596,7 +602,7 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
    */
   let fetched: { filename: string | null; contentType: string; buffer: Buffer }[] = [];
   try {
-    const full = await fetchReceivedEmail(mail.providerMessageId);
+    const full = await fetchReceivedEmail(mail.providerMessageId, (m) => log.warn(m));
     if (full.text) body = full.text;
 
     for (const a of full.attachments) {

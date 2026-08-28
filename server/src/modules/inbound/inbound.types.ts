@@ -82,6 +82,38 @@ export const READABLE_ATTACHMENT_TYPES = [
   'image/webp',
 ];
 
+/**
+ * Work out what an attachment actually IS.
+ *
+ * Mail systems routinely label attachments `application/octet-stream` — it is
+ * the honest answer for a sender that did not look inside the file, and it is
+ * extremely common for PDFs in particular. Matching the declared type against
+ * READABLE_ATTACHMENT_TYPES therefore rejects real invoices for having been
+ * described vaguely, and from the product that is indistinguishable from the
+ * email having had no attachment at all.
+ *
+ * So: trust the declared type when it is one we accept, and otherwise fall back
+ * to the file extension. The extension is not authoritative either, but it is
+ * the sender's own description of the file, and being wrong here costs one
+ * failed extraction rather than a document silently vanishing.
+ */
+const EXTENSION_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+export function contentTypeFor(filename: string | null, declared: string): string {
+  const clean = (declared || '').split(';')[0]!.trim().toLowerCase();
+  if (READABLE_ATTACHMENT_TYPES.includes(clean)) return clean;
+
+  const ext = (filename ?? '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  const guessed = ext ? EXTENSION_TYPES[ext] : undefined;
+  return guessed ?? clean;
+}
+
 /** Same ceiling the upload endpoints use. */
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
