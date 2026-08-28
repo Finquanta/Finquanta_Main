@@ -40,7 +40,27 @@ function hostAllowed(hostname: string): boolean {
   return ALLOWED_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
 }
 
-async function assertFetchable(raw: string): Promise<URL> {
+/**
+ * Where a URL came from decides how much of the guard applies.
+ *
+ * The hostname allowlist exists because a URL in a WEBHOOK is attacker-supplied:
+ * anyone who can post to the endpoint could name any host. A download URL that
+ * came back from an authenticated call to Resend's own API is not that — it is
+ * a signed, short-lived link Resend minted for us, and it points at whatever
+ * CDN or bucket host they happen to use. Refusing it because it is not
+ * literally resend.com blocks every real attachment.
+ *
+ * The address check is NOT relaxed. `assertResolvesPublicly` still runs, and
+ * every redirect hop is still re-validated, so nothing can be pointed at a
+ * private address. That is the part that actually stops SSRF; the hostname
+ * list is a second fence around untrusted input only.
+ */
+export interface FetchOptions {
+  /** The URL came from an authenticated Resend API response, not a webhook. */
+  hostFromTrustedApi?: boolean;
+}
+
+async function assertFetchable(raw: string, options: FetchOptions = {}): Promise<URL> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -50,7 +70,7 @@ async function assertFetchable(raw: string): Promise<URL> {
   if (url.protocol !== 'https:') {
     throw new AttachmentFetchError('Attachments are only fetched over https.');
   }
-  if (!hostAllowed(url.hostname)) {
+  if (!options.hostFromTrustedApi && !hostAllowed(url.hostname)) {
     throw new AttachmentFetchError(`Attachment host not allowed: ${url.hostname}`);
   }
   await assertResolvesPublicly(url.hostname);
@@ -68,8 +88,11 @@ export interface FetchedAttachment {
  * allowed host redirect straight to a private address and defeat the allowlist
  * and the address check together.
  */
-export async function fetchAttachment(rawUrl: string): Promise<FetchedAttachment> {
-  let current = await assertFetchable(rawUrl);
+export async function fetchAttachment(
+  rawUrl: string,
+  options: FetchOptions = {}
+): Promise<FetchedAttachment> {
+  let current = await assertFetchable(rawUrl, options);
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     let res: Response;

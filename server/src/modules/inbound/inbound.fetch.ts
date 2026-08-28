@@ -134,3 +134,84 @@ export function decodeInline(content: string): Buffer {
   // whitespace first keeps a malformed body from silently truncating.
   return Buffer.from(content.replace(/\s+/g, ''), 'base64');
 }
+
+/**
+ * The attachments, which are a SEPARATE CALL — and this was the bug.
+ *
+ * `GET /emails/receiving/{id}` returns an `attachments` array, which is what
+ * made the original mistake so easy to make: it looks like the whole answer.
+ * But those entries carry metadata only — id, filename, content_type,
+ * content_disposition, content_id, size — and NO content and NO download_url.
+ *
+ * So every attachment was read, found to have no bytes, and skipped. Nothing
+ * threw, nothing logged, and the message fell through to body extraction and
+ * reported "this email had no attachment" — about an email that plainly had
+ * one. Confirmed against Resend's API reference, not guessed:
+ *
+ *     GET /emails/receiving/{email_id}/attachments
+ *     -> { object: "list", has_more: bool, data: [ { id, filename, size,
+ *          content_type, content_disposition, content_id, download_url,
+ *          expires_at } ] }
+ *
+ * `download_url` is signed and short-lived, which is why it is fetched now
+ * rather than stored for later.
+ */
+export interface ListedAttachment {
+  id: string;
+  filename: string | null;
+  contentType: string;
+  size: number | null;
+  downloadUrl: string | null;
+}
+
+export async function listReceivedAttachments(
+  emailId: string,
+  log?: (message: string) => void
+): Promise<ListedAttachment[]> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new ReceivedFetchError('RESEND_API_KEY is not set, so attachments cannot be read.');
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${RECEIVING_ENDPOINT}/${encodeURIComponent(emailId)}/attachments?limit=100`,
+      { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(TIMEOUT_MS) }
+    );
+  } catch (error) {
+    throw new ReceivedFetchError(
+      (error as Error)?.name === 'TimeoutError'
+        ? 'Listing the attachments on that email timed out.'
+        : 'Could not reach Resend to list attachments.'
+    );
+  }
+
+  if (!res.ok) {
+    throw new ReceivedFetchError(`Could not list attachments (${res.status}).`);
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const json = (await res.json()) as any;
+  const rows = Array.isArray(json?.data) ? json.data : [];
+
+  const listed: ListedAttachment[] = rows.map((a: any) => {
+    const filename = a?.filename ?? null;
+    return {
+      id: String(a?.id ?? ''),
+      filename,
+      // Extension fallback for octet-stream and friends; see contentTypeFor.
+      contentType: contentTypeFor(filename, a?.content_type ?? ''),
+      size: typeof a?.size === 'number' ? a.size : null,
+      downloadUrl: a?.download_url ?? null,
+    };
+  });
+
+  // Shape only, never content — this is somebody's mail.
+  log?.(
+    `Resend listed ${listed.length} attachment(s) for ${emailId}: ` +
+    `[${listed.map((a) => `${a.contentType || '(none)'}${a.downloadUrl ? '' : ' NO-URL'}`).join(', ')}].`
+  );
+
+  return listed;
+}

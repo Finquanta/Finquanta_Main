@@ -300,6 +300,21 @@ export class InboundRepository {
     );
   }
 
+  /**
+   * Correct the attachment count once we know the truth.
+   *
+   * The count is first written from the WEBHOOK, which is metadata and may not
+   * mention attachments at all. Left alone, the inbox then tells somebody their
+   * email had no attachment while showing them the document that came out of
+   * it.
+   */
+  async setAttachmentCount(id: string, count: number): Promise<void> {
+    await this.database.query(
+      'UPDATE inbound_messages SET attachment_count = $2 WHERE id = $1',
+      [id, count]
+    );
+  }
+
   /** How many messages this workspace has taken today — the abuse ceiling. */
   async countToday(businessId: string): Promise<number> {
     const r = await this.database.query(

@@ -62,6 +62,11 @@ jest.mock('../../../src/modules/inbound/inbound.fetch', () => {
       text: '',
       attachments: [] as any[],
     })),
+    // A SEPARATE endpoint in the real API, and the bug this feature had for
+    // days: the retrieve-email response lists attachments but carries no bytes
+    // and no download link. Mocked separately so the tests exercise the same
+    // two calls production makes.
+    listReceivedAttachments: jest.fn(async () => [] as any[]),
   };
 });
 
@@ -188,10 +193,19 @@ describe('inbound email — one scan per attachment', () => {
       attachments: Array.from({ length: count }, (_, i) => ({
         filename: `r${i}.pdf`,
         contentType: 'application/pdf',
-        content: Buffer.from('%PDF').toString('base64'),
+        content: null,
         url: null,
       })),
     });
+    fetchMod.listReceivedAttachments.mockResolvedValue(
+      Array.from({ length: count }, (_, i) => ({
+        id: `att_${i}`,
+        filename: `r${i}.pdf`,
+        contentType: 'application/pdf',
+        size: 512,
+        downloadUrl: `https://cdn.example.test/att_${i}`,
+      }))
+    );
 
     const ts = String(Math.floor(Date.now() / 1000));
     const res = await app.inject({

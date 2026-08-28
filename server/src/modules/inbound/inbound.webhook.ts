@@ -8,7 +8,7 @@ import { UsageService } from '../billing/usage.service';
 import { InboundRepository } from './inbound.repository';
 import { fetchAttachment } from './inbound.attachments';
 import { extractFromBody } from './inbound.body-extraction';
-import { decodeInline, fetchReceivedEmail } from './inbound.fetch';
+import { fetchReceivedEmail, listReceivedAttachments } from './inbound.fetch';
 import {
   INBOUND_DOMAIN, MAX_ATTACHMENTS_PER_MESSAGE, READABLE_ATTACHMENT_TYPES, contentTypeFor,
   parseFromHeader,
@@ -605,16 +605,35 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
     const full = await fetchReceivedEmail(mail.providerMessageId, (m) => log.warn(m));
     if (full.text) body = full.text;
 
-    for (const a of full.attachments) {
+    /**
+     * A SECOND CALL, and it is the whole fix.
+     *
+     * The retrieve-email response carries an `attachments` array, which is
+     * exactly why this was wrong for so long — it looks like the answer. But
+     * those entries are metadata only: no bytes and no download link. Reading
+     * them produced nothing, every attachment was skipped without a word, and
+     * the message fell through to body extraction and announced that an email
+     * with a PDF on it had no attachment.
+     *
+     * The bytes live behind /attachments, each with a signed download_url.
+     */
+    const listed = await listReceivedAttachments(mail.providerMessageId, (m) => log.warn(m));
+
+    // What Resend actually holds, replacing the webhook's guess.
+    if (listed.length !== allReadable.length) {
+      await inbound.setAttachmentCount(message.id, listed.length);
+    }
+
+    for (const a of listed) {
       if (!READABLE_ATTACHMENT_TYPES.includes(a.contentType)) continue;
       if (fetched.length >= Math.min(MAX_ATTACHMENTS_PER_MESSAGE, affordable)) break;
+      if (!a.downloadUrl) continue;
       try {
-        const buffer = a.content
-          ? decodeInline(a.content)
-          : a.url
-            ? (await fetchAttachment(a.url)).body
-            : null;
-        if (!buffer || !buffer.byteLength) continue;
+        // hostFromTrustedApi: this URL came from an authenticated Resend API
+        // response, not from the webhook, so the hostname allowlist does not
+        // apply. The private-address check still does — see FetchOptions.
+        const { body: buffer } = await fetchAttachment(a.downloadUrl, { hostFromTrustedApi: true });
+        if (!buffer.byteLength) continue;
         fetched.push({ filename: a.filename, contentType: a.contentType, buffer });
       } catch (error) {
         // One bad attachment must not lose the others.
@@ -629,11 +648,11 @@ async function handleMail(deps: Deps, mail: NormalisedMail): Promise<void> {
      * simply looks as though the document was ignored. Log the types actually
      * seen so the answer is one glance at the logs rather than a guess.
      */
-    if (fetched.length === 0 && full.attachments.length > 0) {
+    if (fetched.length === 0 && listed.length > 0) {
       log.warn(
-        `Inbound email ${mail.providerMessageId}: none of its ${full.attachments.length} ` +
+        `Inbound email ${mail.providerMessageId}: none of its ${listed.length} ` +
         `attachments were readable. Types seen: [${
-          full.attachments.map((a) => a.contentType || '(none given)').join(', ')
+          listed.map((a) => a.contentType || '(none given)').join(', ')
         }]. Accepted: [${READABLE_ATTACHMENT_TYPES.join(', ')}].`
       );
     }
