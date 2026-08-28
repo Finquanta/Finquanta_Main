@@ -444,21 +444,45 @@ export default function InboxPage() {
                   )}
 
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                    {([
-                      ['Talking to', apiBase],
-                      ['This workspace’s address', diag.address],
-                      ['Receiving domain', diag.inboundDomain],
-                      ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
-                      ['Resend API key set', diag.apiKeySet ? 'yes' : 'NO — mail cannot be read'],
-                      ['Deliveries seen', String(diag.webhook.total)],
-                      ['Signature rejected', String(diag.webhook.badSignature)],
-                      ['Payload unrecognised', String(diag.webhook.unreadable)],
-                      ['Address not found', String(diag.webhook.unknownAddress)],
-                      ['Routed to this server', String(diag.webhook.routed)],
-                    ] as const).map(([k, v]) => (
+                    {(() => {
+                      const rows: [string, string][] = [
+                        ['Talking to', apiBase],
+                        ['This workspace’s address', diag.address],
+                        ['Receiving domain', diag.inboundDomain],
+                        ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
+                        ['Resend API key set', diag.apiKeySet ? 'yes' : 'NO — mail cannot be read'],
+                        ['Deliveries seen', String(diag.webhook.total)],
+                        ['Signature rejected', String(diag.webhook.badSignature)],
+                        ['Payload unrecognised', String(diag.webhook.unreadable)],
+                        ['Address not found', String(diag.webhook.unknownAddress)],
+                        ['Routed to this server', String(diag.webhook.routed)],
+                      ];
+
+                      // The reason, when there is one. A count says a delivery
+                      // was refused; only this says what to change.
+                      if (diag.webhook.lastFailure) {
+                        rows.push(['Why it was rejected', diag.webhook.lastFailure]);
+                      }
+
+                      /**
+                       * The secret's shape, shown only once something has
+                       * actually been refused — it is noise otherwise, and it
+                       * distinguishes a bad paste from a genuine mismatch.
+                       */
+                      if (diag.webhook.badSignature > 0 && diag.secret) {
+                        rows.push(
+                          ['Secret starts with whsec_', diag.secret.hasWhsecPrefix ? 'yes' : 'NO'],
+                          ['Secret decodes as base64', diag.secret.looksBase64 ? 'yes' : 'NO — wrong value pasted'],
+                          ['Secret had stray spaces', diag.secret.hadSurroundingWhitespace ? 'YES — re-paste it' : 'no'],
+                          ['Secret key length', `${diag.secret.keyBytes} bytes`],
+                        );
+                      }
+
+                      return rows;
+                    })().map(([k, v]) => (
                       <div key={k} className="flex justify-between gap-3">
                         <dt className={c.muted}>{k}</dt>
-                        <dd className={`font-mono text-right ${c.heading}`}>{v}</dd>
+                        <dd className={`font-mono text-right break-all ${c.heading}`}>{v}</dd>
                       </div>
                     ))}
                   </dl>
@@ -471,7 +495,11 @@ export default function InboxPage() {
                       : diag.webhook.unknownAddress > 0
                         ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
                         : diag.webhook.badSignature > 0
-                          ? 'Deliveries are being refused: the signing secret here does not match the one on the webhook.'
+                          ? (diag.secret && !diag.secret.looksBase64
+                            ? 'The signing secret is not a valid whsec_ key — something else was pasted into it. Copy the Signing Secret from the webhook in Resend, not an API key.'
+                            : diag.webhook.lastFailure?.startsWith('timestamp')
+                              ? 'The signature is fine but the timestamp is out of step — the delivery was delayed or this server’s clock is off.'
+                              : 'Deliveries are being refused: the signing secret here does not match the one on THIS webhook. If you have more than one webhook in Resend, each has its own secret.')
                           : 'Deliveries are arriving and routing. If a document is missing, look in Received above for its status.'}
                   </p>
                   <p className={`mt-1 ${c.muted}`}>Counts reset whenever the server restarts.</p>

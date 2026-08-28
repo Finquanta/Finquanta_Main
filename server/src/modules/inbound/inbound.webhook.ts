@@ -61,6 +61,15 @@ export const webhookStats = {
   unknownAddress: 0,
   routed: 0,
   startedAt: new Date().toISOString(),
+  /**
+   * The most recent rejection, in words.
+   *
+   * A count says a delivery was refused; it cannot say why, and the why is the
+   * only part anybody can act on. Surfaced in the troubleshooting panel so the
+   * answer is on screen instead of buried in the host's logs.
+   */
+  lastFailure: null as string | null,
+  lastFailureAt: null as string | null,
 };
 
 /** How far out of step a timestamp may be before it reads as a replay. */
@@ -71,12 +80,134 @@ const TOLERANCE_SECONDS = 5 * 60;
 const DAILY_MESSAGE_LIMIT = Number(process.env.INBOUND_DAILY_LIMIT || 200);
 
 /**
+ * Why a signature could not be verified.
+ *
+ * Three completely different problems used to reach the log as one word,
+ * "rejected": the wrong secret, a clock out of step, and a body that never
+ * arrived as text need three different fixes, and telling them apart by
+ * guesswork is what made this feature expensive to diagnose.
+ */
+export type SignatureFailure =
+  | 'no-secret'
+  | 'missing-headers'
+  | 'body-not-text'
+  | 'timestamp-unreadable'
+  | 'timestamp-out-of-tolerance'
+  | 'secret-not-base64'
+  | 'no-match';
+
+export type SignatureCheck =
+  | { ok: true }
+  | { ok: false; reason: SignatureFailure; detail?: string };
+
+/**
+ * Does this secret even look like a Svix signing secret?
+ *
+ * `Buffer.from(x, 'base64')` NEVER throws — it discards whatever it cannot
+ * decode and hands back a shorter buffer. So pasting an API key (`re_...`), or
+ * the label along with the value, produces a silently wrong HMAC key and a
+ * signature that fails for a reason nothing reports. Round-tripping the decode
+ * is the cheapest way to catch that.
+ */
+export function describeSecret(raw: string | undefined): {
+  set: boolean;
+  hadSurroundingWhitespace: boolean;
+  hasWhsecPrefix: boolean;
+  looksBase64: boolean;
+  keyBytes: number;
+} {
+  const set = !!raw;
+  const trimmed = (raw ?? '').trim();
+  const value = trimmed.replace(/^whsec_/, '');
+  const decoded = Buffer.from(value, 'base64');
+  return {
+    set,
+    // Pasting into a hosting dashboard is how a trailing newline gets in, and
+    // it changes the key completely. Trimmed everywhere now, still worth saying.
+    hadSurroundingWhitespace: set && raw !== trimmed,
+    hasWhsecPrefix: trimmed.startsWith('whsec_'),
+    looksBase64: value.length > 0 && decoded.toString('base64').replace(/=+$/, '') === value.replace(/=+$/, ''),
+    keyBytes: decoded.length,
+  };
+}
+
+/**
  * Svix-style signature verification, which is what Resend signs webhooks with.
  *
  * The signed content is `id.timestamp.body`, HMAC-SHA256 with the base64 key
  * from the `whsec_` secret, and the header carries a space-separated list of
  * `v1,<sig>` because a secret being rotated means two valid signatures at once.
+ *
+ * Returns a REASON rather than a boolean — see SignatureFailure.
  */
+export function checkSignature(args: {
+  secret: string;
+  id: string;
+  timestamp: string;
+  signatureHeader: string;
+  body: string;
+  now?: number;
+}): SignatureCheck {
+  const { secret, id, timestamp, signatureHeader, body } = args;
+  if (!secret) return { ok: false, reason: 'no-secret' };
+  if (!id || !timestamp || !signatureHeader) {
+    const missing = [
+      !id && 'svix-id',
+      !timestamp && 'svix-timestamp',
+      !signatureHeader && 'svix-signature',
+    ].filter(Boolean).join(', ');
+    return { ok: false, reason: 'missing-headers', detail: `missing ${missing}` };
+  }
+
+  const sent = Number(timestamp);
+  if (!Number.isFinite(sent)) return { ok: false, reason: 'timestamp-unreadable' };
+  const now = Math.floor((args.now ?? Date.now()) / 1000);
+  const skew = now - sent;
+  // Both directions: a timestamp from the future is as suspicious as an old one.
+  if (Math.abs(skew) > TOLERANCE_SECONDS) {
+    return {
+      ok: false,
+      reason: 'timestamp-out-of-tolerance',
+      // Signed and negative reads as "this server's clock is behind", which is
+      // a different fix from "the delivery sat in a queue".
+      detail: `${skew}s out of step (tolerance ${TOLERANCE_SECONDS}s)`,
+    };
+  }
+
+  const shape = describeSecret(secret);
+  const key = Buffer.from(secret.trim().replace(/^whsec_/, ''), 'base64');
+  const expected = crypto
+    .createHmac('sha256', key)
+    .update(`${id}.${timestamp}.${body}`)
+    .digest('base64');
+
+  const expectedBuf = Buffer.from(expected);
+  const matched = signatureHeader.split(' ').some((part) => {
+    const value = part.startsWith('v1,') ? part.slice(3) : part;
+    const candidate = Buffer.from(value);
+    // Length check first: timingSafeEqual throws on a mismatch rather than
+    // returning false, and the length is not the secret.
+    if (candidate.length !== expectedBuf.length) return false;
+    return crypto.timingSafeEqual(candidate, expectedBuf);
+  });
+  if (matched) return { ok: true };
+
+  /**
+   * It did not match. If the secret was never a valid base64 key, THAT is the
+   * finding worth reporting — "no-match" would send somebody hunting through
+   * Resend's dashboard for a mismatch that is really a bad paste.
+   */
+  if (!shape.looksBase64) {
+    return {
+      ok: false,
+      reason: 'secret-not-base64',
+      detail: `the secret does not decode as base64 (${shape.keyBytes} usable bytes)`,
+    };
+  }
+  return { ok: false, reason: 'no-match', detail: 'the secret does not match this webhook' };
+}
+
+/** The boolean form, for callers that only need yes or no. */
 export function verifySignature(args: {
   secret: string;
   id: string;
@@ -85,30 +216,7 @@ export function verifySignature(args: {
   body: string;
   now?: number;
 }): boolean {
-  const { secret, id, timestamp, signatureHeader, body } = args;
-  if (!secret || !id || !timestamp || !signatureHeader) return false;
-
-  const sent = Number(timestamp);
-  if (!Number.isFinite(sent)) return false;
-  const now = Math.floor((args.now ?? Date.now()) / 1000);
-  // Both directions: a timestamp from the future is as suspicious as an old one.
-  if (Math.abs(now - sent) > TOLERANCE_SECONDS) return false;
-
-  const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64');
-  const expected = crypto
-    .createHmac('sha256', key)
-    .update(`${id}.${timestamp}.${body}`)
-    .digest('base64');
-
-  const expectedBuf = Buffer.from(expected);
-  return signatureHeader.split(' ').some((part) => {
-    const value = part.startsWith('v1,') ? part.slice(3) : part;
-    const candidate = Buffer.from(value);
-    // Length check first: timingSafeEqual throws on a mismatch rather than
-    // returning false, and the length is not the secret.
-    if (candidate.length !== expectedBuf.length) return false;
-    return crypto.timingSafeEqual(candidate, expectedBuf);
-  });
+  return checkSignature(args).ok;
 }
 
 export interface NormalisedMail {
@@ -216,30 +324,46 @@ export async function inboundWebhookRoutes(
 
   fastify.post('/v1/inbound/resend', async (request: FastifyRequest, reply: FastifyReply) => {
     webhookStats.total += 1;
-    const secret = process.env.RESEND_INBOUND_SIGNING_SECRET || '';
+    /**
+     * TRIMMED, and that is not cosmetic. Pasting a secret into a hosting
+     * dashboard is exactly how a trailing newline gets into an environment
+     * variable, and a single stray byte changes the HMAC key completely — for
+     * a failure that looks identical to the secret simply being wrong.
+     */
+    const secret = (process.env.RESEND_INBOUND_SIGNING_SECRET || '').trim();
     if (!secret) {
       request.log.error('Inbound email received but RESEND_INBOUND_SIGNING_SECRET is not set.');
       return reply.status(500).send({ success: false, error: 'Inbound email is not configured.' });
     }
 
     const headers = request.headers as Record<string, string>;
-    const ok = verifySignature({
-      secret,
-      id: headers['svix-id'] ?? headers['webhook-id'] ?? '',
-      timestamp: headers['svix-timestamp'] ?? headers['webhook-timestamp'] ?? '',
-      signatureHeader: headers['svix-signature'] ?? headers['webhook-signature'] ?? '',
-      body: typeof request.body === 'string' ? request.body : '',
-    });
-    if (!ok) {
+    /**
+     * A body that did not arrive as a string is its own failure, and must not
+     * be laundered into `''` — an empty string is a body we could hash, so it
+     * would be reported as a secret mismatch and send somebody to the wrong
+     * dashboard entirely.
+     */
+    const bodyIsText = typeof request.body === 'string';
+    const result: SignatureCheck = bodyIsText
+      ? checkSignature({
+        secret,
+        id: headers['svix-id'] ?? headers['webhook-id'] ?? '',
+        timestamp: headers['svix-timestamp'] ?? headers['webhook-timestamp'] ?? '',
+        signatureHeader: headers['svix-signature'] ?? headers['webhook-signature'] ?? '',
+        body: request.body as string,
+      })
+      : { ok: false, reason: 'body-not-text', detail: `arrived as ${typeof request.body}` };
+
+    if (!result.ok) {
       webhookStats.badSignature += 1;
-      /**
-       * Say WHY it could not be verified. "Bad signature" covers three very
-       * different situations — the wrong secret, headers under other names, or
-       * a body that never arrived as text — and they need different fixes.
-       */
+      webhookStats.lastFailure = result.detail
+        ? `${result.reason} — ${result.detail}`
+        : result.reason;
+      webhookStats.lastFailureAt = new Date().toISOString();
+
       const h = request.headers as Record<string, unknown>;
       request.log.warn(
-        'Rejected an inbound email with a bad signature. ' +
+        `Rejected an inbound email: ${webhookStats.lastFailure}. ` +
         `content-type=${String(h['content-type'] ?? 'none')} ` +
         `body=${typeof request.body} ` +
         `svix-id=${h['svix-id'] ? 'present' : 'MISSING'} ` +

@@ -5,7 +5,7 @@ import { withBusiness } from '../shared/business-context';
 import { InboundRepository } from './inbound.repository';
 import { CaptureRepository } from '../capture/capture.repository';
 import { SENDER_STATUSES, SenderStatus, addressFor, normaliseEmail } from './inbound.types';
-import { webhookStats } from './inbound.webhook';
+import { describeSecret, webhookStats } from './inbound.webhook';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -136,6 +136,15 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
           inboundDomain: process.env.INBOUND_EMAIL_DOMAIN || 'in.finquanta.ai',
           signingSecretSet: !!process.env.RESEND_INBOUND_SIGNING_SECRET,
           apiKeySet: !!process.env.RESEND_API_KEY,
+          /**
+           * The SHAPE of the signing secret, never the secret.
+           *
+           * "Signature rejected" has several causes that look the same from
+           * here, and most of them are visible in the shape alone: a stray
+           * newline from pasting, a missing prefix, or a value that was never
+           * a base64 key because an API key got pasted instead.
+           */
+          secret: describeSecret(process.env.RESEND_INBOUND_SIGNING_SECRET),
           webhook: webhookStats,
           messagesEverReceived: (await repo.listMessages(request.businessId!, 1)).length > 0,
         },

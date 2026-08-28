@@ -162,7 +162,7 @@ jest.mock('../../../src/modules/inbound/inbound.repository', () => {
   };
 });
 
-import { __drain, inboundWebhookRoutes, normalisePayload, verifySignature } from '../../../src/modules/inbound/inbound.webhook';
+import { __drain, checkSignature, describeSecret, inboundWebhookRoutes, normalisePayload, verifySignature } from '../../../src/modules/inbound/inbound.webhook';
 
 const mocks = () => ({
   extraction: jest.requireMock('../../../src/modules/capture/capture.extraction') as any,
@@ -206,6 +206,68 @@ describe('inbound email — signature and payload', () => {
     expect(() => verifySignature({
       secret: SECRET, id: 'msg_1', timestamp: ts, signatureHeader: 'v1,short', body,
     })).not.toThrow();
+  });
+
+  /**
+   * SVIX'S OWN PUBLISHED TEST VECTOR.
+   *
+   * The point of this one is that every value comes from outside this codebase,
+   * so it cannot pass by agreeing with my own mistake. When real deliveries were
+   * being rejected, the first question was whether the bug was mine or the
+   * configuration's — a self-consistent test could not answer that and this can.
+   */
+  it('matches the reference Svix vector', () => {
+    expect(checkSignature({
+      secret: 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw',
+      id: 'msg_p5jXN8AQM9LWM0D4loKWxJek',
+      timestamp: '1614265330',
+      signatureHeader: 'v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=',
+      body: '{"test": 2432232314}',
+      // The vector is from 2021; without pinning the clock the tolerance check
+      // would reject it before the HMAC was ever computed.
+      now: 1614265330 * 1000,
+    })).toEqual({ ok: true });
+  });
+
+  it('names the reason rather than just failing', () => {
+    const at = (r: any) => (r.ok ? 'ok' : r.reason);
+
+    expect(at(checkSignature({
+      secret: '', id: 'a', timestamp: ts, signatureHeader: 'v1,x', body,
+    }))).toBe('no-secret');
+
+    expect(at(checkSignature({
+      secret: SECRET, id: '', timestamp: ts, signatureHeader: 'v1,x', body,
+    }))).toBe('missing-headers');
+
+    const old = String(Math.floor(Date.now() / 1000) - 60 * 60);
+    expect(at(checkSignature({
+      secret: SECRET, id: 'a', timestamp: old, signatureHeader: sign('a', old, body), body,
+    }))).toBe('timestamp-out-of-tolerance');
+
+    // An API key pasted where the signing secret belongs — a real mistake, and
+    // one that must not be reported as "the secret does not match".
+    expect(at(checkSignature({
+      secret: 're_AbC123_notAsigningSecret!!', id: 'a', timestamp: ts,
+      signatureHeader: 'v1,' + 'x'.repeat(44), body,
+    }))).toBe('secret-not-base64');
+
+    expect(at(checkSignature({
+      secret: SECRET, id: 'a', timestamp: ts, signatureHeader: sign('b', ts, body), body,
+    }))).toBe('no-match');
+  });
+
+  it('survives a secret pasted with a trailing newline', () => {
+    // How a stray byte actually gets into a hosting dashboard's env var.
+    expect(checkSignature({
+      secret: `${SECRET}
+`, id: 'msg_1', timestamp: ts,
+      signatureHeader: sign('msg_1', ts, body), body,
+    })).toEqual({ ok: true });
+
+    expect(describeSecret(`${SECRET}
+`).hadSurroundingWhitespace).toBe(true);
+    expect(describeSecret(SECRET).looksBase64).toBe(true);
   });
 
   it('reads the fields it needs out of a provider payload', () => {

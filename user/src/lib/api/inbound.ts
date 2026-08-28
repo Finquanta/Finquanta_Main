@@ -83,6 +83,22 @@ export interface InboundDiagnostics {
     unknownAddress: number;
     routed: number;
     startedAt: string;
+    /** The most recent rejection in words — the only part anybody can act on. */
+    lastFailure?: string | null;
+    lastFailureAt?: string | null;
+  };
+  /**
+   * The SHAPE of the signing secret, never the secret itself.
+   *
+   * OPTIONAL because this app and the server deploy independently: a browser
+   * running the newer frontend against the older server must render, not crash.
+   */
+  secret?: {
+    set: boolean;
+    hadSurroundingWhitespace: boolean;
+    hasWhsecPrefix: boolean;
+    looksBase64: boolean;
+    keyBytes: number;
   };
   messagesEverReceived: boolean;
 }
