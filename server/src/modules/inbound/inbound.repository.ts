@@ -76,6 +76,10 @@ export class InboundRepository {
       CREATE INDEX IF NOT EXISTS idx_inbound_messages_business
         ON inbound_messages (business_id, received_at DESC);
 
+      -- Per WORKSPACE, not per user: this is a shared queue, and a colleague
+      -- having already looked at something is exactly what you want to know.
+      ALTER TABLE inbound_messages ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP WITH TIME ZONE;
+
       -- Where a capture came from, when it came from an email. Added here so the
       -- dependency points one way: inbound knows about capture, capture knows
       -- nothing about inbound.
@@ -247,6 +251,15 @@ export class InboundRepository {
     );
   }
 
+  /** Somebody has looked at it. Idempotent — re-opening keeps the first time. */
+  async markRead(id: string, businessId: string): Promise<void> {
+    await this.database.query(
+      `UPDATE inbound_messages SET opened_at = COALESCE(opened_at, NOW())
+        WHERE id = $1 AND business_id = $2`,
+      [id, businessId]
+    );
+  }
+
   async markBodyExtracted(id: string): Promise<void> {
     await this.database.query(
       `UPDATE inbound_messages SET body_extracted = TRUE WHERE id = $1`,
@@ -319,6 +332,7 @@ export class InboundRepository {
       senderTrusted: row.sender_trusted,
       attachmentCount: row.attachment_count,
       bodyExtracted: row.body_extracted,
+      openedAt: row.opened_at ?? null,
       error: row.error,
     };
   }

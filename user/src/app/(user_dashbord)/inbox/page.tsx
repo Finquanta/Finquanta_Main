@@ -1,33 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, Copy, Inbox, Mail, RefreshCw, ShieldOff } from 'lucide-react';
+import {
+  AlertTriangle, Check, Copy, Inbox, Mail, RefreshCw, RotateCcw, ShieldOff, Trash2,
+} from 'lucide-react';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { themeClasses } from '@/lib/theme';
 import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureReviewModal';
 import { DocumentCapture, ScanAllowance, getScanAllowance } from '@/lib/api/capture';
 import {
-  InboundAddress, InboundMessage, getInboundAddress, getInboundMessages,
-  getPendingFromEmail, rotateInboundAddress, setInboundSender,
+  InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
+  getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
 
 /**
  * The email inbox.
  *
- * This page was a placeholder reading "No messages yet" against nothing. It now
- * means something: forward a bill to the address shown at the top, and it turns
- * up here as a pre-filled entry waiting for a look.
+ * Three columns, because a document is in exactly one of three states and they
+ * answer different questions: what turned up (Received), what needs me
+ * (Pending), and what did I throw away (Recycle Bin). The first version stacked
+ * these in one narrow column, which left half the screen empty and pushed the
+ * queue — the only part with work in it — below the fold.
  *
- * Reviewing goes through the SAME popup a photographed receipt uses. There is
- * one way into the books, and this is not a second one.
+ * An unopened message carries an amber dot. Read state is per WORKSPACE rather
+ * than per person: this is a shared queue, and "a colleague already looked at
+ * this" is exactly what you want to know.
  */
 export default function InboxPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const c = themeClasses(isDark);
 
   const [address, setAddress] = useState<InboundAddress | null>(null);
   const [pending, setPending] = useState<DocumentCapture[]>([]);
   const [messages, setMessages] = useState<InboundMessage[]>([]);
+  const [discarded, setDiscarded] = useState<DocumentCapture[]>([]);
   const [reviewing, setReviewing] = useState<DocumentCapture | null>(null);
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,15 +46,29 @@ export default function InboxPage() {
     getInboundAddress().then(setAddress).catch(() => setAddress(null));
     getPendingFromEmail().then(setPending).catch(() => setPending([]));
     getInboundMessages().then(setMessages).catch(() => setMessages([]));
-    // Refreshed alongside the queue, because confirming from here spends one.
+    getDiscardedFromEmail().then(setDiscarded).catch(() => setDiscarded([]));
     getScanAllowance().then(setAllowance).catch(() => setAllowance(null));
   }, []);
+
   useEffect(() => { load(); }, [load]);
 
-  const card = isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200 text-gray-900';
-  const muted = isDark ? 'text-gray-400' : 'text-gray-500';
-  // Tailwind's `dark:` variants are inert here — see CaptureReviewModal.
-  const warn = isDark ? 'text-amber-400' : 'text-amber-600';
+  /**
+   * Every list here is workspace data, and the switcher changes workspace in
+   * place without a reload. Without this the page would go on showing the
+   * previous workspace's documents — the same event the dashboard and Company
+   * Brain already listen for.
+   */
+  useEffect(() => {
+    const onSwitch = () => {
+      setAddress(null);
+      setPending([]);
+      setMessages([]);
+      setDiscarded([]);
+      load();
+    };
+    window.addEventListener('finna:businessChanged', onSwitch);
+    return () => window.removeEventListener('finna:businessChanged', onSwitch);
+  }, [load]);
 
   const copy = async () => {
     if (!address) return;
@@ -84,38 +106,86 @@ export default function InboxPage() {
     }
   };
 
+  const restore = async (id: string) => {
+    setBusy(true);
+    try {
+      await restoreCapture(id);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not restore that document.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Opening a message is what clears its dot. Optimistic — it is cosmetic. */
+  const open = (m: InboundMessage) => {
+    if (m.openedAt) return;
+    setMessages((prev) =>
+      prev.map((x) => (x.id === m.id ? { ...x, openedAt: new Date().toISOString() } : x))
+    );
+    markMessageRead(m.id).catch(() => { /* the dot is not worth an error */ });
+  };
+
   const quarantined = messages.filter((m) => m.status === 'quarantined');
-  /** More waiting than can be confirmed. Worth saying BEFORE they start. */
+  const unread = messages.filter((m) => !m.openedAt).length;
   const shortfall =
     allowance?.limit != null &&
     allowance.remaining != null &&
     pending.length > allowance.remaining;
 
+  /** One column definition, so the three cannot drift apart visually. */
+  const Column = ({
+    title, count, accent, children,
+  }: {
+    title: string; count: number; accent?: string; children: React.ReactNode;
+  }) => (
+    <section className={`flex flex-col rounded-xl border ${c.surface} ${c.line}`}>
+      <header className={`flex items-center justify-between gap-2 px-4 py-3 border-b ${c.line}`}>
+        <h2 className={`text-sm font-semibold ${c.heading}`}>{title}</h2>
+        {count > 0 && (
+          <span
+            className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${
+              accent ?? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-600')
+            }`}
+          >
+            {count}
+          </span>
+        )}
+      </header>
+      <div className="p-3 space-y-2 overflow-y-auto max-h-[28rem]">{children}</div>
+    </section>
+  );
+
+  const Empty = ({ text }: { text: string }) => (
+    <p className={`text-xs px-1 py-3 ${c.muted}`}>{text}</p>
+  );
+
   return (
     <DashboardShell>
-      <div className="p-6 max-w-4xl">
-        <h1 className={`text-3xl font-bold mb-1 flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
-          <Inbox className="h-7 w-7 text-purple-500" />
+      <div className="p-4 sm:p-6 max-w-7xl">
+        <h1 className={`text-2xl font-bold mb-1 flex items-center gap-2 ${c.heading}`}>
+          <Inbox className="h-6 w-6 text-purple-500" />
           Inbox
+          {unread > 0 && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="unread" />}
         </h1>
-        <p className={`mb-6 text-sm ${muted}`}>
-          Send or forward bills and payment notices to your workspace address — attach as many as you
-          like in one email — and they arrive here, read and ready to check. Nothing reaches your
-          books until you confirm it.
+        <p className={`mb-5 text-sm ${c.body}`}>
+          Send or forward bills and payment notices to your workspace address — attach as many as
+          you like in one email. Nothing reaches your books until you confirm it.
         </p>
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
-        {/* The address */}
-        <div className={`border rounded-xl p-4 mb-4 ${card}`}>
-          <p className="font-semibold text-sm mb-1">Your workspace email address</p>
-          <p className={`text-xs mb-3 ${muted}`}>
-            Attach a whole batch and send it, give the address to a supplier directly, or set a
-            forwarding rule in Gmail or Outlook so their invoices arrive by themselves.
+        {/* The address, full width above the columns. */}
+        <div className={`border rounded-xl p-4 mb-5 ${c.surface} ${c.line}`}>
+          <p className={`font-semibold text-sm mb-1 ${c.heading}`}>Your workspace email address</p>
+          <p className={`text-xs mb-3 ${c.muted}`}>
+            Attach a whole batch and send it, give it to a supplier, or set a forwarding rule so
+            their invoices arrive by themselves. Each workspace has its own address.
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
-            <code className={`flex-1 min-w-[16rem] rounded-lg px-3 py-2 text-sm font-mono ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
+            <code className={`flex-1 min-w-[16rem] rounded-lg px-3 py-2 text-sm font-mono ${c.panel} ${c.heading}`}>
               {address?.email ?? 'Loading…'}
             </code>
             <button
@@ -129,98 +199,178 @@ export default function InboxPage() {
             <button
               onClick={rotate}
               disabled={busy || !address}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border disabled:opacity-60 ${
-                isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border disabled:opacity-60 ${c.line} ${c.hover} ${c.body}`}
             >
               <RefreshCw className="h-4 w-4" />
               New address
             </button>
           </div>
 
-          <p className={`text-[11px] mt-2 ${muted}`}>
-            Treat it like a password. Anyone who has it can send documents to this workspace — if it
-            gets out, take a new one and the old address stops working immediately.
+          <p className={`text-[11px] mt-2 ${c.muted}`}>
+            Treat it like a password. Anyone who has it can send documents here — if it gets out,
+            take a new one and the old address stops working immediately.
           </p>
         </div>
 
-        {/* Waiting for a look */}
-        <div className={`border rounded-xl p-4 mb-4 ${card}`}>
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <p className="font-semibold text-sm">
-              Waiting for you {pending.length > 0 && <span className="text-purple-500">({pending.length})</span>}
-            </p>
-            {/* One scan per document, spent when you confirm it — so somebody
-                about to work through a batch can see whether it will fit. */}
-            {allowance?.limit != null && (
-              <span className={`text-[11px] ${shortfall ? `${warn} font-semibold` : muted}`}>
-                {allowance.remaining ?? 0} scans left this month
-              </span>
-            )}
-          </div>
+        {shortfall && (
+          <p className={`mb-4 text-xs ${c.warn}`}>
+            You have {allowance?.remaining ?? 0} scans left and {pending.length} documents waiting.
+            The rest will have to wait for next month, or a larger plan.
+          </p>
+        )}
 
-          {shortfall && (
-            <p className={`mb-3 text-xs ${warn}`}>
-              You have {allowance?.remaining ?? 0} scans left and {pending.length} documents waiting.
-              Confirming them all needs {pending.length} — the rest will have to wait for next month,
-              or a larger plan.
-            </p>
-          )}
-
-          {pending.length === 0 ? (
-            <p className={`text-sm ${muted}`}>Nothing waiting. Forwarded documents show up here.</p>
-          ) : (
-            <div className="space-y-2">
-              {pending.map((c) => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* 1 — what turned up */}
+          <Column
+            title="Received"
+            count={unread}
+            accent={unread > 0 ? 'bg-amber-500 text-white' : undefined}
+          >
+            {messages.length === 0 ? (
+              <Empty text="Nothing yet. Forwarded email shows up here." />
+            ) : (
+              messages.map((m) => (
                 <button
-                  key={c.id}
-                  onClick={() => setReviewing(c)}
-                  className={`w-full flex items-center gap-3 text-left rounded-lg border px-3 py-2.5 transition-colors ${
-                    isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'
-                  }`}
+                  key={m.id}
+                  onClick={() => open(m)}
+                  className={`w-full text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
+                >
+                  <span className="flex items-start gap-2">
+                    {/* The dot IS the unread marker, rather than bolding everything. */}
+                    <span
+                      className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                        m.openedAt ? 'bg-transparent' : 'bg-amber-500'
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block text-xs truncate ${
+                          m.openedAt ? c.body : `font-semibold ${c.heading}`
+                        }`}
+                      >
+                        {m.subject || '(no subject)'}
+                      </span>
+                      <span className={`block text-[11px] truncate ${c.muted}`}>{m.fromEmail}</span>
+                      <span
+                        className={`block text-[11px] mt-0.5 ${
+                          m.status === 'processed'
+                            ? 'text-green-600'
+                            : m.status === 'quarantined'
+                              ? c.warn
+                              : m.status === 'failed'
+                                ? c.danger
+                                : c.muted
+                        }`}
+                      >
+                        {m.status}
+                        {m.attachmentCount > 0 ? ` · ${m.attachmentCount} attached` : ''}
+                      </span>
+                      {m.error && (
+                        <span className={`block text-[11px] mt-0.5 ${c.muted}`}>{m.error}</span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              ))
+            )}
+          </Column>
+
+          {/* 2 — what needs me */}
+          <Column
+            title="Pending"
+            count={pending.length}
+            accent={pending.length > 0 ? 'bg-purple-500 text-white' : undefined}
+          >
+            {pending.length === 0 ? (
+              <Empty text="Nothing waiting. Documents that were read land here to check." />
+            ) : (
+              pending.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setReviewing(p)}
+                  className={`w-full flex items-center gap-2 text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
                 >
                   <Mail className="h-4 w-4 flex-shrink-0 text-purple-500" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium truncate">
-                      {c.extractedFields.vendor || c.originalFilename || 'Document'}
+                    <span className={`block text-xs font-medium truncate ${c.heading}`}>
+                      {p.extractedFields.vendor || p.originalFilename || 'Document'}
                     </span>
-                    <span className={`block text-xs ${muted}`}>
-                      {c.extractedFields.total != null
-                        ? `${c.extractedFields.currency ?? ''} ${c.extractedFields.total}`.trim()
-                        : 'No amount read — needs filling in'}
-                      {c.extractedFields.documentDate ? ` · ${c.extractedFields.documentDate}` : ''}
+                    <span className={`block text-[11px] ${c.muted}`}>
+                      {p.extractedFields.total != null
+                        ? `${p.extractedFields.currency ?? ''} ${p.extractedFields.total}`.trim()
+                        : 'No amount read'}
+                      {p.extractedFields.documentDate ? ` · ${p.extractedFields.documentDate}` : ''}
                     </span>
                   </span>
-                  <span className="text-xs font-semibold text-purple-500 flex-shrink-0">Review</span>
+                  <span className="text-[11px] font-semibold text-purple-500 flex-shrink-0">
+                    Review
+                  </span>
                 </button>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </Column>
+
+          {/* 3 — what I threw away */}
+          <Column title="Recycle Bin" count={discarded.length}>
+            {discarded.length === 0 ? (
+              <Empty text="Empty. Documents you discard can be put back from here." />
+            ) : (
+              discarded.map((d) => (
+                <div
+                  key={d.id}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${c.line}`}
+                >
+                  <Trash2 className={`h-4 w-4 flex-shrink-0 ${c.muted}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-xs truncate ${c.body}`}>
+                      {d.extractedFields.vendor || d.originalFilename || 'Document'}
+                    </span>
+                    <span className={`block text-[11px] ${c.muted}`}>
+                      {d.extractedFields.total != null
+                        ? `${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()
+                        : '—'}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => restore(d.id)}
+                    disabled={busy}
+                    title="Put it back"
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-purple-500 hover:underline disabled:opacity-60"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Restore
+                  </button>
+                </div>
+              ))
+            )}
+          </Column>
         </div>
 
-        {/* Held back */}
+        {/* Held back sits below the columns: it is a decision about PEOPLE, not
+            about a document, so it does not belong in a document lane. */}
         {quarantined.length > 0 && (
-          <div className={`border rounded-xl p-4 mb-4 ${card}`}>
-            <p className="font-semibold text-sm flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <div className={`border rounded-xl p-4 mt-4 ${c.surface} ${c.line}`}>
+            <p className={`font-semibold text-sm flex items-center gap-1.5 ${c.heading}`}>
+              <AlertTriangle className={`h-4 w-4 ${c.warn}`} />
               Held back
             </p>
-            <p className={`text-xs mt-0.5 mb-3 ${muted}`}>
-              These came from addresses this workspace has not seen before, so nothing was opened or
-              read. Trust a sender and their future mail is processed automatically.
+            <p className={`text-xs mt-0.5 mb-3 ${c.muted}`}>
+              From addresses this workspace has not seen before, so nothing was opened or read.
+              Trust a sender and their future mail is processed automatically.
             </p>
 
             <div className="space-y-2">
               {quarantined.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2.5 ${
-                    isDark ? 'border-gray-700' : 'border-gray-200'
-                  }`}
+                  className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2.5 ${c.line}`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium truncate">{m.subject || '(no subject)'}</span>
-                    <span className={`block text-xs truncate ${muted}`}>{m.fromEmail}</span>
+                    <span className={`block text-sm font-medium truncate ${c.heading}`}>
+                      {m.subject || '(no subject)'}
+                    </span>
+                    <span className={`block text-xs truncate ${c.muted}`}>{m.fromEmail}</span>
                   </span>
                   <button
                     onClick={() => trust(m.fromEmail, 'trusted')}
@@ -232,9 +382,7 @@ export default function InboxPage() {
                   <button
                     onClick={() => trust(m.fromEmail, 'blocked')}
                     disabled={busy}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60 ${
-                      isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60 ${c.line} ${c.hover} ${c.body}`}
                   >
                     <ShieldOff className="h-3 w-3" />
                     Block
@@ -244,54 +392,17 @@ export default function InboxPage() {
             </div>
           </div>
         )}
-
-        {/* What has arrived */}
-        <div className={`border rounded-xl p-4 ${card}`}>
-          <p className="font-semibold text-sm mb-3">Recently received</p>
-          {messages.length === 0 ? (
-            <p className={`text-sm ${muted}`}>Nothing yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className={`text-xs text-left border-b ${muted} ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <th className="py-2 pr-3 font-medium">From</th>
-                    <th className="py-2 px-3 font-medium">Subject</th>
-                    <th className="py-2 pl-3 font-medium text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {messages.map((m) => (
-                    <tr key={m.id} className={`border-b last:border-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <td className="py-2 pr-3 truncate max-w-[14rem]">{m.fromEmail}</td>
-                      <td className={`py-2 px-3 truncate max-w-[18rem] ${muted}`}>{m.subject || '—'}</td>
-                      <td className="py-2 pl-3 text-right">
-                        <span className={`text-xs font-medium ${
-                          m.status === 'processed' ? 'text-green-600'
-                            : m.status === 'quarantined' ? 'text-amber-600'
-                              : m.status === 'failed' ? 'text-red-500'
-                                : muted
-                        }`}>
-                          {m.status}
-                        </span>
-                        {m.error && <span className={`block text-[11px] ${muted}`}>{m.error}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* The same popup a photographed receipt opens. */}
       {reviewing && (
         <CaptureReviewModal
           capture={reviewing}
           onClose={() => setReviewing(null)}
           onSaved={() => { setReviewing(null); load(); }}
-          onOutOfScans={() => { setReviewing(null); setError('You have used all of this month’s document scans.'); }}
+          onOutOfScans={() => {
+            setReviewing(null);
+            setError('You have used all of this month’s document scans.');
+          }}
         />
       )}
     </DashboardShell>

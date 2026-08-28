@@ -92,6 +92,29 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     }
   }) as any);
 
+  /** The recycle bin: emailed documents somebody threw away. */
+  fastify.get('/v1/inbound/discarded', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await captures.listDiscardedFromEmail(request.businessId!) });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not read the recycle bin.' });
+    }
+  }) as any);
+
+  /** Somebody looked at a received message — it stops being new. */
+  fastify.post('/v1/inbound/messages/:id/read', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      await repo.markRead(id, request.businessId!);
+      return reply.send({ success: true, data: { read: true } });
+    } catch (error) {
+      request.log.error(error);
+      // Failing to mark something read must not look like a failed action.
+      return reply.send({ success: true, data: { read: false } });
+    }
+  }) as any);
+
   fastify.get('/v1/inbound/senders', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       return reply.send({ success: true, data: await repo.listSenders(request.businessId!) });

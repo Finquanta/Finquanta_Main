@@ -143,6 +143,28 @@ export class CaptureRepository {
     return Number(r.rows[0]?.n) || 0;
   }
 
+  /** Thrown away but not yet gone — the recycle bin. */
+  async listDiscardedFromEmail(businessId: string): Promise<DocumentCapture[]> {
+    const r = await this.database.query(
+      `SELECT * FROM document_captures
+        WHERE business_id = $1 AND status = 'discarded' AND capture_method = 'email'
+        ORDER BY created_at DESC
+        LIMIT 100`,
+      [businessId]
+    );
+    return r.rows.map((row: any) => this.toCapture(row));
+  }
+
+  /** Put a discarded capture back in the queue. */
+  async restore(id: string, businessId: string): Promise<boolean> {
+    const r = await this.database.query(
+      `UPDATE document_captures SET status = 'pending_review'
+        WHERE id = $1 AND business_id = $2 AND status = 'discarded'`,
+      [id, businessId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
   /** Mark confirmed and point at whatever it became. */
   async markConfirmed(
     id: string,

@@ -39,12 +39,16 @@ export default function InboxBell({ isDark }: { isDark: boolean }) {
 
     read();
     const timer = setInterval(read, 60_000);
+    // The count is workspace data and the switcher changes workspace in place.
+    const onSwitch = () => { setCount(0); read(); };
+    window.addEventListener('finna:businessChanged', onSwitch);
     const onVisible = () => { if (document.visibilityState === "visible") read(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener('finna:businessChanged', onSwitch);
     };
   }, []);
 
@@ -61,7 +65,7 @@ export default function InboxBell({ isDark }: { isDark: boolean }) {
     >
       <Mail className="h-4 w-4" />
       {count > 0 && (
-        <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
           {count > 9 ? "9+" : count}
         </span>
       )}

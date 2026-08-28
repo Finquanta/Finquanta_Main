@@ -31,6 +31,8 @@ export interface InboundMessage {
   senderTrusted: boolean;
   attachmentCount: number;
   bodyExtracted: boolean;
+  /** When somebody first looked at it. Null means unread. */
+  openedAt: string | null;
   error: string | null;
 }
 
@@ -55,6 +57,18 @@ export const getPendingCount = () =>
 
 /** Documents waiting for a human — what the queue shows. */
 export const getPendingFromEmail = () => apiFetch<DocumentCapture[]>('/v1/inbound/pending');
+
+/** The recycle bin — thrown away, not yet gone. */
+export const getDiscardedFromEmail = () =>
+  apiFetch<DocumentCapture[]>('/v1/inbound/discarded');
+
+/** Put a discarded document back in the queue. */
+export const restoreCapture = (id: string) =>
+  apiFetch<{ restored: boolean }>(`/v1/captures/${id}/restore`, { method: 'POST' });
+
+/** Mark a received message as looked at, so its dot goes away. */
+export const markMessageRead = (id: string) =>
+  apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/read`, { method: 'POST' });
 
 export const getInboundSenders = () => apiFetch<InboundSender[]>('/v1/inbound/senders');
 

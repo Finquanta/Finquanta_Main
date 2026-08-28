@@ -65,6 +65,8 @@ export interface InboundMessage {
   senderTrusted: boolean;
   attachmentCount: number;
   bodyExtracted: boolean;
+  /** When somebody first looked at it. Null means unread. */
+  openedAt: string | null;
   error: string | null;
 }
 

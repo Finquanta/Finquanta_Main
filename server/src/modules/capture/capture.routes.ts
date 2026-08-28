@@ -214,18 +214,32 @@ export async function captureRoutes(fastify: FastifyInstance, options: { databas
   fastify.post('/v1/captures/:id/discard', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
-      const businessId = request.businessId!;
-      const key = await repo.storageKeyFor(id, businessId);
-      await repo.markDiscarded(id, businessId);
-      if (key) {
-        // Storage cleanup must not fail the discard: the row is already marked,
-        // and an orphaned blob is a housekeeping problem, not a user-facing one.
-        try { await storage.delete(key); } catch (e) { request.log.error(e); }
-      }
+      /**
+       * The FILE IS KEPT, deliberately.
+       *
+       * This used to delete the blob immediately, which was right when discard
+       * meant gone. It now feeds a recycle bin, and restoring a capture whose
+       * document had been destroyed would hand somebody an empty form and call
+       * it a restore. Purging belongs on a schedule, not on the click.
+       */
+      await repo.markDiscarded(id, request.businessId!);
       return reply.send({ success: true, data: { discarded: true } });
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Could not discard that document.' });
+    }
+  }) as any);
+
+  /** Out of the recycle bin and back into the queue. */
+  fastify.post('/v1/captures/:id/restore', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const restored = await repo.restore(id, request.businessId!);
+      if (!restored) return reply.status(404).send({ success: false, error: 'Capture not found' });
+      return reply.send({ success: true, data: { restored: true } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not restore that document.' });
     }
   }) as any);
 

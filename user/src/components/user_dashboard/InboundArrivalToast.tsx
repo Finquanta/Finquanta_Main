@@ -49,7 +49,8 @@ function writeSeen(ids: string[]): void {
 
 export default function InboundArrivalToast() {
   const { theme } = useTheme();
-  const c = themeClasses(theme === "dark");
+  const isDark = theme === "dark";
+  const c = themeClasses(isDark);
   const [fresh, setFresh] = useState<DocumentCapture[]>([]);
   /** Whether we have established a baseline yet, this page load. */
   const started = useRef(false);
@@ -89,12 +90,19 @@ export default function InboundArrivalToast() {
   useEffect(() => {
     check();
     const timer = setInterval(check, POLL_MS);
+    /**
+     * Switching workspace re-baselines rather than announcing.
+     * The new workspace's existing queue is not something that just arrived.
+     */
+    const onSwitch = () => { started.current = false; setFresh([]); check(); };
+    window.addEventListener('finna:businessChanged', onSwitch);
     // Coming back to the tab is exactly when somebody wants to know.
     const onVisible = () => { if (document.visibilityState === "visible") check(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener('finna:businessChanged', onSwitch);
     };
   }, [check]);
 
@@ -113,8 +121,8 @@ export default function InboundArrivalToast() {
     >
       <div className={`rounded-xl border shadow-2xl p-4 ${c.surface} ${c.line}`}>
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/40">
-            <Mail className="h-4 w-4 text-purple-600" />
+          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-purple-900/40" : "bg-purple-100"}`}>
+            <Mail className={`h-4 w-4 ${isDark ? "text-purple-300" : "text-purple-600"}`} />
           </span>
 
           <div className="min-w-0 flex-1">
