@@ -61,6 +61,7 @@ import { CouncilRepository } from '../modules/council/council.repository';
 import { finnaRoutes } from '../modules/finna/finna.routes';
 import { FinnaRepository } from '../modules/finna/finna.repository';
 import { nudgesRoutes } from '../modules/nudges/nudges.routes';
+import { recurringRoutes } from '../modules/recurring/recurring.routes';
 import { NudgesService } from '../modules/nudges/nudges.service';
 import { ActivityRepository } from '../modules/activity/activity.repository';
 import { aiUsageRoutes } from '../modules/ai-usage/ai-usage.routes';
@@ -330,6 +331,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   await fastify.register(groupsRoutes, { database });
   // Document Capture — photograph or upload a bill and read it into the books.
   await fastify.register(captureRoutes, { database });
+
+  /**
+   * Recurring entries — "you paid this last month; did you pay it again?"
+   *
+   * Reads the recurrence already stored on transactions rather than keeping a
+   * schedule of its own, so it cannot drift out of step with the ledger.
+   */
+  await fastify.register(recurringRoutes, { database });
 
   /**
    * Inbound email — forward a bill to a private address and have it read.

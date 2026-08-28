@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, Globe, ChevronDown, LogOut } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import InboundArrivalToast from "./InboundArrivalToast";
+import RecurringDueDialog from "./RecurringDueDialog";
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from "@/hooks/context/LanguageContext";
 import { logoutAndRedirect } from "@/lib/auth";
 import { isFinnaHidden, setFinnaHidden } from "@/lib/finnaVisibility";
@@ -55,6 +56,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     >
       {/* Email lands while nobody is looking — this is how you find out. */}
       <InboundArrivalToast />
+
+      {/* A subscription nobody remembers to record is the other way the books
+          quietly stop matching reality. */}
+      <RecurringDueDialog />
 
       <DashboardSidebar isDark={isDark} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
