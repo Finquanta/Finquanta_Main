@@ -72,11 +72,19 @@ export default function InboxPage() {
       setPending([]);
       setMessages([]);
       setDiscarded([]);
+      /**
+       * The diagnostics too — it reports the workspace's OWN inbound address,
+       * so leaving the previous one on screen is worse than showing nothing:
+       * somebody would copy an address belonging to a workspace they are no
+       * longer in. Re-read only if the panel is actually open.
+       */
+      setDiag(null);
+      if (showDiag) getInboundDiagnostics().then(setDiag).catch(() => setDiag(null));
       load();
     };
     window.addEventListener('finna:businessChanged', onSwitch);
     return () => window.removeEventListener('finna:businessChanged', onSwitch);
-  }, [load]);
+  }, [load, showDiag]);
 
   const copy = async () => {
     if (!address) return;

@@ -107,6 +107,25 @@ export class ProfileRepository {
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS incorporation_location VARCHAR(160)`);
     // Branding + contact details — these fill the invoice header.
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+    /**
+     * `updateProfile` upserts with ON CONFLICT (user_id), which Postgres will
+     * only accept if a unique index on that column actually exists. Without one
+     * it raises 42P10 and every profile save returns a 500 — the same trap this
+     * codebase already hit on business_profiles.
+     *
+     * Guarded rather than assumed, and tolerant of failure: if duplicate rows
+     * exist the index cannot be created, and that must be a logged problem
+     * rather than a server that refuses to boot.
+     */
+    try {
+      await this.database.query(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles (user_id)`
+      );
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[profile] could not ensure user_profiles(user_id) is unique:', error);
+    }
+
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(200)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(200)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS city VARCHAR(120)`);

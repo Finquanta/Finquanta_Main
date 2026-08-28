@@ -113,6 +113,14 @@ export class ProfileController {
       });
     }
 
+    /**
+     * LOG IT. This used to return a bare 500 and write nothing anywhere, so a
+     * failing profile save produced "Internal server error" on screen and
+     * silence in the logs — no way to tell a bad column from a bad constraint
+     * without adding a console.log and redeploying.
+     */
+    // eslint-disable-next-line no-console
+    console.error('[profile] request failed:', error);
     return reply.status(500).send({ success: false, error: 'Internal server error' });
   }
 }
