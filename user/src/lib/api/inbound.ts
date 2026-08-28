@@ -70,6 +70,33 @@ export const restoreCapture = (id: string) =>
 export const markMessageRead = (id: string) =>
   apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/read`, { method: 'POST' });
 
+export interface InboundDiagnostics {
+  address: string;
+  inboundDomain: string;
+  signingSecretSet: boolean;
+  apiKeySet: boolean;
+  webhook: {
+    total: number;
+    badSignature: number;
+    unreadable: number;
+    ignoredType: number;
+    unknownAddress: number;
+    routed: number;
+    startedAt: string;
+  };
+  messagesEverReceived: boolean;
+}
+
+/**
+ * Is Resend actually calling us?
+ *
+ * Behind auth like everything else, which is why it cannot be read by pasting
+ * the URL into a browser — that sends no token. It is surfaced in the UI
+ * instead, where the session already exists.
+ */
+export const getInboundDiagnostics = () =>
+  apiFetch<InboundDiagnostics>('/v1/inbound/diagnostics');
+
 export const getInboundSenders = () => apiFetch<InboundSender[]>('/v1/inbound/senders');
 
 /**

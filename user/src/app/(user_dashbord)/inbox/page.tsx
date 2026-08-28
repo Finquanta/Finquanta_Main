@@ -11,6 +11,7 @@ import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureRevie
 import { DocumentCapture, ScanAllowance, getScanAllowance } from '@/lib/api/capture';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
+  InboundDiagnostics, getInboundDiagnostics,
   getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
 
@@ -41,6 +42,9 @@ export default function InboxPage() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Collapsed by default: useful when something is wrong, noise otherwise. */
+  const [diag, setDiag] = useState<InboundDiagnostics | null>(null);
+  const [showDiag, setShowDiag] = useState(false);
 
   const load = useCallback(() => {
     getInboundAddress().then(setAddress).catch(() => setAddress(null));
@@ -392,6 +396,59 @@ export default function InboxPage() {
             </div>
           </div>
         )}
+        {/* Troubleshooting. Behind a toggle because it answers a question you
+            only ask when something has not turned up. */}
+        <div className="mt-4">
+          <button
+            onClick={() => {
+              setShowDiag((v) => !v);
+              if (!diag) getInboundDiagnostics().then(setDiag).catch(() => setDiag(null));
+            }}
+            className={`text-xs font-medium underline ${c.muted}`}
+          >
+            {showDiag ? 'Hide troubleshooting' : 'Nothing arriving? Check troubleshooting'}
+          </button>
+
+          {showDiag && (
+            <div className={`mt-2 rounded-xl border p-4 text-xs ${c.surface} ${c.line}`}>
+              {!diag ? (
+                <p className={c.muted}>Loading…</p>
+              ) : (
+                <>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                    {([
+                      ['This workspace’s address', diag.address],
+                      ['Receiving domain', diag.inboundDomain],
+                      ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
+                      ['Resend API key set', diag.apiKeySet ? 'yes' : 'NO — mail cannot be read'],
+                      ['Deliveries seen', String(diag.webhook.total)],
+                      ['Signature rejected', String(diag.webhook.badSignature)],
+                      ['Payload unrecognised', String(diag.webhook.unreadable)],
+                      ['Address not found', String(diag.webhook.unknownAddress)],
+                      ['Routed to this server', String(diag.webhook.routed)],
+                    ] as const).map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-3">
+                        <dt className={c.muted}>{k}</dt>
+                        <dd className={`font-mono text-right ${c.heading}`}>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <p className={`mt-3 ${c.muted}`}>
+                    {diag.webhook.total === 0
+                      ? 'Resend has not called this server since it last restarted. Check the webhook exists and points at /api/v1/inbound/resend.'
+                      : diag.webhook.unknownAddress > 0
+                        ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
+                        : diag.webhook.badSignature > 0
+                          ? 'Deliveries are being refused: the signing secret here does not match the one on the webhook.'
+                          : 'Deliveries are arriving and routing. If a document is missing, look in Received above for its status.'}
+                  </p>
+                  <p className={`mt-1 ${c.muted}`}>Counts reset whenever the server restarts.</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {reviewing && (

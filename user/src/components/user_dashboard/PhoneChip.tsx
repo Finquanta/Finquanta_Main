@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMe, saveMyPhone } from "@/lib/api/me";
+import { getMe } from "@/lib/api/me";
+import PhoneDialog from "./PhoneDialog";
 
 /**
  * "Add phone number" in the sidebar, for accounts that have not given one.
@@ -12,6 +13,10 @@ import { getMe, saveMyPhone } from "@/lib/api/me";
  * above it: a permanent request for something already done is noise beside
  * navigation.
  *
+ * The form itself is a DIALOG, not an inline box: picking a country and
+ * typing digits are two decisions, and a 56-pixel sidebar is the wrong place
+ * to make either. This button only decides whether to ask.
+ *
  * This is the PERSONAL number. The business's own number is a separate field on
  * the business profile, and the admin panel shows them on separate tabs, because
  * "how do I reach this person" and "how do I reach this company" are different
@@ -20,12 +25,16 @@ import { getMe, saveMyPhone } from "@/lib/api/me";
 export default function PhoneChip({ isDark }: { isDark: boolean }) {
   const [needed, setNeeded] = useState(false);
   const [open, setOpen] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  /** The workspace's country, so the dialog can pre-select a dialling code. */
+  const [country, setCountry] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     getMe()
-      .then((me) => setNeeded(!((me.profile?.phone as string) ?? "").trim()))
+      .then((me) => {
+        setNeeded(!((me.profile?.phone as string) ?? "").trim());
+        const c = (me.profile?.country as string) ?? "";
+        if (c.trim()) setCountry(c.trim());
+      })
       // A failed lookup hides it. Asking someone for a number they already gave
       // is worse than not asking.
       .catch(() => setNeeded(false));
@@ -37,78 +46,26 @@ export default function PhoneChip({ isDark }: { isDark: boolean }) {
     "w-full mt-2 rounded-lg border px-3 py-1.5 text-[13px] font-semibold " +
     "flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60";
 
-  const save = async () => {
-    const value = phone.trim();
-    if (!value) return;
-    setState("saving");
-    try {
-      await saveMyPhone(value);
-      setState("saved");
-      // Leave the confirmation up briefly, then remove the prompt entirely.
-      setTimeout(() => setNeeded(false), 1500);
-    } catch {
-      setState("error");
-    }
-  };
-
-  if (state === "saved") {
-    return (
-      <div className={`${shape} ${isDark ? "border-green-600 text-green-400" : "border-green-600 text-green-700"}`}>
-        Saved
-      </div>
-    );
-  }
-
-  if (open) {
-    return (
-      <div className="mt-2 space-y-1.5">
-        <input
-          type="tel"
-          value={phone}
-          autoFocus
-          onChange={(e) => setPhone(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") save();
-            if (e.key === "Escape") { setOpen(false); setState("idle"); }
-          }}
-          placeholder="+1 555 123 4567"
-          className={`w-full rounded-lg border px-2.5 py-1.5 text-[13px] outline-none ${
-            isDark ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-              : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
-          }`}
-        />
-        <div className="flex gap-1.5">
-          <button
-            onClick={save}
-            disabled={state === "saving" || !phone.trim()}
-            className="flex-1 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-[13px] font-semibold py-1.5"
-          >
-            {state === "saving" ? "Saving…" : state === "error" ? "Try again" : "Save"}
-          </button>
-          <button
-            onClick={() => { setOpen(false); setState("idle"); }}
-            className={`rounded-lg border px-3 text-[13px] font-semibold ${
-              isDark ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-300 text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <button
-      onClick={() => setOpen(true)}
-      title="Add a phone number to your account"
-      className={`${shape} ${
-        isDark
-          ? "border-gray-600 text-gray-300 hover:bg-gray-700"
-          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-      }`}
-    >
-      Add Phone Number
-    </button>
+    <>
+      <PhoneDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        defaultCountry={country}
+        // Saved: the prompt has done its job and should stop asking.
+        onSaved={() => setNeeded(false)}
+      />
+      <button
+        onClick={() => setOpen(true)}
+        title="Add a phone number to your account"
+        className={`${shape} ${
+          isDark
+            ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+            : "border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        Add Phone Number
+      </button>
+    </>
   );
 }
