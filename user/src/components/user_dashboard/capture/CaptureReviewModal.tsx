@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, FileText } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { themeClasses } from "@/lib/theme";
@@ -305,6 +305,7 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
           {/* The document */}
+          <div className="space-y-2">
           <div className={`rounded-lg border overflow-hidden min-h-[16rem] flex items-center justify-center ${line} ${panel}`}>
             {/* An email that carried no attachment: the body IS the document,
                 stored as text. Rendered as text rather than pushed through the
@@ -323,6 +324,29 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
             ) : (
               <FileText className="h-10 w-10 text-gray-300" />
             )}
+          </div>
+
+          {/**
+            * A way OUT of the preview — and for a PDF it is the only one that
+            * always works.
+            *
+            * <object> renders inline in most browsers and in some renders
+            * nothing at all, where the entire fallback was a sentence saying
+            * the preview was unavailable. That left somebody holding a
+            * document they could not read and no route to it. The blob is
+            * already fetched; this just hands it to the browser's own viewer.
+            */}
+          {preview && (
+            <a
+              href={preview}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 hover:underline"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t("dashboard", "captureOpenInTab")}
+            </a>
+          )}
           </div>
 
           {/* The fields */}

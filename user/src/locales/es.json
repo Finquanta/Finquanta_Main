@@ -1013,6 +1013,7 @@
     "captureCheckThis": "revisa esto",
     "captureUnreadable": "Este no se pudo leer. Rellenalo a mano — el documento esta a la izquierda.",
     "capturePdfNoPreview": "Vista previa no disponible. Los campos si se leyeron del archivo.",
+    "captureOpenInTab": "Abrir en una pestaña nueva",
     "captureDestExpense": "Gastos",
     "captureDestIncome": "Flujo de caja",
     "captureDestBill": "Cuentas por pagar",

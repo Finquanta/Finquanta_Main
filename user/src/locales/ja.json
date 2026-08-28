@@ -1013,6 +1013,7 @@
     "captureCheckThis": "要確認",
     "captureUnreadable": "これは読み取れませんでした。左の書類を見ながら手入力してください。",
     "capturePdfNoPreview": "プレビューは利用できませんが、項目はファイルから読み取り済みです。",
+    "captureOpenInTab": "新しいタブで開く",
     "captureDestExpense": "経費",
     "captureDestIncome": "キャッシュフロー",
     "captureDestBill": "買掛金",

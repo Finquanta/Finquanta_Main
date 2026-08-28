@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, Check, Copy, Inbox, Mail, RefreshCw, RotateCcw, ShieldOff, Trash2,
+  AlertTriangle, Check, Copy, FileText, Inbox, Mail, RefreshCw, RotateCcw, ShieldOff, Trash2, X,
 } from 'lucide-react';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { useTheme } from '@/hooks/context/ThemeContext';
@@ -13,6 +13,7 @@ import { serverApiUrl } from '@/lib/api/client';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
   InboundDiagnostics, getInboundDiagnostics,
+  getMessageCaptures,
   getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
 
@@ -29,6 +30,23 @@ import {
  * than per person: this is a shared queue, and "a colleague already looked at
  * this" is exactly what you want to know.
  */
+/**
+ * "28 Aug, 14:32".
+ *
+ * The TIME is the point, not decoration. Every one of these lists is read
+ * straight after forwarding something, and the only question being asked is
+ * whether the row on screen is the thing that was just sent or the one from
+ * yesterday. A date alone cannot answer that.
+ */
+function when(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 export default function InboxPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -39,6 +57,9 @@ export default function InboxPage() {
   const [messages, setMessages] = useState<InboundMessage[]>([]);
   const [discarded, setDiscarded] = useState<DocumentCapture[]>([]);
   const [reviewing, setReviewing] = useState<DocumentCapture | null>(null);
+  /** The message being looked at, and what it produced. null = still loading. */
+  const [detail, setDetail] = useState<InboundMessage | null>(null);
+  const [detailCaptures, setDetailCaptures] = useState<DocumentCapture[] | null>(null);
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -59,6 +80,26 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  /**
+   * Email arrives while nobody is looking, so this page has to notice on its
+   * own — having to reload the page to find out whether something turned up
+   * defeats the point of a queue.
+   *
+   * Polling, not a socket: there is no websocket client in this app, thirty
+   * seconds is well inside what anyone would wait, and a paused tab costs
+   * nothing because the timer checks visibility before it asks.
+   */
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') load(); };
+    const timer = setInterval(tick, 30_000);
+    // Coming back to the tab is exactly the moment somebody wants to know.
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [load]);
 
   /**
    * Every list here is workspace data, and the switcher changes workspace in
@@ -134,13 +175,27 @@ export default function InboxPage() {
     }
   };
 
-  /** Opening a message is what clears its dot. Optimistic — it is cosmetic. */
+  /**
+   * Open a received message.
+   *
+   * This used to do nothing but clear the unread dot, which made the Received
+   * column a dead end: you could see that something had arrived and what its
+   * status was, but there was no way to look at what you had actually sent.
+   * The queue beside it only lists what is still pending, so anything already
+   * confirmed, discarded or quarantined had nowhere to be opened from.
+   */
   const open = (m: InboundMessage) => {
-    if (m.openedAt) return;
-    setMessages((prev) =>
-      prev.map((x) => (x.id === m.id ? { ...x, openedAt: new Date().toISOString() } : x))
-    );
-    markMessageRead(m.id).catch(() => { /* the dot is not worth an error */ });
+    setDetail(m);
+    setDetailCaptures(null);
+    getMessageCaptures(m.id).then(setDetailCaptures).catch(() => setDetailCaptures([]));
+
+    // Marking it read is optimistic — the dot is cosmetic and not worth an error.
+    if (!m.openedAt) {
+      setMessages((prev) =>
+        prev.map((x) => (x.id === m.id ? { ...x, openedAt: new Date().toISOString() } : x))
+      );
+      markMessageRead(m.id).catch(() => { /* the dot is not worth an error */ });
+    }
   };
 
   const quarantined = messages.filter((m) => m.status === 'quarantined');
@@ -268,6 +323,7 @@ export default function InboxPage() {
                         {m.subject || '(no subject)'}
                       </span>
                       <span className={`block text-[11px] truncate ${c.muted}`}>{m.fromEmail}</span>
+                      <span className={`block text-[11px] ${c.muted}`}>{when(m.receivedAt)}</span>
                       <span
                         className={`block text-[11px] mt-0.5 ${
                           m.status === 'processed'
@@ -318,6 +374,12 @@ export default function InboxPage() {
                         : 'No amount read'}
                       {p.extractedFields.documentDate ? ` · ${p.extractedFields.documentDate}` : ''}
                     </span>
+                    {/* The date READ OFF the document above; the date it reached
+                        you here. They are different questions and often
+                        different days. */}
+                    <span className={`block text-[11px] ${c.muted}`}>
+                      Arrived {when(p.createdAt)}
+                    </span>
                   </span>
                   <span className="text-[11px] font-semibold text-purple-500 flex-shrink-0">
                     Review
@@ -352,6 +414,7 @@ export default function InboxPage() {
                       {d.extractedFields.total != null
                         ? `${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()
                         : '—'}
+                      {` · ${when(d.createdAt)}`}
                     </span>
                   </span>
                   <button
@@ -534,6 +597,124 @@ export default function InboxPage() {
           )}
         </div>
       </div>
+
+      {/**
+        * What one email turned into.
+        *
+        * The Received column answers "did it arrive"; this answers "and then
+        * what?" — which is the question somebody actually has when a document
+        * they forwarded is not where they expected it. It opens the documents
+        * the email produced, including ones already confirmed or discarded,
+        * which the Pending queue by definition cannot show.
+        */}
+      {detail && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="message-detail-title"
+          onClick={() => setDetail(null)}
+        >
+          <div
+            className={`w-full max-w-lg rounded-xl shadow-xl ${c.surface}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex items-start justify-between gap-3 p-5 border-b ${c.line}`}>
+              <div className="min-w-0">
+                <h2 id="message-detail-title" className={`text-base font-bold truncate ${c.heading}`}>
+                  {detail.subject || '(no subject)'}
+                </h2>
+                <p className={`text-xs mt-0.5 truncate ${c.muted}`}>
+                  From {detail.fromName ? `${detail.fromName} · ` : ''}{detail.fromEmail}
+                </p>
+                <p className={`text-xs ${c.muted}`}>Received {when(detail.receivedAt)}</p>
+              </div>
+              <button
+                onClick={() => setDetail(null)}
+                aria-label="Close"
+                className={`flex-shrink-0 ${c.quietControl}`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              {detail.status === 'quarantined' && (
+                <div className={`rounded-lg border p-3 text-xs ${c.line}`}>
+                  <p className={c.body}>
+                    <span className="font-semibold">Held back.</span> This came from an address that
+                    is not on your account, so nothing was read from it — that is what stops a
+                    stranger who learns your inbox address running up charges on it.
+                  </p>
+                  <button
+                    onClick={() => { trust(detail.fromEmail, 'trusted'); setDetail(null); }}
+                    disabled={busy}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-500 hover:bg-purple-600 disabled:opacity-60"
+                  >
+                    Trust {detail.fromEmail}
+                  </button>
+                  <p className={`mt-1 ${c.muted}`}>
+                    Applies to mail sent from now on. Send this one again once trusted.
+                  </p>
+                </div>
+              )}
+
+              {detail.status === 'failed' && (
+                <p className={`text-xs ${c.danger}`}>
+                  {detail.error || 'This one could not be read.'}
+                </p>
+              )}
+
+              {detailCaptures === null ? (
+                <p className={`text-xs ${c.muted}`}>Looking…</p>
+              ) : detailCaptures.length === 0 ? (
+                <p className={`text-xs ${c.muted}`}>
+                  {detail.status === 'quarantined'
+                    ? 'No document was read from this, by design.'
+                    : detail.attachmentCount > 0
+                      ? 'Nothing could be read from the attachments on this email.'
+                      : 'This email had no attachment, and nothing financial was found in the message itself.'}
+                </p>
+              ) : (
+                <>
+                  <p className={`text-xs font-semibold ${c.label}`}>
+                    {detailCaptures.length === 1
+                      ? 'One document came from this email'
+                      : `${detailCaptures.length} documents came from this email`}
+                  </p>
+                  {detailCaptures.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => { setReviewing(d); setDetail(null); }}
+                      className={`w-full flex items-center gap-2 text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
+                    >
+                      <FileText className="h-4 w-4 flex-shrink-0 text-purple-500" />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-xs font-medium truncate ${c.heading}`}>
+                          {d.extractedFields.vendor || d.originalFilename || 'Document'}
+                        </span>
+                        <span className={`block text-[11px] ${c.muted}`}>
+                          {d.status === 'pending_review'
+                            ? 'Waiting for you'
+                            : d.status === 'confirmed'
+                              ? 'Already in your books'
+                              : 'In the recycle bin'}
+                          {d.extractedFields.total != null
+                            ? ` · ${`${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()}`
+                            : ''}
+                        </span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-purple-500 flex-shrink-0">
+                        Open
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {reviewing && (
         <CaptureReviewModal

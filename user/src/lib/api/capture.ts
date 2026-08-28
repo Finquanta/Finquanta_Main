@@ -54,6 +54,14 @@ export interface DocumentCapture {
   confidenceScores: ConfidenceScores;
   extractionError: string | null;
   status: 'pending_review' | 'confirmed' | 'discarded';
+  /**
+   * When the capture was made — for email, when it landed.
+   *
+   * The server has always sent this; the type simply never declared it, so it
+   * could not be shown. Distinct from `extractedFields.documentDate`, which is
+   * the date printed ON the document and is often a different day entirely.
+   */
+  createdAt: string;
 }
 
 export interface ScanAllowance {

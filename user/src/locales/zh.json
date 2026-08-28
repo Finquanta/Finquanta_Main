@@ -1013,6 +1013,7 @@
     "captureCheckThis": "请核对",
     "captureUnreadable": "这份无法读取。请手动填写——文档在左侧。",
     "capturePdfNoPreview": "无法预览。但字段仍已从文件中读取。",
+    "captureOpenInTab": "在新标签页中打开",
     "captureDestExpense": "支出",
     "captureDestIncome": "现金流",
     "captureDestBill": "应付账款",

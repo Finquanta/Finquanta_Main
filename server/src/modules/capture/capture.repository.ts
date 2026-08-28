@@ -160,6 +160,24 @@ export class CaptureRepository {
     return Number(r.rows[0]?.n) || 0;
   }
 
+  /**
+   * Everything one email produced, whatever became of it.
+   *
+   * Deliberately NOT filtered by status. A message that has already been
+   * confirmed or discarded still needs to answer "what happened to what I
+   * sent?" — and that question is asked most often precisely when the document
+   * is no longer sitting in the review queue.
+   */
+  async listForMessage(messageId: string, businessId: string): Promise<DocumentCapture[]> {
+    const r = await this.database.query(
+      `SELECT * FROM document_captures
+        WHERE inbound_message_id = $1 AND business_id = $2
+        ORDER BY created_at ASC`,
+      [messageId, businessId]
+    );
+    return r.rows.map((row: any) => this.toCapture(row));
+  }
+
   /** Thrown away but not yet gone — the recycle bin. */
   async listDiscardedFromEmail(businessId: string): Promise<DocumentCapture[]> {
     const r = await this.database.query(

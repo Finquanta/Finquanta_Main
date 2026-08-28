@@ -67,6 +67,15 @@ export const restoreCapture = (id: string) =>
   apiFetch<{ restored: boolean }>(`/v1/captures/${id}/restore`, { method: 'POST' });
 
 /** Mark a received message as looked at, so its dot goes away. */
+/**
+ * What one email produced — whatever became of it.
+ *
+ * Not filtered by status, because "what happened to the thing I sent?" is
+ * asked most often once the document has left the review queue.
+ */
+export const getMessageCaptures = (id: string) =>
+  apiFetch<DocumentCapture[]>(`/v1/inbound/messages/${id}/captures`);
+
 export const markMessageRead = (id: string) =>
   apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/read`, { method: 'POST' });
 

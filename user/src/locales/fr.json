@@ -1013,6 +1013,7 @@
     "captureCheckThis": "a verifier",
     "captureUnreadable": "Celui-ci n a pas pu etre lu. Saisissez-le a la main — le document est a gauche.",
     "capturePdfNoPreview": "Apercu indisponible. Les champs ont tout de meme ete lus depuis le fichier.",
+    "captureOpenInTab": "Ouvrir dans un nouvel onglet",
     "captureDestExpense": "Dépenses",
     "captureDestIncome": "Trésorerie",
     "captureDestBill": "Comptes fournisseurs",

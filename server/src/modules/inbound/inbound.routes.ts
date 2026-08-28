@@ -103,6 +103,27 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     }
   }) as any);
 
+  /**
+   * What one email actually produced.
+   *
+   * Without this a received message is a dead end: you can see that something
+   * arrived and what its status is, but not open the document it became. The
+   * queue only shows what is still PENDING, so anything already confirmed or
+   * discarded had nowhere to be looked at from.
+   */
+  fastify.get('/v1/inbound/messages/:id/captures', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      return reply.send({
+        success: true,
+        data: await captures.listForMessage(id, request.businessId!),
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not read that message.' });
+    }
+  }) as any);
+
   /** Somebody looked at a received message — it stops being new. */
   fastify.post('/v1/inbound/messages/:id/read', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {

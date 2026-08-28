@@ -1013,6 +1013,7 @@
     "captureCheckThis": "تحقق من هذا",
     "captureUnreadable": "تعذّرت قراءة هذا. أدخله يدويًا — المستند على اليسار.",
     "capturePdfNoPreview": "المعاينة غير متاحة. مع ذلك تمت قراءة الحقول من الملف.",
+    "captureOpenInTab": "فتح في علامة تبويب جديدة",
     "captureDestExpense": "المصروفات",
     "captureDestIncome": "التدفق النقدي",
     "captureDestBill": "الذمم الدائنة",
