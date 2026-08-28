@@ -108,14 +108,55 @@ export class ProfileRepository {
     // Branding + contact details — these fill the invoice header.
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS logo_url TEXT`);
     /**
-     * `updateProfile` upserts with ON CONFLICT (user_id), which Postgres will
-     * only accept if a unique index on that column actually exists. Without one
-     * it raises 42P10 and every profile save returns a 500 — the same trap this
-     * codebase already hit on business_profiles.
+     * Every optional profile column must actually be nullable.
      *
-     * Guarded rather than assumed, and tolerant of failure: if duplicate rows
-     * exist the index cannot be created, and that must be a logged problem
-     * rather than a server that refuses to boot.
+     * Saving a phone number returned a 500 for anyone who had no profile row
+     * yet: `user_profiles.address` was NOT NULL, so the INSERT half of the
+     * upsert died with 23502 while passing null for every field the user had
+     * not filled in. It only ever failed on INSERT — an existing row takes the
+     * ON CONFLICT UPDATE path, which does not touch address — which is why a
+     * table in use for months could still have this in it.
+     *
+     * Done for the whole set rather than just `address`, because Postgres
+     * reports the FIRST violation only: fixing one column at a time would mean
+     * discovering the next one the same slow way.
+     *
+     * Idempotent, checks the column exists first, and tolerant of failure — a
+     * schema this cannot repair should be a logged problem, not a server that
+     * refuses to boot.
+     */
+    try {
+      await this.database.query(`
+        DO $$
+        DECLARE col text;
+        BEGIN
+          FOREACH col IN ARRAY ARRAY[
+            'avatar','phone','job_title','company','industry','bio','address',
+            'social_links','company_email','linkedin','date_of_incorporation','country'
+          ]
+          LOOP
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public'
+                 AND table_name = 'user_profiles'
+                 AND column_name = col
+                 AND is_nullable = 'NO'
+            ) THEN
+              EXECUTE format('ALTER TABLE user_profiles ALTER COLUMN %I DROP NOT NULL', col);
+            END IF;
+          END LOOP;
+        END $$;
+      `);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[profile] could not relax NOT NULL on user_profiles:', error);
+    }
+
+    /**
+     * The upsert uses ON CONFLICT (user_id), which needs a unique index on that
+     * column. The 23502 above proves one already exists — a missing index would
+     * have raised 42P10 instead — so this is belt and braces rather than the
+     * fix it was first written as.
      */
     try {
       await this.database.query(
