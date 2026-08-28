@@ -332,6 +332,12 @@ export default function InboxPage() {
             {discarded.length === 0 ? (
               <Empty text="Empty. Documents you discard can be put back from here." />
             ) : (
+              /**
+               * The bin is emptied on a schedule, so it has to SAY so. A
+               * recycle bin that silently destroys things after a month is
+               * worse than one that keeps nothing, because it looks permanent
+               * right up until the thing you wanted is gone.
+               */
               discarded.map((d) => (
                 <div
                   key={d.id}
@@ -359,6 +365,12 @@ export default function InboxPage() {
                   </button>
                 </div>
               ))
+            )}
+
+            {discarded.length > 0 && (
+              <p className={`pt-1 text-[11px] ${c.muted}`}>
+                Discarded documents are deleted for good after 30 days.
+              </p>
             )}
           </Column>
         </div>

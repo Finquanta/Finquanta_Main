@@ -159,3 +159,74 @@ export async function ingestDocument(
     return { ...capture, extractionError: message };
   }
 }
+
+/**
+ * How long a thrown-away document stays in the recycle bin.
+ *
+ * The bin exists because discarding is a one-click action taken on a small
+ * preview, and being wrong about it should not be final. That argument has a
+ * shelf life: nobody comes back for a receipt they binned two months ago, and
+ * the blobs are the largest thing this feature stores.
+ */
+const PURGE_AFTER_DAYS = Number(process.env.CAPTURE_PURGE_AFTER_DAYS || 30);
+
+/**
+ * One sweep's worth. Bounded so a first run against a long-neglected bin does a
+ * chunk and finishes, rather than holding a connection open against thousands
+ * of blob deletes and timing out having committed nothing.
+ */
+const PURGE_BATCH = 200;
+
+export interface PurgeResult {
+  examined: number;
+  blobsDeleted: number;
+  rowsDeleted: number;
+  blobFailures: number;
+  olderThanDays: number;
+}
+
+/**
+ * Empty the recycle bin of anything past its window.
+ *
+ * BLOB FIRST, THEN THE ROW, and the order is the whole reason this is not two
+ * lines. The row is the only thing that knows the storage key, so deleting it
+ * first turns a failed blob delete into a permanent leak — bytes on disk with
+ * nothing left pointing at them. Doing it this way, a failed blob delete leaves
+ * the row in place and the next sweep tries again.
+ *
+ * A blob that is already gone is a success, not a failure: the drivers treat a
+ * missing key as a no-op, which is what makes re-running this safe.
+ */
+export async function purgeDiscardedCaptures(
+  deps: { repo: CaptureRepository; storage: StorageDriver; onError?: (e: unknown) => void },
+  options: { olderThanDays?: number; limit?: number } = {}
+): Promise<PurgeResult> {
+  const olderThanDays = options.olderThanDays ?? PURGE_AFTER_DAYS;
+  const limit = options.limit ?? PURGE_BATCH;
+
+  const candidates = await deps.repo.listPurgeable(olderThanDays, limit);
+  const deletable: string[] = [];
+  let blobsDeleted = 0;
+  let blobFailures = 0;
+
+  for (const candidate of candidates) {
+    try {
+      await deps.storage.delete(candidate.storageKey);
+      blobsDeleted++;
+      deletable.push(candidate.id);
+    } catch (error) {
+      // Keep the row. It is the only record of the key still to be freed.
+      blobFailures++;
+      deps.onError?.(error);
+    }
+  }
+
+  const rowsDeleted = await deps.repo.deleteByIds(deletable);
+  return {
+    examined: candidates.length,
+    blobsDeleted,
+    rowsDeleted,
+    blobFailures,
+    olderThanDays,
+  };
+}

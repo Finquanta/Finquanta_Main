@@ -1,0 +1,88 @@
+# Empties the document recycle bin of anything past its retention window.
+#
+# Here rather than as a Render Cron Job for the same reason as the lifecycle
+# reminders: Render bills those separately, and this is one HTTP request.
+#
+# The server owns the policy — how old is too old, what order things are
+# deleted in, what happens when a blob delete fails. This file only says "now",
+# so changing the schedule never has to be kept in step with changing the rules.
+name: Purge discarded documents
+
+on:
+  schedule:
+    # 04:00 UTC on Sundays. Weekly is plenty: this reclaims storage, and nothing
+    # about it is time-sensitive. A quiet hour because it deletes blobs, and
+    # there is no reason to compete with people using the product.
+    - cron: '0 4 * * 0'
+
+  # A button in the Actions tab. Defaults to a DRY RUN, because the natural
+  # reason to trigger this by hand is to find out what it would delete.
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: 'Report what would be deleted, without deleting anything'
+        type: boolean
+        default: true
+      olderThanDays:
+        description: 'Override the retention window, in days (blank = server default)'
+        type: string
+        default: ''
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # GitHub's default is six hours. This is one request; anything past ten
+    # minutes is a fault, not slowness.
+    timeout-minutes: 10
+    steps:
+      - name: Ask the server to empty the bin
+        env:
+          # Set under Settings -> Secrets and variables -> Actions. The same
+          # secret the lifecycle run uses, and the only thing standing between a
+          # stranger and the ability to delete documents.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ vars.API_URL || 'https://finquanta-main-2.onrender.com' }}
+          DRY_RUN: ${{ inputs.dryRun && 'true' || 'false' }}
+          OLDER_THAN: ${{ inputs.olderThanDays }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is not set in this repository's Actions secrets."
+            echo "Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # The API sleeps when idle on Render's smaller plans. Without this the
+          # real request would spend its whole timeout on the cold start and
+          # fail for a reason that has nothing to do with the purge.
+          echo "Waking the API..."
+          curl -fsS --max-time 60 "${API_URL}/api/" > /dev/null || true
+
+          if [ -n "${OLDER_THAN}" ]; then
+            payload="{\"dryRun\": ${DRY_RUN}, \"olderThanDays\": ${OLDER_THAN}}"
+          else
+            payload="{\"dryRun\": ${DRY_RUN}}"
+          fi
+
+          echo "Purging (${payload})..."
+          # One retry. The endpoint deletes by AGE, so a repeat call finds
+          # nothing left to do rather than deleting twice as much.
+          http=$(curl -sS --max-time 120 --retry 1 --retry-delay 15 \
+            -o response.json -w '%{http_code}' \
+            -X POST "${API_URL}/api/v1/internal/captures/purge" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H 'Content-Type: application/json' \
+            -d "${payload}")
+
+          echo "HTTP ${http}"
+          cat response.json || true
+          echo
+
+          case "${http}" in
+            200) echo "Done." ;;
+            401) echo "Rejected: CRON_SECRET here does not match the one on Render."; exit 1 ;;
+            503) echo "Rejected: CRON_SECRET is not set on the Render service itself."; exit 1 ;;
+            404) echo "Not found: the server has not been deployed with this endpoint yet."; exit 1 ;;
+            *)   echo "Unexpected response."; exit 1 ;;
+          esac

@@ -9,7 +9,8 @@ import { observedAddress } from '../ai-usage/ai-usage.routes';
 import { CaptureRepository } from './capture.repository';
 import { HANDOFF_TTL_MINUTES, HandoffRepository } from './capture.handoff.repository';
 import { ACCEPTED_TYPES, extractDocument } from './capture.extraction';
-import { ingestDocument } from './capture.service';
+import { ingestDocument, purgeDiscardedCaptures } from './capture.service';
+import { checkCronSecret } from '../shared/cron-auth';
 import { DESTINATIONS, Destination, DocumentType, isDocumentType } from './capture.types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -50,6 +51,43 @@ export async function captureRoutes(fastify: FastifyInstance, options: { databas
   await repo.ensureSchema();
   await aiUsage.ensureSchema();
   await handoffs.ensureSchema();
+
+  /**
+   * Empty the recycle bin of anything past its window.
+   *
+   * Driven by a scheduled call rather than a timer in the process: an
+   * in-process interval fires once per running instance, dies with every
+   * deploy, and doubles up the moment the service scales past one. Same
+   * reasoning as the lifecycle run, and the same shared secret.
+   *
+   * Safe to call as often as you like — it deletes by age, so an extra run
+   * finds nothing.
+   */
+  fastify.post('/v1/internal/captures/purge', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!checkCronSecret(request, reply)) return reply;
+    try {
+      const body = (request.body ?? {}) as { olderThanDays?: number; dryRun?: unknown };
+      // A dry run reports what WOULD go without touching anything — the safe
+      // way to see the damage before the first real sweep.
+      if (body.dryRun === true) {
+        const candidates = await repo.listPurgeable(
+          Number(body.olderThanDays) || Number(process.env.CAPTURE_PURGE_AFTER_DAYS || 30),
+          200
+        );
+        return reply.send({ success: true, data: { dryRun: true, wouldDelete: candidates.length } });
+      }
+
+      const result = await purgeDiscardedCaptures(
+        { repo, storage, onError: (e) => request.log.error(e) },
+        { olderThanDays: Number(body.olderThanDays) || undefined }
+      );
+      request.log.info({ purge: result }, 'capture recycle bin purge');
+      return reply.send({ success: true, data: result });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Purge failed.' });
+    }
+  });
   await usage.ensureSchema();
   // Cheap, and it only has to happen once a process: expired sessions are dead
   // credentials taking up space, and nothing else ever deletes them.

@@ -3,6 +3,7 @@ import { Database } from '../../infrastructure/database';
 import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { LifecycleRepository, PREFERENCE_KEYS, PreferenceKey, REMINDER_TYPES, ReminderType } from './lifecycle.repository';
 import { LifecycleService } from './lifecycle.service';
+import { checkCronSecret } from '../shared/cron-auth';
 import { appUrl } from '../../infrastructure/email-template';
 
 interface Options { database: Database }
@@ -30,14 +31,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance, options: Options
    * which is how an internal endpoint becomes a public one.
    */
   fastify.post('/v1/internal/lifecycle/run', async (request: FastifyRequest, reply: FastifyReply) => {
-    const expected = process.env.CRON_SECRET || '';
-    if (!expected) {
-      return reply.status(503).send({ success: false, error: 'CRON_SECRET is not configured.' });
-    }
-    const given = (request.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const ok = given.length === expected.length
-      && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(expected));
-    if (!ok) return reply.status(401).send({ success: false, error: 'Unauthorized' });
+    if (!checkCronSecret(request, reply)) return reply;
 
     const body = (request.body as { dryRun?: unknown }) || {};
     const result = await service.run({ dryRun: body.dryRun === true });

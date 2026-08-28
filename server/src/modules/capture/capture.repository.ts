@@ -49,6 +49,23 @@ export class CaptureRepository {
 
       CREATE INDEX IF NOT EXISTS idx_captures_business_status
         ON document_captures (business_id, status, created_at DESC);
+
+      -- WHEN it was thrown away, which is not the same as when it was captured.
+      -- The recycle bin is emptied on age since discarding: measuring from
+      -- created_at would destroy a document binned yesterday simply because the
+      -- photograph was taken last month.
+      ALTER TABLE document_captures
+        ADD COLUMN IF NOT EXISTS discarded_at TIMESTAMP WITH TIME ZONE;
+
+      -- Rows discarded before this column existed. created_at is the only date
+      -- they have; it is earlier than the truth, so they are purged no later
+      -- than they should be, never sooner.
+      UPDATE document_captures
+         SET discarded_at = created_at
+       WHERE status = 'discarded' AND discarded_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_captures_discarded_at
+        ON document_captures (discarded_at) WHERE status = 'discarded';
     `);
   }
 
@@ -155,14 +172,52 @@ export class CaptureRepository {
     return r.rows.map((row: any) => this.toCapture(row));
   }
 
-  /** Put a discarded capture back in the queue. */
+  /**
+   * Put a discarded capture back in the queue.
+   *
+   * Clears `discarded_at` too. Leaving it set would mean a document rescued
+   * from the bin still carried its old deletion clock, and a later re-discard
+   * could purge it immediately instead of giving it the full window again.
+   */
   async restore(id: string, businessId: string): Promise<boolean> {
     const r = await this.database.query(
-      `UPDATE document_captures SET status = 'pending_review'
+      `UPDATE document_captures
+          SET status = 'pending_review', discarded_at = NULL
         WHERE id = $1 AND business_id = $2 AND status = 'discarded'`,
       [id, businessId]
     );
     return (r.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Discarded long enough ago to be emptied out, oldest first.
+   *
+   * Returns the storage keys as well as the ids, because the row is only half
+   * of what is being deleted — the blob behind it is the part actually taking
+   * up space, and a row deleted without its blob leaks it permanently with
+   * nothing left pointing at it.
+   */
+  async listPurgeable(olderThanDays: number, limit: number): Promise<{ id: string; storageKey: string }[]> {
+    const r = await this.database.query(
+      `SELECT id, storage_key FROM document_captures
+        WHERE status = 'discarded'
+          AND discarded_at IS NOT NULL
+          AND discarded_at < NOW() - ($1 || ' days')::interval
+        ORDER BY discarded_at ASC
+        LIMIT $2`,
+      [String(olderThanDays), limit]
+    );
+    return (r.rows as any[]).map((row) => ({ id: row.id, storageKey: row.storage_key }));
+  }
+
+  /** Gone for good. Called only after the blobs are away. */
+  async deleteByIds(ids: string[]): Promise<number> {
+    if (!ids.length) return 0;
+    const r = await this.database.query(
+      'DELETE FROM document_captures WHERE id = ANY($1::uuid[])',
+      [ids]
+    );
+    return r.rowCount ?? 0;
   }
 
   /** Mark confirmed and point at whatever it became. */
@@ -182,7 +237,9 @@ export class CaptureRepository {
 
   async markDiscarded(id: string, businessId: string): Promise<void> {
     await this.database.query(
-      `UPDATE document_captures SET status = 'discarded' WHERE id = $1 AND business_id = $2`,
+      `UPDATE document_captures
+          SET status = 'discarded', discarded_at = NOW()
+        WHERE id = $1 AND business_id = $2`,
       [id, businessId]
     );
   }
