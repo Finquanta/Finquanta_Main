@@ -13,7 +13,7 @@ import { PaymentRequiredError } from "@/lib/api/client";
 import { createTransaction } from "@/lib/api/transactions";
 import { runWorkflow } from "@/lib/api/accounting";
 import { CURRENCIES, Currency, FxRate, getFxRate } from "@/lib/api/fx";
-import { Group, getGroups } from "@/lib/api/groups";
+import { Group, createGroup, getGroups } from "@/lib/api/groups";
 
 /**
  * Review before anything reaches the books.
@@ -39,9 +39,19 @@ interface Props {
   onSaved: () => void;
   /** Raised when the allowance ran out between capture and confirm. */
   onOutOfScans: (error: PaymentRequiredError) => void;
+  /**
+   * Position in a batch, when several files were uploaded together.
+   *
+   * Absent for a single document, because "1 of 1" is noise. Present, it is
+   * the difference between reviewing three receipts and wondering why the
+   * popup keeps reappearing.
+   */
+  progress?: { index: number; total: number };
 }
 
-export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfScans }: Props) {
+export default function CaptureReviewModal({
+  capture, onClose, onSaved, onOutOfScans, progress,
+}: Props) {
   const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -100,11 +110,39 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
    *
    * Grouping an entry from the Groups page means finding it again later; the
    * moment you are already looking at the receipt is the moment you know which
-   * job it belongs to. Optional — an ungrouped entry is a normal entry, and the
-   * selector simply does not render for a workspace with no groups yet.
+   * job it belongs to. Optional — an ungrouped entry is a normal entry — but
+   * the selector is always offered, and a group can be created right here.
    */
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState("");
+  const [addingGroup, setAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [savingGroup, setSavingGroup] = useState(false);
+
+  /**
+   * Make a group without leaving the review.
+   *
+   * Selected immediately on success: somebody who just typed a name meant to
+   * use it, and making them find it in the list afterwards is a step that
+   * exists only because the code did not do it.
+   */
+  const addGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    setSavingGroup(true);
+    setError(null);
+    try {
+      const created = await createGroup({ name, type: "other" });
+      setGroups((prev) => [...prev, created]);
+      setGroupId(created.id);
+      setAddingGroup(false);
+      setNewGroupName("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "genericError"));
+    } finally {
+      setSavingGroup(false);
+    }
+  };
 
   useEffect(() => {
     getGroups()
@@ -287,9 +325,18 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`p-5 border-b ${line}`}>
-          <h2 id="capture-review-title" className={`text-lg font-bold ${heading}`}>
-            {t("dashboard", "captureReviewTitle")}
-          </h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="capture-review-title" className={`text-lg font-bold ${heading}`}>
+              {t("dashboard", "captureReviewTitle")}
+            </h2>
+            {progress && (
+              <span className={`text-xs font-semibold whitespace-nowrap ${labelText}`}>
+                {t("dashboard", "captureBatchProgress")
+                  .replace("{n}", String(progress.index))
+                  .replace("{total}", String(progress.total))}
+              </span>
+            )}
+          </div>
           <p className={`mt-1 text-sm ${bodyText}`}>
             {t("dashboard", "captureReviewBody")}
           </p>
@@ -491,25 +538,72 @@ export default function CaptureReviewModal({ capture, onClose, onSaved, onOutOfS
               </select>
             </div>
 
-            {/* Cost / profit centre. Hidden entirely when the workspace has no
-                groups — an empty dropdown is a question with no answers. */}
-            {groups.length > 0 && (
-              <div>
-                <label className={`block text-xs font-semibold mb-1 ${labelText}`}>
-                  {t("dashboard", "captureGroup")}
-                </label>
-                <select
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${input}`}
-                >
-                  <option value="">{t("dashboard", "captureGroupNone")}</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/*
+              * Cost / profit centre.
+              *
+              * ALWAYS SHOWN, with a way to make one. This used to hide itself
+              * when the workspace had no groups — reasoning that an empty
+              * dropdown is a question with no answers. But it meant somebody
+              * reviewing their first document could not assign it anywhere and
+              * had no hint that grouping existed, let alone how to start. The
+              * manual entry form has always offered "+ New" here; this now
+              * matches it.
+              */}
+            <div>
+              <label className={`block text-xs font-semibold mb-1 ${labelText}`}>
+                {t("dashboard", "captureGroup")}
+              </label>
+              {addingGroup ? (
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); addGroup(); }
+                      if (e.key === "Escape") setAddingGroup(false);
+                    }}
+                    placeholder={t("dashboard", "captureGroup")}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm outline-none ${input}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={addGroup}
+                    disabled={savingGroup || !newGroupName.trim()}
+                    className="px-3 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-60"
+                  >
+                    {t("dashboard", "captureGroupSave")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingGroup(false)}
+                    className={`px-3 rounded-lg text-sm font-medium border ${line} ${labelText}`}
+                  >
+                    {t("dashboard", "phoneCancel")}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select
+                    value={groupId}
+                    onChange={(e) => setGroupId(e.target.value)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm outline-none ${input}`}
+                  >
+                    <option value="">{t("dashboard", "captureGroupNone")}</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => { setNewGroupName(""); setAddingGroup(true); }}
+                    className={`px-3 rounded-lg text-sm font-semibold border whitespace-nowrap ${line} ${labelText}`}
+                  >
+                    {t("dashboard", "captureGroupNew")}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {error && <p className="text-sm text-red-500">{error}</p>}
 

@@ -321,23 +321,34 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
       <div className="bg-[#1a1a2e] text-white rounded-2xl p-8 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold mb-4">{editing ? t('dashboard', 'editBookkeeping') : t('dashboard', 'enterBookkeeping')}</h2>
 
-        {/* Basis switch. Editing an existing cash entry pins it to Cash. */}
+        {/*
+          * Invoice type. Editing an existing cash entry pins it to Cash.
+          *
+          * A LABELLED DROPDOWN, not three pills. Cash basis, accrual and debt
+          * are not three views of one thing — the choice decides which ledger
+          * the entry lands in, and it is the most consequential field on the
+          * form. A row of equal-weight buttons with no label gives that
+          * decision no name at all. It now matches the type selector in the
+          * document review popup, which asks the same question.
+          */}
         {!editing && (
           <>
-            <div className="flex gap-2 mb-1">
-              {([['cash', 'Cash basis'], ['accrual', 'Accrual'], ['debt', 'Debt']] as const).map(([val, label]) => (
-                <button key={val} type="button" onClick={() => setBasis(val)}
-                  className={`flex-1 px-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                    basis === val ? 'bg-blue-500 text-white' : 'bg-[#2a2a3e] text-gray-300 hover:bg-[#33334a]'
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <label className="block text-sm font-semibold mb-1">
+              {t("dashboard", "bkBasisLabel")}
+            </label>
+            <select
+              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none"
+              value={basis}
+              onChange={(e) => setBasis(e.target.value as Basis)}
+            >
+              <option value="cash">{t("dashboard", "bkBasisCash")}</option>
+              <option value="accrual">{t("dashboard", "bkBasisAccrual")}</option>
+              <option value="debt">{t("dashboard", "bkBasisDebt")}</option>
+            </select>
             <p className="text-[11px] text-gray-400 mb-5">
-              {basis === 'cash' && t("dashboard","bkCashHint")}
-              {basis === 'accrual' && "Money owed to you or money you owe — even if no cash has moved yet."}
-              {basis === 'debt' && 'Loans you took out, and loans you gave out.'}
+              {basis === 'cash' && t("dashboard", "bkCashHint")}
+              {basis === 'accrual' && t("dashboard", "bkAccrualHint")}
+              {basis === 'debt' && t("dashboard", "bkDebtHint")}
             </p>
           </>
         )}

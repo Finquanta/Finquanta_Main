@@ -43,7 +43,21 @@ export default function CaptureButton({ onSaved, className }: Props) {
 
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [busy, setBusy] = useState(false);
-  const [capture, setCapture] = useState<DocumentCapture | null>(null);
+  /**
+   * A QUEUE, not one document.
+   *
+   * Choosing several files at once is the ordinary way people clear a pile of
+   * receipts, and uploading them one at a time — picker, wait, review, picker
+   * again — is the tedium this feature exists to remove. They are read up
+   * front and then reviewed one by one.
+   *
+   * Nothing is lost by closing part-way through: every upload already exists
+   * as a pending capture on the server, so skipping one leaves it in the
+   * review queue rather than throwing it away.
+   */
+  const [queue, setQueue] = useState<DocumentCapture[]>([]);
+  /** How many were picked this time, so the popup can say "2 of 3". */
+  const [batchSize, setBatchSize] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [upgrade, setUpgrade] = useState<PaymentRequiredError | null>(null);
   const [chooser, setChooser] = useState(false);
@@ -84,28 +98,57 @@ export default function CaptureButton({ onSaved, className }: Props) {
   };
 
   const onFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     // Reset immediately so picking the SAME file twice still fires onChange.
     event.target.value = "";
-    if (!file) return;
+    if (!files.length) return;
 
     setBusy(true);
     setError(null);
-    try {
-      // 'other' rather than a guess: the user picks the destination in the
-      // review popup, and the model may suggest a type from the document itself.
-      const result = await uploadCapture(file, "other" as DocumentType);
-      setCapture(result);
-    } catch (e) {
-      if (e instanceof PaymentRequiredError) setUpgrade(e);
-      else setError(e instanceof Error ? e.message : t("dashboard", "genericError"));
-    } finally {
-      setBusy(false);
+
+    /**
+     * SEQUENTIAL, not Promise.all.
+     *
+     * Each upload costs a vision call, and firing ten at once would hit the
+     * allowance ceiling in parallel — every one of them told there was room
+     * because they all asked before any of them answered. In order, the first
+     * refusal stops the rest.
+     */
+    const done: DocumentCapture[] = [];
+    let failures = 0;
+    for (const file of files) {
+      try {
+        // 'other' rather than a guess: the user picks the destination in the
+        // review popup, and the model may suggest a type from the document.
+        done.push(await uploadCapture(file, "other" as DocumentType));
+      } catch (e) {
+        if (e instanceof PaymentRequiredError) {
+          // Out of scans. Keep what did get read and say so — throwing away
+          // three good uploads because the fourth was refused would be worse.
+          setUpgrade(e);
+          break;
+        }
+        failures++;
+      }
     }
+
+    if (failures) {
+      setError(
+        t("dashboard", "captureSomeFailed")
+          .replace("{n}", String(failures))
+          .replace("{total}", String(files.length))
+      );
+    }
+    setBatchSize(done.length);
+    setQueue(done);
+    setBusy(false);
   };
 
+  /** Move to the next document in the batch, or close when there are none. */
+  const advance = () => setQueue((prev) => prev.slice(1));
+
   const saved = () => {
-    setCapture(null);
+    advance();
     refreshAllowance();
     onSaved();
   };
@@ -120,9 +163,12 @@ export default function CaptureButton({ onSaved, className }: Props) {
         onChange={onFile}
         className="hidden"
       />
+      {/* `multiple` on the file picker only. The camera one takes a photo,
+          and a phone has no notion of picking several of those at once. */}
       <input
         ref={fileRef}
         type="file"
+        multiple
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
         onChange={onFile}
         className="hidden"
@@ -160,16 +206,24 @@ export default function CaptureButton({ onSaved, className }: Props) {
       <CaptureHandoffDialog
         open={handoff}
         onClose={() => setHandoff(false)}
-        onCapture={(c) => { setHandoff(false); setCapture(c); }}
+        onCapture={(c) => { setHandoff(false); setBatchSize(1); setQueue([c]); }}
         onOutOfScans={(e) => { setHandoff(false); setUpgrade(e); }}
       />
 
-      {capture && (
+      {queue.length > 0 && (
         <CaptureReviewModal
-          capture={capture}
-          onClose={() => setCapture(null)}
+          // Keyed on the id so React remounts for each document rather than
+          // carrying the previous one's edited fields into the next.
+          key={queue[0].id}
+          capture={queue[0]}
+          // Closing skips THIS one and moves on. The capture is already saved
+          // as pending, so it waits in the review queue rather than vanishing.
+          onClose={advance}
           onSaved={saved}
-          onOutOfScans={(e) => { setCapture(null); setUpgrade(e); }}
+          onOutOfScans={(e) => { setQueue([]); setUpgrade(e); }}
+          progress={batchSize > 1
+            ? { index: batchSize - queue.length + 1, total: batchSize }
+            : undefined}
         />
       )}
 
