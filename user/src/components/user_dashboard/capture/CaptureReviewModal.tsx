@@ -14,6 +14,7 @@ import { createTransaction } from "@/lib/api/transactions";
 import { runWorkflow } from "@/lib/api/accounting";
 import { CURRENCIES, Currency, FxRate, getFxRate } from "@/lib/api/fx";
 import { Group, createGroup, getGroups } from "@/lib/api/groups";
+import { LoanType, createLoan } from "@/lib/api/loans";
 
 /**
  * Review before anything reaches the books.
@@ -118,6 +119,18 @@ export default function CaptureReviewModal({
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [savingGroup, setSavingGroup] = useState(false);
+
+  /**
+   * Loan fields, shown only when the type is a loan.
+   *
+   * The rate is the reason a loan could not simply be another option in the
+   * list. Every repayment is split into interest and principal using
+   * annualRate ÷ 12 on the outstanding balance, so a loan filed at 0% records
+   * every future payment as pure principal — wrong, quietly, forever. A
+   * document rarely states it in a form worth trusting, so it is asked for.
+   */
+  const [loanSide, setLoanSide] = useState<LoanType>("payable");
+  const [annualRate, setAnnualRate] = useState("");
 
   /**
    * Make a group without leaving the review.
@@ -266,6 +279,25 @@ export default function CaptureReviewModal({
           groupId: groupId || null,
         });
         recordId = entry.id;
+      } else if (destination === "loan") {
+        /**
+         * A loan record, not a ledger line.
+         *
+         * Created through the same `createLoan` the manual form uses, so the
+         * loan it produces is indistinguishable from one entered by hand and
+         * can take repayments in the ordinary way. Borrowing is not income and
+         * lending is not an expense, which is exactly why this cannot be
+         * filed as a transaction.
+         */
+        const loan = await createLoan({
+          name: vendor.trim(),
+          type: loanSide,
+          amount,
+          annualRate: Number(annualRate) || 0,
+          date,
+          groupId: groupId || null,
+        });
+        recordId = loan.id;
       } else {
         // The books are kept in USD. For a foreign entry `amount` is the USD
         // value — auto-converted or overridden — and the original is kept so
@@ -535,8 +567,46 @@ export default function CaptureReviewModal({
                 <option value="expense">{t("dashboard", "captureDestExpense")}</option>
                 <option value="bill">{t("dashboard", "captureDestBill")}</option>
                 <option value="receivable">{t("dashboard", "captureDestReceivable")}</option>
+                <option value="loan">{t("dashboard", "captureDestLoan")}</option>
               </select>
             </div>
+
+            {/* Loans need two things a receipt does not carry: which way the
+                money went, and the rate every future repayment is split by. */}
+            {destination === "loan" && (
+              <>
+                <div>
+                  <label className={`block text-xs font-semibold mb-1 ${labelText}`}>
+                    {t("dashboard", "captureLoanSide")}
+                  </label>
+                  <select
+                    value={loanSide}
+                    onChange={(e) => setLoanSide(e.target.value as LoanType)}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${input}`}
+                  >
+                    <option value="payable">{t("dashboard", "bkLoanPayable")}</option>
+                    <option value="receivable">{t("dashboard", "bkLoanReceivable")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs font-semibold mb-1 ${labelText}`}>
+                    {t("demo", "dAnnualRate")}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g. 7.5"
+                    value={annualRate}
+                    onChange={(e) => setAnnualRate(e.target.value)}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${input}`}
+                  />
+                  <p className={`mt-1 text-[11px] ${labelText}`}>
+                    {t("dashboard", "captureLoanRateHint")}
+                  </p>
+                </div>
+              </>
+            )}
 
             {/*
               * Cost / profit centre.

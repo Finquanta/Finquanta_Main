@@ -6,6 +6,7 @@ import { Group, getGroups, createGroup } from '@/lib/api/groups';
 import { WorkflowType, WORKFLOW_META, workflowsInGroup, runWorkflow, deleteEntry } from '@/lib/api/accounting';
 import { Loan, LoanType, listLoans, createLoan, recordLoanPayment, previewSplit, deleteLoan, deleteLoanPayment } from '@/lib/api/loans';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import ConfirmDialog from '@/components/user_dashboard/ConfirmDialog';
 
 /** The four debt actions — both directions of a loan. */
 export type DebtAction = 'loan_received' | 'loan_payment' | 'loan_issued' | 'loan_repayment_received';
@@ -130,6 +131,8 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   // Business Group (cost/profit center) — cash entries only in v1.
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState<string>('');
+  /** Replacing a loan destroys its payments, so it is asked in-app, not by the browser. */
+  const [askReplaceLoan, setAskReplaceLoan] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [savingGroup, setSavingGroup] = useState(false);
@@ -246,12 +249,31 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
     }
   };
 
-  const handleSubmit = async () => {
+  /**
+   * `replaceConfirmed` is passed as an ARGUMENT, not read from state.
+   *
+   * Replacing a loan that has payments deletes those payments, so it has to be
+   * asked about. `window.confirm` did that synchronously in the middle of this
+   * function; an in-app dialog cannot, because it returns to the event loop.
+   * So the answer comes back in as a parameter and the submit is simply run
+   * again — no half-finished save waiting on a promise nobody resolves, and no
+   * state update to race with the second call.
+   */
+  const handleSubmit = async (replaceConfirmed = false) => {
     setError(null);
     const amount = Number(form.invoiceAmount);
     if (!Number.isFinite(amount) || amount <= 0) return setError(t('dashboard', 'errAmount'));
     if (!form.dateOfInvoice) return setError(t('dashboard', 'errDate'));
     if (basis !== 'debt' && !form.invoiceName.trim()) return setError(t('dashboard', 'errInvoiceName'));
+
+    // Ask BEFORE anything is written, and before the spinner starts.
+    if (
+      basis === 'debt' && !isPaymentAction(debtAction) &&
+      editing?.ledger?.kind === 'loan' && editing.ledger.hasPayments && !replaceConfirmed
+    ) {
+      setAskReplaceLoan(true);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -266,11 +288,9 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           await recordLoanPayment(loanId, { amount, date: form.dateOfInvoice });
         } else {
           if (!form.invoiceName.trim()) throw new Error('Give the loan a name.');
-          // Editing a loan = re-post it: drop the old loan (and its payments) first.
+          // Editing a loan = re-post it: drop the old loan (and its payments)
+          // first. The question was already asked above, before the spinner.
           if (editing?.ledger?.kind === 'loan') {
-            if (editing.ledger.hasPayments && !window.confirm(
-              'This loan has recorded payments. Saving replaces the loan, which deletes those payments. Continue?'
-            )) { setSaving(false); return; }
             await deleteLoan(editing.ledger.loanId);
           }
           await createLoan({
@@ -651,12 +671,32 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
 
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
+        {/* `() => handleSubmit()` and NOT `handleSubmit`. Passing the handler
+            directly hands React's click event in as the first argument, which
+            would arrive as a truthy `replaceConfirmed` and skip the very
+            question this exists to ask. */}
         <button disabled={saving}
           className="w-full bg-[#4CAF50] hover:bg-[#45a049] disabled:opacity-60 text-white font-bold py-3 rounded-full"
-          onClick={handleSubmit}>
+          onClick={() => handleSubmit()}>
           {saving ? t('dashboard', 'saving') : editing ? t('dashboard', 'saveChanges') : t('dashboard', 'enterData')}
         </button>
       </div>
+
+      {/* Replacing a loan deletes its payments. Asked in the app rather than by
+          the browser, whose box is prefixed with the host name and looks like
+          the prompts people are trained to dismiss without reading. */}
+      <ConfirmDialog
+        open={askReplaceLoan}
+        isDark
+        tone="danger"
+        title={t('dashboard', 'bkReplaceLoanTitle')}
+        body={t('dashboard', 'bkReplaceLoanBody')}
+        confirmLabel={t('dashboard', 'bkReplaceLoanConfirm')}
+        cancelLabel={t('dashboard', 'phoneCancel')}
+        busy={saving}
+        onCancel={() => setAskReplaceLoan(false)}
+        onConfirm={() => { setAskReplaceLoan(false); handleSubmit(true); }}
+      />
     </div>
   );
 }
