@@ -51,8 +51,29 @@ const ACCRUAL_TYPES = workflowsInGroup('accrual');
 
 /** Built per render so the labels and hints follow the reader's language;
     a module-level constant cannot reach the translation hook. */
-const debtActions = (t: (ns: string, k: string) => string): { value: DebtAction; label: string; hint: string }[] =>
-  [];
+/**
+ * The four directions a loan can move, and the whole reason Debt exists.
+ *
+ * THIS RETURNED AN EMPTY ARRAY. The Debt Type control mapped over it, so it
+ * rendered nothing at all: picking Debt gave no options, and every loan was
+ * silently filed as `loan_received` — money borrowed — whatever it actually
+ * was. Money you lent out was recorded as money you owed.
+ *
+ * The labels keep the accounting head and add a plain-English gloss in
+ * brackets. The head is what an accountant looks for and what the reports use;
+ * the bracket is for everyone else, who should not have to know that "payable"
+ * means you are the one who owes it.
+ */
+const debtActions = (t: (ns: string, k: string) => string): { value: DebtAction; label: string; hint: string }[] => [
+  { value: 'loan_received', label: t('dashboard', 'bkDebtReceived'), hint: t('dashboard', 'bkDebtReceivedHint') },
+  { value: 'loan_issued', label: t('dashboard', 'bkDebtIssued'), hint: t('dashboard', 'bkDebtIssuedHint') },
+  { value: 'loan_payment', label: t('dashboard', 'bkDebtPayment'), hint: t('dashboard', 'bkDebtPaymentHint') },
+  {
+    value: 'loan_repayment_received',
+    label: t('dashboard', 'bkDebtRepaymentReceived'),
+    hint: t('dashboard', 'bkDebtRepaymentReceivedHint'),
+  },
+];
 const isPaymentAction = (a: DebtAction) => a === 'loan_payment' || a === 'loan_repayment_received';
 const loanTypeFor = (a: DebtAction): LoanType =>
   (a === 'loan_received' || a === 'loan_payment') ? 'payable' : 'receivable';
@@ -485,16 +506,18 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
             which is pinned to its existing direction. */}
         {basis === 'debt' && !editing?.ledger && (
           <>
-            <label className="block text-sm font-semibold mb-2">{t("demo","dDebtType")}</label>
-            <div className="flex flex-col gap-2 mb-2">
+            <label className="block text-sm font-semibold mb-1">{t("demo","dDebtType")}</label>
+            {/* A dropdown, like the type selector above it. Four long labels as
+                radios is a wall of text where a single answer is wanted. */}
+            <select
+              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none"
+              value={debtAction}
+              onChange={(e) => setDebtAction(e.target.value as DebtAction)}
+            >
               {debtActions(t).map((a) => (
-                <label key={a.value} className="flex items-start gap-2 cursor-pointer">
-                  <input type="radio" name="debtAction" className="mt-1" checked={debtAction === a.value}
-                    onChange={() => setDebtAction(a.value)} />
-                  <span className="text-sm">{a.label}</span>
-                </label>
+                <option key={a.value} value={a.value}>{a.label}</option>
               ))}
-            </div>
+            </select>
             <p className="text-[11px] text-gray-400 mb-4">{debtActions(t).find((a) => a.value === debtAction)?.hint}</p>
           </>
         )}
