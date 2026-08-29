@@ -17,7 +17,8 @@ import { serverApiUrl } from '@/lib/api/client';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
   InboundDiagnostics, getInboundDiagnostics,
-  deleteInboundMessage, getDeletedMessages, getMessageCaptures, markMessageUnread,
+  deleteInboundMessage, emptyRecycleBin, getDeletedMessages, getMessageCaptures,
+  markMessageUnread,
   restoreMessage,
   getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
@@ -148,6 +149,8 @@ export default function InboxPage() {
   const [confirmBulk, setConfirmBulk] = useState(false);
   /** Emails that were deleted. They sit in the bin beside discarded documents. */
   const [deletedMessages, setDeletedMessages] = useState<InboundMessage[]>([]);
+  /** Emptying the bin is irreversible, so it asks first — in the page. */
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
   /**
    * Read by the poll timer, which is created once and must not be torn down
    * and rebuilt every time a checkbox moves.
@@ -260,6 +263,28 @@ export default function InboxPage() {
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("dashboard", "inboxErrSender"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Empty the bin for good.
+   *
+   * The only irreversible action on this page: the files go, not just the rows.
+   * Everything else here can be undone, which is exactly why this one has to
+   * ask.
+   */
+  const emptyBin = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await emptyRecycleBin();
+      setConfirmEmpty(false);
+      stopSelecting();
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrEmpty"));
     } finally {
       setBusy(false);
     }
@@ -537,16 +562,22 @@ export default function InboxPage() {
     </div>
   );
 
-  /** The Edit / Done control every column carries. */
-  const EditToggle = ({ column, count }: { column: 'received' | 'pending' | 'bin'; count: number }) =>
-    count > 0 ? (
-      <button
-        onClick={() => (selecting === column ? stopSelecting() : startSelecting(column))}
-        className={`text-[11px] font-semibold ${selecting === column ? 'text-purple-500' : c.muted} hover:underline`}
-      >
-        {selecting === column ? t("dashboard", "inboxDone") : t("dashboard", "inboxEdit")}
-      </button>
-    ) : null;
+  /**
+   * The Edit / Done control every column carries.
+   *
+   * Shown even when the column is empty. A control that appears and disappears
+   * with the contents reads as a glitch, and makes people hunt for something
+   * they saw a moment ago; a disabled-looking one that does nothing useful for
+   * a heartbeat is the cheaper failure.
+   */
+  const EditToggle = ({ column }: { column: 'received' | 'pending' | 'bin' }) => (
+    <button
+      onClick={() => (selecting === column ? stopSelecting() : startSelecting(column))}
+      className={`text-[11px] font-semibold ${selecting === column ? 'text-purple-500' : c.muted} hover:underline`}
+    >
+      {selecting === column ? t("dashboard", "inboxDone") : t("dashboard", "inboxEdit")}
+    </button>
+  );
 
   /** The tick shown on a selected card. */
   const Tick = ({ on }: { on: boolean }) => (
@@ -626,7 +657,7 @@ export default function InboxPage() {
             title={t("dashboard", "inboxColReceived")}
             count={unread}
             accent={unread > 0 ? 'bg-amber-500 text-white' : undefined}
-            action={<EditToggle column="received" count={messages.length} />}
+            action={<EditToggle column="received" />}
           >
             {selecting === 'received' && (
               <BulkBar
@@ -716,7 +747,7 @@ export default function InboxPage() {
             title={t("dashboard", "inboxColPending")}
             count={pending.length}
             accent={pending.length > 0 ? 'bg-purple-500 text-white' : undefined}
-            action={<EditToggle column="pending" count={pending.length} />}
+            action={<EditToggle column="pending" />}
           >
             {selecting === 'pending' && (
               // Delete here means DISCARD, which is the bin — the same promise
@@ -768,8 +799,45 @@ export default function InboxPage() {
           <Column
             title={t("dashboard", "inboxColBin")}
             count={discarded.length + deletedMessages.length}
-            action={<EditToggle column="bin" count={discarded.length + deletedMessages.length} />}
+            action={
+              <>
+                {discarded.length + deletedMessages.length > 0 && (
+                  <button
+                    onClick={() => setConfirmEmpty(true)}
+                    className="text-[11px] font-semibold text-red-500 hover:underline"
+                  >
+                    {t("dashboard", "inboxEmptyBinAction")}
+                  </button>
+                )}
+                <EditToggle column="bin" />
+              </>
+            }
           >
+            {confirmEmpty && (
+              <div className={`rounded-lg border p-2 space-y-2 ${c.line} ${c.panel}`}>
+                <p className={`text-[11px] ${c.body}`}>
+                  {t("dashboard", "inboxEmptyBinConfirm")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setConfirmEmpty(false)}
+                    disabled={busy}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border ${c.line} ${c.body} ${c.hover}`}
+                  >
+                    {t("dashboard", "phoneCancel")}
+                  </button>
+                  <button
+                    onClick={emptyBin}
+                    disabled={busy}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60"
+                  >
+                    {busy
+                      ? t("dashboard", "inboxEmptying")
+                      : t("dashboard", "inboxEmptyBinAction")}
+                  </button>
+                </div>
+              </div>
+            )}
             {selecting === 'bin' && (
               <BulkBar
                 ids={[...deletedMessages.map((m) => m.id), ...discarded.map((d) => d.id)]}

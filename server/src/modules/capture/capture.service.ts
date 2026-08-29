@@ -199,12 +199,15 @@ export interface PurgeResult {
  */
 export async function purgeDiscardedCaptures(
   deps: { repo: CaptureRepository; storage: StorageDriver; onError?: (e: unknown) => void },
-  options: { olderThanDays?: number; limit?: number } = {}
+  options: { olderThanDays?: number; limit?: number; businessId?: string } = {}
 ): Promise<PurgeResult> {
+  // `?? PURGE_AFTER_DAYS` and not `||`: emptying the bin by hand passes 0,
+  // meaning "everything discarded before now", and `||` would quietly turn
+  // that into the 30-day default and delete almost nothing.
   const olderThanDays = options.olderThanDays ?? PURGE_AFTER_DAYS;
   const limit = options.limit ?? PURGE_BATCH;
 
-  const candidates = await deps.repo.listPurgeable(olderThanDays, limit);
+  const candidates = await deps.repo.listPurgeable(olderThanDays, limit, options.businessId);
   const deletable: string[] = [];
   let blobsDeleted = 0;
   let blobFailures = 0;

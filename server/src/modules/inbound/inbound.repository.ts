@@ -309,6 +309,22 @@ export class InboundRepository {
     return (r.rowCount ?? 0) > 0;
   }
 
+  /**
+   * Empty the bin of deleted emails, for good.
+   *
+   * Only ever the ones already IN the bin — `deleted_at IS NOT NULL` is what
+   * keeps this from being a delete-everything button one typo away from the
+   * Received list.
+   */
+  async purgeDeletedMessages(businessId: string): Promise<number> {
+    const r = await this.database.query(
+      `DELETE FROM inbound_messages
+        WHERE business_id = $1 AND deleted_at IS NOT NULL`,
+      [businessId]
+    );
+    return r.rowCount ?? 0;
+  }
+
   /** What is in the bin, most recently binned first. */
   async listDeletedMessages(businessId: string, limit = 50): Promise<InboundMessage[]> {
     const r = await this.database.query(

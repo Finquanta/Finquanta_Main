@@ -4,6 +4,8 @@ import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
 import { InboundRepository } from './inbound.repository';
 import { CaptureRepository } from '../capture/capture.repository';
+import { purgeDiscardedCaptures } from '../capture/capture.service';
+import { createStorageDriver, StorageDriver } from '../../infrastructure/object-storage';
 import { SENDER_STATUSES, SenderStatus, addressFor, normaliseEmail } from './inbound.types';
 import { describeSecret, webhookStats } from './inbound.webhook';
 
@@ -19,6 +21,8 @@ import { describeSecret, webhookStats } from './inbound.webhook';
 export async function inboundRoutes(fastify: FastifyInstance, options: { database: Database }) {
   const repo = new InboundRepository(options.database);
   const captures = new CaptureRepository(options.database);
+  // Emptying the bin deletes the files too, not only the rows.
+  const storage: StorageDriver = createStorageDriver(options.database);
   const pre = [authenticate, withBusiness(options.database)];
 
   // Registered AFTER the capture module, because ensureSchema adds a column to
@@ -121,6 +125,37 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Could not read that message.' });
+    }
+  }) as any);
+
+  /**
+   * Empty the recycle bin now, rather than waiting for the schedule.
+   *
+   * The one genuinely destructive action in this module: it deletes the blobs
+   * as well as the rows, and nothing comes back. Both halves go — discarded
+   * documents and deleted emails — because a bin that empties halfway is worse
+   * than one that does not empty at all.
+   *
+   * Documents go through the SAME purge the weekly sweep uses, with the age
+   * filter set to zero. A second delete path for the same records is a second
+   * chance to leak a blob.
+   */
+  fastify.post('/v1/inbound/bin/empty', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const businessId = request.businessId!;
+      const purged = await purgeDiscardedCaptures(
+        { repo: captures, storage, onError: (e) => request.log.error(e) },
+        { olderThanDays: 0, businessId }
+      );
+      const messages = await repo.purgeDeletedMessages(businessId);
+      request.log.info({ emptyBin: { ...purged, messages } }, 'recycle bin emptied');
+      return reply.send({
+        success: true,
+        data: { documents: purged.rowsDeleted, messages, blobFailures: purged.blobFailures },
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not empty the recycle bin.' });
     }
   }) as any);
 

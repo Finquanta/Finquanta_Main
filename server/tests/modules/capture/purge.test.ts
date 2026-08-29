@@ -103,6 +103,37 @@ describe('capture — purging the recycle bin', () => {
     expect(result).toMatchObject({ examined: 0, blobsDeleted: 0, rowsDeleted: 0 });
   });
 
+  it('scopes to one workspace when a bin is emptied by hand', async () => {
+    // The scheduled sweep is platform-wide; the button is not, and must never
+    // reach into another workspace's documents.
+    const f = fakes([]);
+
+    await purgeDiscardedCaptures(
+      { repo: f.repo, storage: f.storage },
+      { olderThanDays: 0, businessId: 'biz_1' }
+    );
+
+    expect(f.repo.listPurgeable).toHaveBeenCalledWith(0, 200, 'biz_1');
+  });
+
+  it('treats an age of ZERO as everything, not as absent', async () => {
+    /**
+     * `olderThanDays ?? DEFAULT`, never `|| DEFAULT`. Emptying the bin passes
+     * 0, meaning "everything discarded before now"; `||` would read that as
+     * missing, fall back to thirty days, and quietly delete almost nothing
+     * while reporting success.
+     */
+    const f = fakes([]);
+
+    const result = await purgeDiscardedCaptures(
+      { repo: f.repo, storage: f.storage },
+      { olderThanDays: 0 }
+    );
+
+    expect(f.repo.listPurgeable).toHaveBeenCalledWith(0, 200, undefined);
+    expect(result.olderThanDays).toBe(0);
+  });
+
   it('passes the retention window through, and reports it back', async () => {
     const f = fakes([]);
 
@@ -111,7 +142,7 @@ describe('capture — purging the recycle bin', () => {
       { olderThanDays: 7 }
     );
 
-    expect(f.repo.listPurgeable).toHaveBeenCalledWith(7, 200);
+    expect(f.repo.listPurgeable).toHaveBeenCalledWith(7, 200, undefined);
     // Echoed so a scheduled run's log says which policy actually applied,
     // rather than leaving it to be inferred from an environment variable.
     expect(result.olderThanDays).toBe(7);

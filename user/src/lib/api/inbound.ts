@@ -76,6 +76,18 @@ export const restoreCapture = (id: string) =>
 export const getMessageCaptures = (id: string) =>
   apiFetch<DocumentCapture[]>(`/v1/inbound/messages/${id}/captures`);
 
+/**
+ * Empty the recycle bin now, rather than waiting for the schedule.
+ *
+ * The one irreversible action here: files go as well as rows, and both halves
+ * of the bin are cleared. Ask before calling it.
+ */
+export const emptyRecycleBin = () =>
+  apiFetch<{ documents: number; messages: number; blobFailures: number }>(
+    '/v1/inbound/bin/empty',
+    { method: 'POST' }
+  );
+
 /** Emails in the recycle bin. Deleting one no longer destroys it. */
 export const getDeletedMessages = () =>
   apiFetch<InboundMessage[]>('/v1/inbound/messages/deleted');

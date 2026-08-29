@@ -215,15 +215,22 @@ export class CaptureRepository {
    * up space, and a row deleted without its blob leaks it permanently with
    * nothing left pointing at it.
    */
-  async listPurgeable(olderThanDays: number, limit: number): Promise<{ id: string; storageKey: string }[]> {
+  async listPurgeable(
+    olderThanDays: number,
+    limit: number,
+    /** One workspace only, for an on-demand "empty the bin". Omitted by the
+     *  scheduled sweep, which is platform-wide. */
+    businessId?: string
+  ): Promise<{ id: string; storageKey: string }[]> {
     const r = await this.database.query(
       `SELECT id, storage_key FROM document_captures
         WHERE status = 'discarded'
           AND discarded_at IS NOT NULL
           AND discarded_at < NOW() - ($1 || ' days')::interval
+          AND ($3::uuid IS NULL OR business_id = $3)
         ORDER BY discarded_at ASC
         LIMIT $2`,
-      [String(olderThanDays), limit]
+      [String(olderThanDays), limit, businessId ?? null]
     );
     return (r.rows as any[]).map((row) => ({ id: row.id, storageKey: row.storage_key }));
   }
