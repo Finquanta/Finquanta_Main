@@ -40,7 +40,26 @@ const CALL_TIMEOUT_MS = 45_000;
  * tokens and its first screenful already says what it is. */
 const MAX_BODY_CHARS = 12_000;
 
-const SCHEMA = {
+/**
+ * A nullable field, in the ONE form structured outputs accepts.
+ *
+ * `{ type: ['string', 'null'] }` is ordinary JSON Schema and is NOT supported
+ * here: the documented types are the basic ones, and a union has to be written
+ * as `anyOf`. Combining a union type with `enum` is rejected outright, which is
+ * what stopped every single document being read:
+ *
+ *   output_config.format.schema: Invalid schema: Enum value 'receipt' does not
+ *   match declared type '['string', 'null']'
+ *
+ * The whole request is refused for one bad property, so this is all-or-nothing:
+ * every nullable field goes through here, not just the enum that reported it.
+ */
+const nullable = (schema: Record<string, unknown>, description?: string) => ({
+  anyOf: [schema, { type: 'null' }],
+  ...(description ? { description } : {}),
+});
+
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: [
@@ -54,13 +73,13 @@ const SCHEMA = {
         'True ONLY if this email records a specific payment made, received, or owed, with an amount. ' +
         'Newsletters, marketing, receipts for nothing, notifications, and ordinary correspondence are false.',
     },
-    documentType: { type: ['string', 'null'], enum: [...DOCUMENT_TYPES, null] },
-    vendor: { type: ['string', 'null'], description: 'The other party — who was paid, or who paid.' },
-    documentDate: { type: ['string', 'null'], description: 'YYYY-MM-DD.' },
-    total: { type: ['number', 'null'] },
-    taxAmount: { type: ['number', 'null'] },
-    currency: { type: ['string', 'null'], description: 'ISO code, for example USD or EUR.' },
-    documentNumber: { type: ['string', 'null'], description: 'Invoice, receipt or reference number.' },
+    documentType: nullable({ type: 'string', enum: [...DOCUMENT_TYPES] }),
+    vendor: nullable({ type: 'string' }, 'The other party — who was paid, or who paid.'),
+    documentDate: nullable({ type: 'string' }, 'YYYY-MM-DD.'),
+    total: nullable({ type: 'number' }),
+    taxAmount: nullable({ type: 'number' }),
+    currency: nullable({ type: 'string' }, 'ISO code, for example USD or EUR.'),
+    documentNumber: nullable({ type: 'string' }, 'Invoice, receipt or reference number.'),
     confidence: {
       type: 'object',
       additionalProperties: false,
@@ -76,7 +95,7 @@ const SCHEMA = {
       },
     },
   },
-} as const;
+};
 
 const SYSTEM = [
   'You read business emails and decide whether each one records a real financial event.',
@@ -147,7 +166,14 @@ export async function extractFromBody(input: {
     );
   }
 
-  if (!res.ok) throw new Error(`Could not read that email (${res.status}).`);
+  if (!res.ok) {
+    // The body, truncated — a status code alone cannot separate a rejected
+    // schema from an expired key, and this string is all anybody sees.
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Could not read that email (${res.status})${detail ? `: ${detail.slice(0, 300)}` : ''}.`
+    );
+  }
 
   const json = (await res.json()) as { content?: { type: string; text?: string }[] };
   const raw = json.content?.find((c) => c.type === 'text')?.text?.trim();

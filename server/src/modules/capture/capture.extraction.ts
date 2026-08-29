@@ -41,7 +41,26 @@ export const ACCEPTED_TYPES = [...ACCEPTED_IMAGE_TYPES, 'application/pdf'];
  * photo should come back with blanks for the user to fill, never with invented
  * values that read as authoritative (spec section 16).
  */
-const SCHEMA = {
+/**
+ * A nullable field, in the ONE form structured outputs accepts.
+ *
+ * `{ type: ['string', 'null'] }` is ordinary JSON Schema and is NOT supported
+ * here: the documented types are the basic ones, and a union has to be written
+ * as `anyOf`. Combining a union type with `enum` is rejected outright, which is
+ * what stopped every single document being read:
+ *
+ *   output_config.format.schema: Invalid schema: Enum value 'receipt' does not
+ *   match declared type '['string', 'null']'
+ *
+ * The whole request is refused for one bad property, so this is all-or-nothing:
+ * every nullable field goes through here, not just the enum that reported it.
+ */
+const nullable = (schema: Record<string, unknown>, description?: string) => ({
+  anyOf: [schema, { type: 'null' }],
+  ...(description ? { description } : {}),
+});
+
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: [
@@ -49,13 +68,13 @@ const SCHEMA = {
     'documentNumber', 'suggestedType', 'lineItems', 'confidence',
   ],
   properties: {
-    vendor: { type: ['string', 'null'], description: 'Who issued this document.' },
-    documentDate: { type: ['string', 'null'], description: 'Date on the document, YYYY-MM-DD.' },
-    total: { type: ['number', 'null'], description: 'Grand total including tax.' },
-    taxAmount: { type: ['number', 'null'], description: 'Tax or VAT portion, if shown.' },
-    currency: { type: ['string', 'null'], description: 'ISO code, for example USD or EUR.' },
-    documentNumber: { type: ['string', 'null'], description: 'Invoice or receipt number.' },
-    suggestedType: { type: ['string', 'null'], enum: [...DOCUMENT_TYPES, null] },
+    vendor: nullable({ type: 'string' }, 'Who issued this document.'),
+    documentDate: nullable({ type: 'string' }, 'Date on the document, YYYY-MM-DD.'),
+    total: nullable({ type: 'number' }, 'Grand total including tax.'),
+    taxAmount: nullable({ type: 'number' }, 'Tax or VAT portion, if shown.'),
+    currency: nullable({ type: 'string' }, 'ISO code, for example USD or EUR.'),
+    documentNumber: nullable({ type: 'string' }, 'Invoice or receipt number.'),
+    suggestedType: nullable({ type: 'string', enum: [...DOCUMENT_TYPES] }),
     lineItems: {
       type: 'array',
       items: {
@@ -64,9 +83,9 @@ const SCHEMA = {
         required: ['description', 'quantity', 'unitPrice', 'amount'],
         properties: {
           description: { type: 'string' },
-          quantity: { type: ['number', 'null'] },
-          unitPrice: { type: ['number', 'null'] },
-          amount: { type: ['number', 'null'] },
+          quantity: nullable({ type: 'number' }),
+          unitPrice: nullable({ type: 'number' }),
+          amount: nullable({ type: 'number' }),
         },
       },
     },
@@ -85,7 +104,7 @@ const SCHEMA = {
       },
     },
   },
-} as const;
+};
 
 const SYSTEM = [
   'You read financial documents - receipts, bills, invoices, payment proofs, loan paperwork -',
