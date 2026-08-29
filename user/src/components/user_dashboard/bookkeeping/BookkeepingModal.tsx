@@ -52,29 +52,35 @@ const ACCRUAL_TYPES = workflowsInGroup('accrual');
 /** Built per render so the labels and hints follow the reader's language;
     a module-level constant cannot reach the translation hook. */
 /**
- * The four directions a loan can move, and the whole reason Debt exists.
+ * A loan is TWO questions, not one list of four.
  *
- * THIS RETURNED AN EMPTY ARRAY. The Debt Type control mapped over it, so it
- * rendered nothing at all: picking Debt gave no options, and every loan was
- * silently filed as `loan_received` — money borrowed — whatever it actually
- * was. Money you lent out was recorded as money you owed.
+ * Which side is it — money you owe, or money owed to you? And is this the loan
+ * itself or a payment against one? The four DebtActions are that 2x2, and
+ * offering them as four long labels made people read all four to find the one
+ * pair that differed.
  *
- * The labels keep the accounting head and add a plain-English gloss in
- * brackets. The head is what an accountant looks for and what the reports use;
- * the bracket is for everyone else, who should not have to know that "payable"
- * means you are the one who owes it.
+ * So: the type dropdown carries the two sides, and a small pair of buttons
+ * underneath says new-or-repayment. The heads stay in accounting language,
+ * because that is what the reports use, with a plain gloss in brackets for
+ * everyone who should not have to know that "payable" means you are the one
+ * who owes it.
+ *
+ * (The old list of four RETURNED AN EMPTY ARRAY, so the control rendered
+ * nothing and every loan was silently filed as money borrowed, whichever way
+ * it actually went.)
  */
-const debtActions = (t: (ns: string, k: string) => string): { value: DebtAction; label: string; hint: string }[] => [
-  { value: 'loan_received', label: t('dashboard', 'bkDebtReceived'), hint: t('dashboard', 'bkDebtReceivedHint') },
-  { value: 'loan_issued', label: t('dashboard', 'bkDebtIssued'), hint: t('dashboard', 'bkDebtIssuedHint') },
-  { value: 'loan_payment', label: t('dashboard', 'bkDebtPayment'), hint: t('dashboard', 'bkDebtPaymentHint') },
-  {
-    value: 'loan_repayment_received',
-    label: t('dashboard', 'bkDebtRepaymentReceived'),
-    hint: t('dashboard', 'bkDebtRepaymentReceivedHint'),
-  },
-];
 const isPaymentAction = (a: DebtAction) => a === 'loan_payment' || a === 'loan_repayment_received';
+
+/** The 2x2, resolved. */
+const debtActionFor = (side: LoanType, repayment: boolean): DebtAction =>
+  side === 'payable'
+    ? (repayment ? 'loan_payment' : 'loan_received')
+    : (repayment ? 'loan_repayment_received' : 'loan_issued');
+
+const debtHintKey = (side: LoanType, repayment: boolean): string =>
+  side === 'payable'
+    ? (repayment ? 'bkLoanPayableRepayHint' : 'bkLoanPayableNewHint')
+    : (repayment ? 'bkLoanReceivableRepayHint' : 'bkLoanReceivableNewHint');
 const loanTypeFor = (a: DebtAction): LoanType =>
   (a === 'loan_received' || a === 'loan_payment') ? 'payable' : 'receivable';
 
@@ -507,19 +513,42 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
             which is pinned to its existing direction. */}
         {basis === 'debt' && !editing?.ledger && (
           <>
-            <label className="block text-sm font-semibold mb-1">{t("demo","dDebtType")}</label>
-            {/* A dropdown, like the type selector above it. Four long labels as
-                radios is a wall of text where a single answer is wanted. */}
+            <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceTypeLabel')}</label>
+            {/* Two options, the same shape as the cash and accrual selectors. */}
             <select
-              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none"
-              value={debtAction}
-              onChange={(e) => setDebtAction(e.target.value as DebtAction)}
+              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-2 text-sm outline-none"
+              value={loanTypeFor(debtAction)}
+              onChange={(e) =>
+                setDebtAction(debtActionFor(e.target.value as LoanType, isPaymentAction(debtAction)))
+              }
             >
-              {debtActions(t).map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
-              ))}
+              <option value="payable">{t('dashboard', 'bkLoanPayable')}</option>
+              <option value="receivable">{t('dashboard', 'bkLoanReceivable')}</option>
             </select>
-            <p className="text-[11px] text-gray-400 mb-4">{debtActions(t).find((a) => a.value === debtAction)?.hint}</p>
+
+            {/* The second half of the question. Buttons rather than a dropdown
+                because it is a two-way switch, and because opening a menu to
+                choose between two things is a click nobody needs. */}
+            <div className="flex gap-2 mb-1">
+              {([[false, t('dashboard', 'bkLoanNew')], [true, t('dashboard', 'bkLoanRepayment')]] as const)
+                .map(([repay, label]) => (
+                  <button
+                    key={String(repay)}
+                    type="button"
+                    onClick={() => setDebtAction(debtActionFor(loanTypeFor(debtAction), repay))}
+                    className={`flex-1 px-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                      isPaymentAction(debtAction) === repay
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-[#2a2a3e] text-gray-300 hover:bg-[#33334a]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">
+              {t('dashboard', debtHintKey(loanTypeFor(debtAction), isPaymentAction(debtAction)))}
+            </p>
           </>
         )}
 
