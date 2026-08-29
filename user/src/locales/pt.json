@@ -70,6 +70,7 @@
     "bkBasisAccrual": "Regime de competência",
     "bkBasisDebt": "Dívida",
     "bkDebtHint": "Empréstimos que você tomou e empréstimos que você concedeu.",
+    "bkNoCash": "[não movimenta caixa]",
     "bkDebtReceived": "Empréstimos a pagar [dinheiro que você tomou emprestado]",
     "bkDebtIssued": "Empréstimos a receber [dinheiro que você emprestou]",
     "bkDebtPayment": "Empréstimos a pagar [uma parcela que você pagou]",

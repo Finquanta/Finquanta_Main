@@ -1094,6 +1094,7 @@
     "bkBasisAccrual": "Accrual",
     "bkBasisDebt": "Debt",
     "bkDebtHint": "Loans you took out, and loans you gave out.",
+    "bkNoCash": "[no cash moves]",
     "bkDebtReceived": "Loans Payable [money you borrowed]",
     "bkDebtIssued": "Loans Receivable [money you lent out]",
     "bkDebtPayment": "Loans Payable [a repayment you made]",

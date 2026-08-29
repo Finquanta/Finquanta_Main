@@ -343,29 +343,30 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         <h2 className="text-2xl font-bold mb-4">{editing ? t('dashboard', 'editBookkeeping') : t('dashboard', 'enterBookkeeping')}</h2>
 
         {/*
-          * Invoice type. Editing an existing cash entry pins it to Cash.
+          * Which set of books. Editing an existing cash entry pins it to Cash.
           *
-          * A LABELLED DROPDOWN, not three pills. Cash basis, accrual and debt
-          * are not three views of one thing — the choice decides which ledger
-          * the entry lands in, and it is the most consequential field on the
-          * form. A row of equal-weight buttons with no label gives that
-          * decision no name at all. It now matches the type selector in the
-          * document review popup, which asks the same question.
+          * BUTTONS, deliberately. This is the top-level choice and there are
+          * only three, so showing all three at once — with the chosen one lit —
+          * is faster to read than a closed dropdown that hides two of them. The
+          * type selectors BELOW are dropdowns, and the difference in shape is
+          * the point: this picks the ledger, those pick a line within it.
           */}
         {!editing && (
           <>
-            <label className="block text-sm font-semibold mb-1">
-              {t("dashboard", "bkBasisLabel")}
-            </label>
-            <select
-              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none"
-              value={basis}
-              onChange={(e) => setBasis(e.target.value as Basis)}
-            >
-              <option value="cash">{t("dashboard", "bkBasisCash")}</option>
-              <option value="accrual">{t("dashboard", "bkBasisAccrual")}</option>
-              <option value="debt">{t("dashboard", "bkBasisDebt")}</option>
-            </select>
+            <div className="flex gap-2 mb-1">
+              {([
+                ['cash', t("dashboard", "bkBasisCash")],
+                ['accrual', t("dashboard", "bkBasisAccrual")],
+                ['debt', t("dashboard", "bkBasisDebt")],
+              ] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => setBasis(val)}
+                  className={`flex-1 px-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    basis === val ? 'bg-blue-500 text-white' : 'bg-[#2a2a3e] text-gray-300 hover:bg-[#33334a]'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <p className="text-[11px] text-gray-400 mb-5">
               {basis === 'cash' && t("dashboard", "bkCashHint")}
               {basis === 'accrual' && t("dashboard", "bkAccrualHint")}
@@ -541,37 +542,47 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
           </div>
         )}
 
-        {/* Type tick boxes — cash vs accrual */}
+        {/*
+          * Invoice type — a DROPDOWN in all three bases.
+          *
+          * The same question every time ("which kind of entry is this?"), so it
+          * gets the same control every time. As radios it grew with the basis:
+          * two rows for cash, several for accrual, four long ones for debt, and
+          * the form changed shape underneath you each time you switched. A
+          * closed dropdown is one line whatever it contains.
+          */}
         {basis === 'cash' && (
           <>
-            <label className="block text-sm font-semibold mb-2">{t('dashboard', 'invoiceTypeLabel')}</label>
-            <div className="flex flex-col gap-2 mb-4">
-              {(['Cashflow', 'Expense'] as const).map((type) => (
-                <label key={type} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="invoiceType" value={type} checked={form.invoiceType === type}
-                    onChange={(e) => setForm({ ...form, invoiceType: e.target.value })} />
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${type === 'Cashflow' ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'}`}>{t('dashboard', type === 'Cashflow' ? 'cashflow' : 'expense')}</span>
-                </label>
-              ))}
-            </div>
+            <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceTypeLabel')}</label>
+            <select
+              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-4 text-sm outline-none"
+              value={form.invoiceType}
+              onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}
+            >
+              <option value="Cashflow">{t('dashboard', 'cashflow')}</option>
+              <option value="Expense">{t('dashboard', 'expense')}</option>
+            </select>
           </>
         )}
 
         {basis === 'accrual' && (
           <>
-            <label className="block text-sm font-semibold mb-2">{t('dashboard', 'invoiceTypeLabel')}</label>
-            <div className="flex flex-col gap-2 mb-2">
+            <label className="block text-sm font-semibold mb-1">{t('dashboard', 'invoiceTypeLabel')}</label>
+            <select
+              className="w-full bg-[#2a2a3e] rounded-lg px-4 py-2 mb-1 text-sm outline-none"
+              value={accrualType}
+              onChange={(e) => setAccrualType(e.target.value as WorkflowType)}
+            >
               {ACCRUAL_TYPES.map((type) => (
-                <label key={type} className="flex items-start gap-2 cursor-pointer">
-                  <input type="radio" name="accrualType" className="mt-1" checked={accrualType === type}
-                    onChange={() => setAccrualType(type)} />
-                  <span className="text-sm">{WORKFLOW_META[type].label}</span>
-                  {!WORKFLOW_META[type].affectsCash && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#2a2a3e] text-gray-300">no cash</span>
-                  )}
-                </label>
+                <option key={type} value={type}>
+                  {WORKFLOW_META[type].label}
+                  {/* "no cash" was a badge beside the radio. An <option> cannot
+                      carry one, so it moves into the text — it is the single
+                      most important thing about these entries. */}
+                  {!WORKFLOW_META[type].affectsCash ? ` ${t('dashboard', 'bkNoCash')}` : ''}
+                </option>
               ))}
-            </div>
+            </select>
             <p className="text-[11px] text-gray-400 mb-4">{WORKFLOW_META[accrualType].description}</p>
           </>
         )}

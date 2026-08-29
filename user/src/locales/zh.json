@@ -70,6 +70,7 @@
     "bkBasisAccrual": "权责发生制",
     "bkBasisDebt": "债务",
     "bkDebtHint": "您借入的贷款，以及您借出的贷款。",
+    "bkNoCash": "［不涉及现金］",
     "bkDebtReceived": "应付贷款［您借入的钱］",
     "bkDebtIssued": "应收贷款［您借出的钱］",
     "bkDebtPayment": "应付贷款［您已偿还的款项］",

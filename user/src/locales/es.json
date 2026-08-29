@@ -70,6 +70,7 @@
     "bkBasisAccrual": "Devengo",
     "bkBasisDebt": "Deuda",
     "bkDebtHint": "Préstamos que pediste y préstamos que concediste.",
+    "bkNoCash": "[no mueve efectivo]",
     "bkDebtReceived": "Préstamos por pagar [dinero que pediste prestado]",
     "bkDebtIssued": "Préstamos por cobrar [dinero que prestaste]",
     "bkDebtPayment": "Préstamos por pagar [una cuota que pagaste]",

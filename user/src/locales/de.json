@@ -70,6 +70,7 @@
     "bkBasisAccrual": "Periodenabgrenzung",
     "bkBasisDebt": "Schulden",
     "bkDebtHint": "Aufgenommene und vergebene Darlehen.",
+    "bkNoCash": "[kein Geldfluss]",
     "bkDebtReceived": "Verbindlichkeiten aus Darlehen [Geld, das Sie aufgenommen haben]",
     "bkDebtIssued": "Forderungen aus Darlehen [Geld, das Sie verliehen haben]",
     "bkDebtPayment": "Verbindlichkeiten aus Darlehen [eine Rate, die Sie gezahlt haben]",

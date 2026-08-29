@@ -70,6 +70,7 @@
     "bkBasisAccrual": "発生主義",
     "bkBasisDebt": "借入・貸付",
     "bkDebtHint": "借りたローンと、貸したローンです。",
+    "bkNoCash": "［現金の動きなし］",
     "bkDebtReceived": "借入金（支払）［借りたお金］",
     "bkDebtIssued": "貸付金（受取）［貸したお金］",
     "bkDebtPayment": "借入金（支払）［返済した分］",
