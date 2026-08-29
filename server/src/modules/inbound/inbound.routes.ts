@@ -124,6 +124,29 @@ export async function inboundRoutes(fastify: FastifyInstance, options: { databas
     }
   }) as any);
 
+  /** Deleted emails, waiting in the bin. */
+  fastify.get('/v1/inbound/messages/deleted', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({ success: true, data: await repo.listDeletedMessages(request.businessId!) });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not read the recycle bin.' });
+    }
+  }) as any);
+
+  /** Out of the bin, back into Received. */
+  fastify.post('/v1/inbound/messages/:id/restore', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const back = await repo.restoreMessage(id, request.businessId!);
+      if (!back) return reply.status(404).send({ success: false, error: 'No such message.' });
+      return reply.send({ success: true, data: { restored: true } });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not restore that message.' });
+    }
+  }) as any);
+
   /** Somebody looked at a received message — it stops being new. */
   fastify.post('/v1/inbound/messages/:id/read', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {

@@ -10,12 +10,15 @@ import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { themeClasses } from '@/lib/theme';
 import CaptureReviewModal from '@/components/user_dashboard/capture/CaptureReviewModal';
-import { DocumentCapture, ScanAllowance, getCaptureFileUrl, getScanAllowance } from '@/lib/api/capture';
+import {
+  DocumentCapture, ScanAllowance, discardCapture, getCaptureFileUrl, getScanAllowance,
+} from '@/lib/api/capture';
 import { serverApiUrl } from '@/lib/api/client';
 import {
   InboundAddress, InboundMessage, getDiscardedFromEmail, getInboundAddress, getInboundMessages,
   InboundDiagnostics, getInboundDiagnostics,
-  deleteInboundMessage, getMessageCaptures, markMessageUnread,
+  deleteInboundMessage, getDeletedMessages, getMessageCaptures, markMessageUnread,
+  restoreMessage,
   getPendingFromEmail, markMessageRead, restoreCapture, rotateInboundAddress, setInboundSender,
 } from '@/lib/api/inbound';
 
@@ -133,15 +136,24 @@ export default function InboxPage() {
    * Off by default: a checkbox on every card all the time turns a list you
    * mostly read into a form you mostly ignore. "Edit" asks for it.
    */
-  const [selecting, setSelecting] = useState(false);
+  /**
+   * WHICH column is being edited, not merely whether one is.
+   *
+   * All three lists can be selected in, but only one at a time: the actions
+   * differ per column, and a selection spanning two of them would have to
+   * answer what "delete" means for a mixture of emails and documents.
+   */
+  const [selecting, setSelecting] = useState<'received' | 'pending' | 'bin' | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [confirmBulk, setConfirmBulk] = useState(false);
+  /** Emails that were deleted. They sit in the bin beside discarded documents. */
+  const [deletedMessages, setDeletedMessages] = useState<InboundMessage[]>([]);
   /**
    * Read by the poll timer, which is created once and must not be torn down
    * and rebuilt every time a checkbox moves.
    */
   const selectingRef = useRef(false);
-  useEffect(() => { selectingRef.current = selecting; }, [selecting]);
+  useEffect(() => { selectingRef.current = selecting !== null; }, [selecting]);
   const [allowance, setAllowance] = useState<ScanAllowance | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -158,6 +170,7 @@ export default function InboxPage() {
     getPendingFromEmail().then(setPending).catch(() => setPending([]));
     getInboundMessages().then(setMessages).catch(() => setMessages([]));
     getDiscardedFromEmail().then(setDiscarded).catch(() => setDiscarded([]));
+    getDeletedMessages().then(setDeletedMessages).catch(() => setDeletedMessages([]));
     getScanAllowance().then(setAllowance).catch(() => setAllowance(null));
   }, []);
 
@@ -201,6 +214,7 @@ export default function InboxPage() {
       setPending([]);
       setMessages([]);
       setDiscarded([]);
+      setDeletedMessages([]);
       /**
        * The diagnostics too — it reports the workspace's OWN inbound address,
        * so leaving the previous one on screen is worse than showing nothing:
@@ -251,10 +265,18 @@ export default function InboxPage() {
     }
   };
 
-  const restore = async (id: string) => {
+  /**
+   * Out of the bin, one item.
+   *
+   * The bin holds two different records now — deleted emails and discarded
+   * documents — so the caller says which it is rather than the page guessing
+   * from an id that looks identical either way.
+   */
+  const restoreOne = async (id: string, isMessage: boolean) => {
     setBusy(true);
+    setError(null);
     try {
-      await restoreCapture(id);
+      await (isMessage ? restoreMessage(id) : restoreCapture(id));
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("dashboard", "inboxErrRestore"));
@@ -311,9 +333,16 @@ export default function InboxPage() {
 
   /** Leave selection mode cleanly — a stale selection is a mis-click waiting. */
   const stopSelecting = () => {
-    setSelecting(false);
+    setSelecting(null);
     setSelected([]);
     setConfirmBulk(false);
+  };
+
+  /** Switching columns starts a fresh selection rather than carrying one over. */
+  const startSelecting = (column: 'received' | 'pending' | 'bin') => {
+    setSelected([]);
+    setConfirmBulk(false);
+    setSelecting(column);
   };
 
   const bulkRead = async (read: boolean) => {
@@ -334,16 +363,50 @@ export default function InboxPage() {
     }
   };
 
+  /**
+   * Delete, which means SEND TO THE RECYCLE BIN in both columns.
+   *
+   * An email is soft-deleted and a document is discarded. Neither destroys
+   * anything: both land in the bin, and both come back from it. The two verbs
+   * differ underneath because the records do, but the promise to the person
+   * clicking is the same one.
+   */
   const bulkDelete = async () => {
-    if (!selected.length) return;
+    if (!selected.length || !selecting) return;
     setBusy(true);
     setError(null);
     try {
-      await Promise.all(selected.map((id) => deleteInboundMessage(id)));
-      setMessages((prev) => prev.filter((m) => !selected.includes(m.id)));
+      if (selecting === 'received') {
+        await Promise.all(selected.map((id) => deleteInboundMessage(id)));
+      } else {
+        await Promise.all(selected.map((id) => discardCapture(id)));
+      }
       stopSelecting();
+      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("dashboard", "inboxErrDelete"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Out of the bin. The bin holds both kinds, so each id is routed by which
+   * list it came from rather than by asking the server to guess.
+   */
+  const bulkRestore = async () => {
+    if (!selected.length) return;
+    setBusy(true);
+    setError(null);
+    const messageIds = new Set(deletedMessages.map((m) => m.id));
+    try {
+      await Promise.all(selected.map((id) =>
+        messageIds.has(id) ? restoreMessage(id) : restoreCapture(id)
+      ));
+      stopSelecting();
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard", "inboxErrRestore"));
     } finally {
       setBusy(false);
     }
@@ -407,6 +470,94 @@ export default function InboxPage() {
       </header>
       <div className="p-3 space-y-2 overflow-y-auto max-h-[28rem]">{children}</div>
     </section>
+  );
+
+  /**
+   * The selection bar, shared by all three columns.
+   *
+   * Written once because the columns must not drift: "Select all" meaning
+   * different things in different lanes, or delete confirming in one and not
+   * another, is the kind of inconsistency nobody reports and everybody
+   * distrusts.
+   */
+  const BulkBar = ({
+    ids, onDelete, extra,
+  }: { ids: string[]; onDelete?: () => void; extra?: React.ReactNode }) => (
+    <div className={`rounded-lg border p-2 space-y-2 ${c.line} ${c.panel}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={`text-[11px] font-semibold ${c.body}`}>
+          {t("dashboard", "inboxSelected").replace("{n}", String(selected.length))}
+        </span>
+        <button
+          onClick={() => setSelected(selected.length === ids.length ? [] : ids)}
+          className="text-[11px] font-semibold text-purple-500 hover:underline"
+        >
+          {selected.length === ids.length
+            ? t("dashboard", "inboxSelectNone")
+            : t("dashboard", "inboxSelectAll")}
+        </button>
+      </div>
+
+      {confirmBulk && onDelete ? (
+        <div className="space-y-2">
+          <p className={`text-[11px] ${c.muted}`}>
+            {t("dashboard", "inboxBulkDeleteConfirm").replace("{n}", String(selected.length))}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setConfirmBulk(false)}
+              disabled={busy}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border ${c.line} ${c.body} ${c.hover}`}
+            >
+              {t("dashboard", "phoneCancel")}
+            </button>
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60"
+            >
+              {busy ? t("dashboard", "inboxDeleting") : t("dashboard", "inboxDelete")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {extra}
+          {onDelete && (
+            <button
+              onClick={() => setConfirmBulk(true)}
+              disabled={busy || !selected.length}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-red-500 border border-red-300 disabled:opacity-50 hover:bg-red-500 hover:text-white"
+            >
+              {t("dashboard", "inboxDelete")}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  /** The Edit / Done control every column carries. */
+  const EditToggle = ({ column, count }: { column: 'received' | 'pending' | 'bin'; count: number }) =>
+    count > 0 ? (
+      <button
+        onClick={() => (selecting === column ? stopSelecting() : startSelecting(column))}
+        className={`text-[11px] font-semibold ${selecting === column ? 'text-purple-500' : c.muted} hover:underline`}
+      >
+        {selecting === column ? t("dashboard", "inboxDone") : t("dashboard", "inboxEdit")}
+      </button>
+    ) : null;
+
+  /** The tick shown on a selected card. */
+  const Tick = ({ on }: { on: boolean }) => (
+    <span
+      aria-hidden="true"
+      className={`mt-0.5 h-4 w-4 flex-shrink-0 rounded border flex items-center justify-center ${
+        on ? 'bg-purple-500 border-purple-500 text-white' : c.line
+      }`}
+    >
+      {on && <Check className="h-3 w-3" />}
+    </span>
   );
 
   const Empty = ({ text }: { text: string }) => (
@@ -475,58 +626,14 @@ export default function InboxPage() {
             title={t("dashboard", "inboxColReceived")}
             count={unread}
             accent={unread > 0 ? 'bg-amber-500 text-white' : undefined}
-            action={messages.length > 0 ? (
-              <button
-                onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
-                className={`text-[11px] font-semibold ${selecting ? 'text-purple-500' : c.muted} hover:underline`}
-              >
-                {selecting ? t("dashboard", "inboxDone") : t("dashboard", "inboxEdit")}
-              </button>
-            ) : undefined}
+            action={<EditToggle column="received" count={messages.length} />}
           >
-            {/* The bulk bar, only while selecting. */}
-            {selecting && messages.length > 0 && (
-              <div className={`rounded-lg border p-2 space-y-2 ${c.line} ${c.panel}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className={`text-[11px] font-semibold ${c.body}`}>
-                    {t("dashboard", "inboxSelected").replace("{n}", String(selected.length))}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setSelected(selected.length === messages.length ? [] : messages.map((m) => m.id))
-                    }
-                    className="text-[11px] font-semibold text-purple-500 hover:underline"
-                  >
-                    {selected.length === messages.length
-                      ? t("dashboard", "inboxSelectNone")
-                      : t("dashboard", "inboxSelectAll")}
-                  </button>
-                </div>
-
-                {confirmBulk ? (
-                  <div className="space-y-2">
-                    <p className={`text-[11px] ${c.muted}`}>
-                      {t("dashboard", "inboxBulkDeleteConfirm").replace("{n}", String(selected.length))}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setConfirmBulk(false)}
-                        disabled={busy}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border ${c.line} ${c.body} ${c.hover}`}
-                      >
-                        {t("dashboard", "phoneCancel")}
-                      </button>
-                      <button
-                        onClick={bulkDelete}
-                        disabled={busy}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60"
-                      >
-                        {busy ? t("dashboard", "inboxDeleting") : t("dashboard", "inboxDelete")}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
+            {selecting === 'received' && (
+              <BulkBar
+                ids={messages.map((m) => m.id)}
+                onDelete={bulkDelete}
+                extra={
+                  <>
                     <button
                       onClick={() => bulkRead(true)}
                       disabled={busy || !selected.length}
@@ -541,16 +648,9 @@ export default function InboxPage() {
                     >
                       {t("dashboard", "inboxMarkUnread")}
                     </button>
-                    <button
-                      onClick={() => setConfirmBulk(true)}
-                      disabled={busy || !selected.length}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-red-500 border border-red-300 disabled:opacity-50 hover:bg-red-500 hover:text-white"
-                    >
-                      {t("dashboard", "inboxDelete")}
-                    </button>
-                  </div>
-                )}
-              </div>
+                  </>
+                }
+              />
             )}
 
             {messages.length === 0 ? (
@@ -559,28 +659,15 @@ export default function InboxPage() {
               messages.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => (selecting ? toggle(m.id) : open(m))}
+                  onClick={() => (selecting === 'received' ? toggle(m.id) : open(m))}
                   className={`w-full text-left rounded-lg border px-3 py-2 ${c.hover} ${
-                    selecting && selected.includes(m.id)
+                    selecting === 'received' && selected.includes(m.id)
                       ? 'border-purple-500 ring-1 ring-purple-500'
                       : c.line
                   }`}
                 >
                   <span className="flex items-start gap-2">
-                    {selecting && (
-                      // Presentational: the whole card is the control, so a real
-                      // checkbox here would be a second tab stop doing the same job.
-                      <span
-                        aria-hidden="true"
-                        className={`mt-0.5 h-4 w-4 flex-shrink-0 rounded border flex items-center justify-center ${
-                          selected.includes(m.id)
-                            ? 'bg-purple-500 border-purple-500 text-white'
-                            : c.line
-                        }`}
-                      >
-                        {selected.includes(m.id) && <Check className="h-3 w-3" />}
-                      </span>
-                    )}
+                    {selecting === 'received' && <Tick on={selected.includes(m.id)} />}
                     {/* The dot IS the unread marker, rather than bolding everything. */}
                     <span
                       className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
@@ -629,16 +716,28 @@ export default function InboxPage() {
             title={t("dashboard", "inboxColPending")}
             count={pending.length}
             accent={pending.length > 0 ? 'bg-purple-500 text-white' : undefined}
+            action={<EditToggle column="pending" count={pending.length} />}
           >
+            {selecting === 'pending' && (
+              // Delete here means DISCARD, which is the bin — the same promise
+              // as Received, a different verb underneath.
+              <BulkBar ids={pending.map((p) => p.id)} onDelete={bulkDelete} />
+            )}
+
             {pending.length === 0 ? (
               <Empty text={t("dashboard", "inboxEmptyPending")} />
             ) : (
               pending.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setReviewing(p)}
-                  className={`w-full flex items-center gap-2 text-left rounded-lg border px-3 py-2 ${c.line} ${c.hover}`}
+                  onClick={() => (selecting === 'pending' ? toggle(p.id) : setReviewing(p))}
+                  className={`w-full flex items-center gap-2 text-left rounded-lg border px-3 py-2 ${c.hover} ${
+                    selecting === 'pending' && selected.includes(p.id)
+                      ? 'border-purple-500 ring-1 ring-purple-500'
+                      : c.line
+                  }`}
                 >
+                  {selecting === 'pending' && <Tick on={selected.includes(p.id)} />}
                   <Mail className="h-4 w-4 flex-shrink-0 text-purple-500" />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-xs font-medium truncate ${c.heading}`}>
@@ -666,50 +765,107 @@ export default function InboxPage() {
           </Column>
 
           {/* 3 — what I threw away */}
-          <Column title={t("dashboard", "inboxColBin")} count={discarded.length}>
-            {discarded.length === 0 ? (
-              <Empty text={t("dashboard", "inboxEmptyBin")} />
-            ) : (
-              /**
-               * The bin is emptied on a schedule, so it has to SAY so. A
-               * recycle bin that silently destroys things after a month is
-               * worse than one that keeps nothing, because it looks permanent
-               * right up until the thing you wanted is gone.
-               */
-              discarded.map((d) => (
-                <div
-                  key={d.id}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${c.line}`}
-                >
-                  <Trash2 className={`h-4 w-4 flex-shrink-0 ${c.muted}`} />
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-xs truncate ${c.body}`}>
-                      {d.extractedFields.vendor || d.originalFilename || t("dashboard", "inboxDocument")}
-                    </span>
-                    <span className={`block text-[11px] ${c.muted}`}>
-                      {d.extractedFields.total != null
-                        ? `${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()
-                        : '—'}
-                      {` · ${when(d.createdAt)}`}
-                    </span>
-                  </span>
+          <Column
+            title={t("dashboard", "inboxColBin")}
+            count={discarded.length + deletedMessages.length}
+            action={<EditToggle column="bin" count={discarded.length + deletedMessages.length} />}
+          >
+            {selecting === 'bin' && (
+              <BulkBar
+                ids={[...deletedMessages.map((m) => m.id), ...discarded.map((d) => d.id)]}
+                extra={
                   <button
-                    onClick={() => restore(d.id)}
-                    disabled={busy}
-                    title={t("dashboard", "inboxPutItBack")}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-purple-500 hover:underline disabled:opacity-60"
+                    onClick={bulkRestore}
+                    disabled={busy || !selected.length}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white bg-purple-500 hover:bg-purple-600 disabled:opacity-50"
                   >
-                    <RotateCcw className="h-3 w-3" />
                     {t("dashboard", "inboxRestore")}
                   </button>
-                </div>
-              ))
+                }
+              />
             )}
 
-            {discarded.length > 0 && (
-              <p className={`pt-1 text-[11px] ${c.muted}`}>
-                {t("dashboard", "inboxBinRetention")}
-              </p>
+            {discarded.length + deletedMessages.length === 0 ? (
+              <Empty text={t("dashboard", "inboxEmptyBin")} />
+            ) : (
+              <>
+                {/* Deleted EMAILS first: an email is the larger thing to lose,
+                    since it is the only record that anything arrived at all. */}
+                {deletedMessages.map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={() => { if (selecting === 'bin') toggle(m.id); }}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                      selecting === 'bin'
+                        ? `cursor-pointer ${selected.includes(m.id)
+                          ? 'border-purple-500 ring-1 ring-purple-500'
+                          : c.line}`
+                        : c.line
+                    }`}
+                  >
+                    {selecting === 'bin' && <Tick on={selected.includes(m.id)} />}
+                    <Mail className={`h-4 w-4 flex-shrink-0 ${c.muted}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-xs truncate ${c.body}`}>
+                        {m.subject || t("dashboard", "inboxNoSubject")}
+                      </span>
+                      <span className={`block text-[11px] truncate ${c.muted}`}>{m.fromEmail}</span>
+                    </span>
+                    {selecting !== 'bin' && (
+                      <button
+                        onClick={() => restoreOne(m.id, true)}
+                        disabled={busy}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-purple-500 hover:underline disabled:opacity-60"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("dashboard", "inboxRestore")}
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {discarded.map((d) => (
+                  <div
+                    key={d.id}
+                    onClick={() => { if (selecting === 'bin') toggle(d.id); }}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                      selecting === 'bin'
+                        ? `cursor-pointer ${selected.includes(d.id)
+                          ? 'border-purple-500 ring-1 ring-purple-500'
+                          : c.line}`
+                        : c.line
+                    }`}
+                  >
+                    {selecting === 'bin' && <Tick on={selected.includes(d.id)} />}
+                    <Trash2 className={`h-4 w-4 flex-shrink-0 ${c.muted}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-xs truncate ${c.body}`}>
+                        {d.extractedFields.vendor || d.originalFilename || t("dashboard", "inboxDocument")}
+                      </span>
+                      <span className={`block text-[11px] ${c.muted}`}>
+                        {d.extractedFields.total != null
+                          ? `${d.extractedFields.currency ?? ''} ${d.extractedFields.total}`.trim()
+                          : '—'}
+                        {` · ${when(d.createdAt)}`}
+                      </span>
+                    </span>
+                    {selecting !== 'bin' && (
+                      <button
+                        onClick={() => restoreOne(d.id, false)}
+                        disabled={busy}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-purple-500 hover:underline disabled:opacity-60"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("dashboard", "inboxRestore")}
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <p className={`pt-1 text-[11px] ${c.muted}`}>
+                  {t("dashboard", "inboxBinRetention")}
+                </p>
+              </>
             )}
           </Column>
         </div>

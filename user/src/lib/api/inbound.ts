@@ -76,6 +76,14 @@ export const restoreCapture = (id: string) =>
 export const getMessageCaptures = (id: string) =>
   apiFetch<DocumentCapture[]>(`/v1/inbound/messages/${id}/captures`);
 
+/** Emails in the recycle bin. Deleting one no longer destroys it. */
+export const getDeletedMessages = () =>
+  apiFetch<InboundMessage[]>('/v1/inbound/messages/deleted');
+
+/** Out of the bin, back into Received. */
+export const restoreMessage = (id: string) =>
+  apiFetch<{ restored: boolean }>(`/v1/inbound/messages/${id}/restore`, { method: 'POST' });
+
 /** Put the unread dot back — reading something is not the same as dealing with it. */
 export const markMessageUnread = (id: string) =>
   apiFetch<{ read: boolean }>(`/v1/inbound/messages/${id}/unread`, { method: 'POST' });

@@ -80,6 +80,11 @@ export class InboundRepository {
       -- having already looked at something is exactly what you want to know.
       ALTER TABLE inbound_messages ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP WITH TIME ZONE;
 
+      -- Deleting an email SENDS IT TO THE RECYCLE BIN rather than destroying it.
+      -- Delete is one click on a two-line summary, and the thing being thrown
+      -- away is the only record that a document ever arrived at all.
+      ALTER TABLE inbound_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
       -- Where a capture came from, when it came from an email. Added here so the
       -- dependency points one way: inbound knows about capture, capture knows
       -- nothing about inbound.
@@ -287,10 +292,32 @@ export class InboundRepository {
    */
   async deleteMessage(id: string, businessId: string): Promise<boolean> {
     const r = await this.database.query(
-      'DELETE FROM inbound_messages WHERE id = $1 AND business_id = $2',
+      `UPDATE inbound_messages SET deleted_at = NOW()
+        WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL`,
       [id, businessId]
     );
     return (r.rowCount ?? 0) > 0;
+  }
+
+  /** Back out of the bin, into Received. */
+  async restoreMessage(id: string, businessId: string): Promise<boolean> {
+    const r = await this.database.query(
+      `UPDATE inbound_messages SET deleted_at = NULL
+        WHERE id = $1 AND business_id = $2 AND deleted_at IS NOT NULL`,
+      [id, businessId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /** What is in the bin, most recently binned first. */
+  async listDeletedMessages(businessId: string, limit = 50): Promise<InboundMessage[]> {
+    const r = await this.database.query(
+      `SELECT * FROM inbound_messages
+        WHERE business_id = $1 AND deleted_at IS NOT NULL
+        ORDER BY deleted_at DESC LIMIT $2`,
+      [businessId, Math.min(Math.max(limit, 1), 200)]
+    );
+    return r.rows.map((x: any) => this.toMessage(x));
   }
 
   async markBodyExtracted(id: string): Promise<void> {
@@ -327,7 +354,8 @@ export class InboundRepository {
 
   async listMessages(businessId: string, limit = 50): Promise<InboundMessage[]> {
     const r = await this.database.query(
-      `SELECT * FROM inbound_messages WHERE business_id = $1
+      `SELECT * FROM inbound_messages
+        WHERE business_id = $1 AND deleted_at IS NULL
         ORDER BY received_at DESC LIMIT $2`,
       [businessId, Math.min(Math.max(limit, 1), 200)]
     );
