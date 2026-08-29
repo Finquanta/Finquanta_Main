@@ -982,121 +982,134 @@ export default function InboxPage() {
             </div>
           </div>
         )}
-        {/* Troubleshooting. Behind a toggle because it answers a question you
-            only ask when something has not turned up. */}
-        <div className="mt-4">
-          <button
-            onClick={() => {
-              setShowDiag((v) => !v);
-              if (!diag) getInboundDiagnostics().then(setDiag).catch(() => setDiag(null));
-            }}
-            className={`text-xs font-medium underline ${c.muted}`}
-          >
-            {showDiag
-              ? t("dashboard", "inboxHideTroubleshooting")
-              : t("dashboard", "inboxShowTroubleshooting")}
-          </button>
+        {/*
+          * Troubleshooting — LOCAL ONLY.
+          *
+          * This existed to answer one question while inbound email was not
+          * working: is Resend calling us, and if not, where does it stop? It
+          * did its job. On the live site it is now a panel of webhook
+          * counters and signing-secret internals shown to people running a
+          * business, which is noise at best and alarming at worst.
+          *
+          * Kept on localhost because that is where the next inbound problem
+          * gets diagnosed, and rebuilding it from memory would cost more
+          * than leaving it here.
+          */}
+        {isLocal && (
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                setShowDiag((v) => !v);
+                if (!diag) getInboundDiagnostics().then(setDiag).catch(() => setDiag(null));
+              }}
+              className={`text-xs font-medium underline ${c.muted}`}
+            >
+              {showDiag
+                ? t("dashboard", "inboxHideTroubleshooting")
+                : t("dashboard", "inboxShowTroubleshooting")}
+            </button>
 
-          {showDiag && (
-            <div className={`mt-2 rounded-xl border p-4 text-xs ${c.surface} ${c.line}`}>
-              {!diag ? (
-                <p className={c.muted}>Loading…</p>
-              ) : (
-                <>
-                  {/* WHICH SERVER AM I READING? First, and on its own, because
-                      every confusing hour this feature has caused came from a
-                      local answer being read as if it described production.
-                      Resend cannot reach localhost, so a local server will
-                      never receive a webhook and its counters are all zero by
-                      definition. */}
-                  {isLocal && (
-                    <p className={`mb-3 rounded-lg border px-3 py-2 ${isDark ? 'border-amber-800 bg-amber-900/20 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                      <strong>This is your local server.</strong> Resend can only deliver to the
-                      live site, so everything below describes a server that will never receive
-                      email. Open this page on the live site to diagnose delivery — and note the
-                      address above is a different one, because local and production use separate
-                      databases.
-                    </p>
-                  )}
+            {showDiag && (
+              <div className={`mt-2 rounded-xl border p-4 text-xs ${c.surface} ${c.line}`}>
+                {!diag ? (
+                  <p className={c.muted}>Loading…</p>
+                ) : (
+                  <>
+                    {/* WHICH SERVER AM I READING? First, and on its own, because
+                        every confusing hour this feature has caused came from a
+                        local answer being read as if it described production.
+                        Resend cannot reach localhost, so a local server will
+                        never receive a webhook and its counters are all zero by
+                        definition. */}
+                    {isLocal && (
+                      <p className={`mb-3 rounded-lg border px-3 py-2 ${isDark ? 'border-amber-800 bg-amber-900/20 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        <strong>This is your local server.</strong> Resend can only deliver to the
+                        live site, so everything below describes a server that will never receive
+                        email. Open this page on the live site to diagnose delivery — and note the
+                        address above is a different one, because local and production use separate
+                        databases.
+                      </p>
+                    )}
 
-                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                    {(() => {
-                      const rows: [string, string][] = [
-                        ['Talking to', apiBase],
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                      {(() => {
+                        const rows: [string, string][] = [
+                          ['Talking to', apiBase],
+                          /**
+                           * The exact URL Resend must be pointed at.
+                           *
+                           * "Talking to" is the app's API base, which is NOT the
+                           * webhook URL — reading one as the other is an easy and
+                           * completely invisible mistake. Spelling it out here
+                           * means it can be copied rather than assembled.
+                           */
+                          ['Webhook URL for Resend', `${apiBase.replace(/\/$/, '')}/v1/inbound/resend`],
+                          ['This workspace’s address', diag.address],
+                          ['Receiving domain', diag.inboundDomain],
+                          ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
+                          ['Resend API key set', diag.apiKeySet ? 'yes' : 'NO — mail cannot be read'],
+                          ['Deliveries seen', String(diag.webhook.total)],
+                          ['Signature rejected', String(diag.webhook.badSignature)],
+                          ['Payload unrecognised', String(diag.webhook.unreadable)],
+                          ['Address not found', String(diag.webhook.unknownAddress)],
+                          ['Routed to this server', String(diag.webhook.routed)],
+                        ];
+
+                        // The reason, when there is one. A count says a delivery
+                        // was refused; only this says what to change.
+                        if (diag.webhook.lastFailure) {
+                          rows.push(['Why it was rejected', diag.webhook.lastFailure]);
+                        }
+
                         /**
-                         * The exact URL Resend must be pointed at.
-                         *
-                         * "Talking to" is the app's API base, which is NOT the
-                         * webhook URL — reading one as the other is an easy and
-                         * completely invisible mistake. Spelling it out here
-                         * means it can be copied rather than assembled.
+                         * The secret's shape, shown only once something has
+                         * actually been refused — it is noise otherwise, and it
+                         * distinguishes a bad paste from a genuine mismatch.
                          */
-                        ['Webhook URL for Resend', `${apiBase.replace(/\/$/, '')}/v1/inbound/resend`],
-                        ['This workspace’s address', diag.address],
-                        ['Receiving domain', diag.inboundDomain],
-                        ['Signing secret set', diag.signingSecretSet ? 'yes' : 'NO — the webhook will be refused'],
-                        ['Resend API key set', diag.apiKeySet ? 'yes' : 'NO — mail cannot be read'],
-                        ['Deliveries seen', String(diag.webhook.total)],
-                        ['Signature rejected', String(diag.webhook.badSignature)],
-                        ['Payload unrecognised', String(diag.webhook.unreadable)],
-                        ['Address not found', String(diag.webhook.unknownAddress)],
-                        ['Routed to this server', String(diag.webhook.routed)],
-                      ];
+                        if (diag.webhook.badSignature > 0 && diag.secret) {
+                          rows.push(
+                            ['Secret starts with whsec_', diag.secret.hasWhsecPrefix ? 'yes' : 'NO'],
+                            ['Secret decodes as base64', diag.secret.looksBase64 ? 'yes' : 'NO — wrong value pasted'],
+                            ['Secret had stray spaces', diag.secret.hadSurroundingWhitespace ? 'YES — re-paste it' : 'no'],
+                            ['Secret key length', `${diag.secret.keyBytes} bytes`],
+                          );
+                        }
 
-                      // The reason, when there is one. A count says a delivery
-                      // was refused; only this says what to change.
-                      if (diag.webhook.lastFailure) {
-                        rows.push(['Why it was rejected', diag.webhook.lastFailure]);
-                      }
+                        return rows;
+                      })().map(([k, v]) => (
+                        <div key={k} className="flex justify-between gap-3">
+                          <dt className={c.muted}>{k}</dt>
+                          <dd className={`font-mono text-right break-all ${c.heading}`}>{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
 
-                      /**
-                       * The secret's shape, shown only once something has
-                       * actually been refused — it is noise otherwise, and it
-                       * distinguishes a bad paste from a genuine mismatch.
-                       */
-                      if (diag.webhook.badSignature > 0 && diag.secret) {
-                        rows.push(
-                          ['Secret starts with whsec_', diag.secret.hasWhsecPrefix ? 'yes' : 'NO'],
-                          ['Secret decodes as base64', diag.secret.looksBase64 ? 'yes' : 'NO — wrong value pasted'],
-                          ['Secret had stray spaces', diag.secret.hadSurroundingWhitespace ? 'YES — re-paste it' : 'no'],
-                          ['Secret key length', `${diag.secret.keyBytes} bytes`],
-                        );
-                      }
-
-                      return rows;
-                    })().map(([k, v]) => (
-                      <div key={k} className="flex justify-between gap-3">
-                        <dt className={c.muted}>{k}</dt>
-                        <dd className={`font-mono text-right break-all ${c.heading}`}>{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
-
-                  <p className={`mt-3 ${c.muted}`}>
-                    {isLocal
-                      ? 'Nothing here indicates a problem — a local server is not connected to Resend at all.'
-                      : diag.webhook.total === 0
-                      ? 'Resend has not called this server since it last restarted. Check the webhook exists, points at the URL above, and is SUBSCRIBED TO INBOUND EMAIL — a webhook listening only to sending events never fires when mail arrives.'
-                      : diag.webhook.unknownAddress > 0
-                        ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
-                        : diag.webhook.badSignature > 0
-                          ? (diag.secret && !diag.secret.looksBase64
-                            ? 'The signing secret is not a valid whsec_ key — something else was pasted into it. Copy the Signing Secret from the webhook in Resend, not an API key.'
-                            : diag.webhook.lastFailure?.startsWith('timestamp')
-                              ? 'The signature is fine but the timestamp is out of step — the delivery was delayed or this server’s clock is off.'
-                              : 'Deliveries are being refused: the signing secret here does not match the one on THIS webhook. If you have more than one webhook in Resend, each has its own secret.')
-                          : 'Deliveries are arriving and routing. If a document is missing, look in Received above for its status.'}
-                  </p>
-                  <p className={`mt-1 ${c.muted}`}>
-                    Counts reset whenever the server restarts, and they count EVERY request to the
-                    webhook — including a manual test. Compare them against Resend’s own delivery
-                    log rather than reading them as proof Resend called.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+                    <p className={`mt-3 ${c.muted}`}>
+                      {isLocal
+                        ? 'Nothing here indicates a problem — a local server is not connected to Resend at all.'
+                        : diag.webhook.total === 0
+                        ? 'Resend has not called this server since it last restarted. Check the webhook exists, points at the URL above, and is SUBSCRIBED TO INBOUND EMAIL — a webhook listening only to sending events never fires when mail arrives.'
+                        : diag.webhook.unknownAddress > 0
+                          ? 'Mail arrived for an address this database does not have. Addresses are per environment — use the one shown above, from THIS site.'
+                          : diag.webhook.badSignature > 0
+                            ? (diag.secret && !diag.secret.looksBase64
+                              ? 'The signing secret is not a valid whsec_ key — something else was pasted into it. Copy the Signing Secret from the webhook in Resend, not an API key.'
+                              : diag.webhook.lastFailure?.startsWith('timestamp')
+                                ? 'The signature is fine but the timestamp is out of step — the delivery was delayed or this server’s clock is off.'
+                                : 'Deliveries are being refused: the signing secret here does not match the one on THIS webhook. If you have more than one webhook in Resend, each has its own secret.')
+                            : 'Deliveries are arriving and routing. If a document is missing, look in Received above for its status.'}
+                    </p>
+                    <p className={`mt-1 ${c.muted}`}>
+                      Counts reset whenever the server restarts, and they count EVERY request to the
+                      webhook — including a manual test. Compare them against Resend’s own delivery
+                      log rather than reading them as proof Resend called.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/**
