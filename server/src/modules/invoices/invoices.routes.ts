@@ -4,7 +4,9 @@ import { authenticate, AuthenticatedRequest } from '../shared/authenticate';
 import { withBusiness } from '../shared/business-context';
 import { InvoicesRepository, InvoiceInput, Invoice } from './invoices.repository';
 import { AccountingRepository } from '../accounting/accounting.repository';
-import { buildWorkflow } from '../accounting/accounting.engine';
+import {
+  buildCancellationEntry, buildPaymentEntry, buildReceivableEntry,
+} from './invoices.ledger';
 import { ActivityRepository } from '../activity/activity.repository';
 
 /**
@@ -109,22 +111,15 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
   ): Promise<{ arEntryId?: string; paymentEntryId?: string }> => {
     const booked = ['sent', 'viewed', 'overdue', 'paid'].includes(invoice.status);
     if (!booked || invoice.total <= 0) return {};
-    const who = invoice.customerName ? ` — ${invoice.customerName}` : '';
 
-    const ar = buildWorkflow('credit_revenue', {
-      amount: invoice.total,
-      description: `Invoice ${invoice.number}${who}`,
-    });
+    const ar = buildReceivableEntry(invoice);
     const arEntryId = await ledger.createEntry({
       businessId, description: ar.description, sourceType: 'invoice',
       sourceId: invoice.id, createdBy: userId, lines: ar.lines,
     });
     if (invoice.status !== 'paid') return { arEntryId };
 
-    const payment = buildWorkflow('receive_ar_payment', {
-      amount: invoice.total,
-      description: `Payment for invoice ${invoice.number}${who}`,
-    });
+    const payment = buildPaymentEntry(invoice);
     const paymentEntryId = await ledger.createEntry({
       businessId, description: payment.description, sourceType: 'invoice_payment',
       sourceId: invoice.id, createdBy: userId, lines: payment.lines,
@@ -216,10 +211,7 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
 
       let arEntryId = invoice.arEntryId;
       if (!arEntryId) {
-        const built = buildWorkflow('credit_revenue', {
-          amount: invoice.total,
-          description: `Invoice ${invoice.number}${invoice.customerName ? ` — ${invoice.customerName}` : ''}`,
-        });
+        const built = buildReceivableEntry(invoice);
         arEntryId = await ledger.createEntry({
           businessId: request.businessId!,
           description: built.description,
@@ -247,10 +239,7 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
       // correct before we clear it.
       let arEntryId = invoice.arEntryId;
       if (!arEntryId) {
-        const ar = buildWorkflow('credit_revenue', {
-          amount: invoice.total,
-          description: `Invoice ${invoice.number}${invoice.customerName ? ` — ${invoice.customerName}` : ''}`,
-        });
+        const ar = buildReceivableEntry(invoice);
         arEntryId = await ledger.createEntry({
           businessId: request.businessId!,
           description: ar.description,
@@ -261,10 +250,7 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
         });
       }
 
-      const payment = buildWorkflow('receive_ar_payment', {
-        amount: invoice.total,
-        description: `Payment for invoice ${invoice.number}${invoice.customerName ? ` — ${invoice.customerName}` : ''}`,
-      });
+      const payment = buildPaymentEntry(invoice);
       const paymentEntryId = await ledger.createEntry({
         businessId: request.businessId!,
         description: payment.description,
@@ -302,31 +288,16 @@ export async function invoiceRoutes(fastify: FastifyInstance, options: { databas
         return reply.send({ success: true, data: invoice }); // already void — nothing to do
       }
 
-      if (invoice.paymentEntryId) {
-        // Paid: the receivable already cancelled itself out. Undo revenue + cash.
+      // null for a draft, which never reached the books.
+      const reversal = buildCancellationEntry(invoice);
+      if (reversal) {
         await ledger.createEntry({
           businessId: request.businessId!,
-          description: `Voided paid invoice ${invoice.number}`,
+          description: reversal.description,
           sourceType: 'invoice_cancelled',
           sourceId: invoice.id,
           createdBy: request.user!.id,
-          lines: [
-            { code: 'REVENUE', debit: invoice.total, credit: 0 },
-            { code: 'CASH', debit: 0, credit: invoice.total },
-          ],
-        });
-      } else if (invoice.arEntryId) {
-        // Sent but unpaid: undo the receivable.
-        await ledger.createEntry({
-          businessId: request.businessId!,
-          description: `Cancelled invoice ${invoice.number}`,
-          sourceType: 'invoice_cancelled',
-          sourceId: invoice.id,
-          createdBy: request.user!.id,
-          lines: [
-            { code: 'REVENUE', debit: invoice.total, credit: 0 },
-            { code: 'AR', debit: 0, credit: invoice.total },
-          ],
+          lines: reversal.lines,
         });
       }
 
