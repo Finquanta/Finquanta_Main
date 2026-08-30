@@ -10,7 +10,18 @@ interface Column<T extends { id: string }> {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (value: unknown, row: T) => React.ReactNode;
+  /**
+   * Declared as a METHOD, not a function-valued property, on purpose.
+   *
+   * `key` is a plain string, so the table cannot know a column's value type and
+   * has to hand it over as `unknown`. Every caller does know — they write
+   * `(value: string) => ...` — but under `strictFunctionTypes` a property of
+   * type `(value: unknown) => ...` will not accept one, because function
+   * properties are checked contravariantly. Method syntax is checked
+   * bivariantly, which is exactly the looseness this needs: the column author
+   * knows the type of their own cell, and the table does not.
+   */
+  render?(value: unknown, row: T): React.ReactNode;
 }
 
 interface DataTableProps<T extends { id: string }> {
@@ -104,7 +115,7 @@ export default function DataTable<T extends { id: string }>({
                   )}
                   {columns.map(col => (
                     <td key={col.key} className="p-2">
-                      {col.render ? col.render(row[col.key], row) : row[col.key]}
+                      {col.render ? col.render(row[col.key as keyof T], row) : (row[col.key as keyof T] as React.ReactNode)}
                     </td>
                   ))}
                 </tr>

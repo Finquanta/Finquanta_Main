@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Printer, Mail, Check, Send, Ban, Pencil } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
   Invoice, STATUS_COLORS, getInvoice, markInvoiceSent, markInvoicePaid, cancelInvoice, money,
@@ -21,6 +22,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [business, setBusiness] = useState<BusinessProfile>({});
@@ -143,12 +145,22 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           )}
           {canCancel && (
             <button
-              onClick={() => {
-                const msg = invoice.status === "paid"
-                  ? "Void this paid invoice? The revenue and the cash it recorded will be reversed out of your books."
-                  : "Cancel this invoice? If it's already in your books, a reversing entry is recorded.";
-                if (window.confirm(msg)) act(() => cancelInvoice(invoice.id));
-              }}
+              onClick={() => ask({
+                // Voiding a PAID invoice reverses revenue and cash already in
+                // the books; cancelling an unpaid one may not touch them at
+                // all. Different consequence, different wording.
+                title: invoice.status === "paid"
+                  ? t("dashboard", "invVoidTitle")
+                  : t("dashboard", "invCancelTitle"),
+                body: invoice.status === "paid"
+                  ? t("dashboard", "invVoidBody")
+                  : t("dashboard", "invCancelBody"),
+                tone: "danger",
+                confirmLabel: invoice.status === "paid"
+                  ? t("dashboard", "invVoidAction")
+                  : t("dashboard", "invCancelAction"),
+                onConfirm: () => act(() => cancelInvoice(invoice.id)),
+              })}
               disabled={busy} className={`${btn} hover:!text-red-500`}>
               <Ban className="h-4 w-4" /> {invoice.status === "paid" ? "Void" : "Cancel"}
             </button>

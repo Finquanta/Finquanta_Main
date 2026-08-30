@@ -7,7 +7,7 @@ import {
   Audience, SentNotification, deleteNotification, getSentNotifications, sendNotification,
 } from "@/lib/api/notifications";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
-import ConfirmDialog from "@/components/user_dashboard/ConfirmDialog";
+import { useConfirm } from "@/hooks/useConfirm";
 import { Maintenance, getMaintenance, setMaintenance } from "@/lib/api/site";
 
 const AUDIENCES: { value: Audience; label: string; hint: string }[] = [
@@ -45,15 +45,11 @@ export default function AdminNotificationsPage() {
     startsAt: null, endsAt: null, upcoming: false,
   });
   /**
-   * The question on screen. Replaces `window.confirm`, which is unstyleable,
-   * prefixed with the host name, and looks exactly like the prompts people are
-   * trained to dismiss without reading — the wrong dialog for "tell every
-   * visitor the product is broken".
+   * Every consequential question on this page, through the shared hook — which
+   * also gives the action a real busy state, where this page previously closed
+   * the dialog first and ran the write with nothing on screen to show for it.
    */
-  const [ask, setAsk] = useState<{
-    title: string; body: React.ReactNode; confirmLabel: string;
-    tone: "default" | "danger" | "warning"; run: () => Promise<void>;
-  } | null>(null);
+  const { ask, dialog } = useConfirm(dark);
   const [maintBusy, setMaintBusy] = useState(false);
 
   const load = () => {
@@ -72,7 +68,7 @@ export default function AdminNotificationsPage() {
 
     // Putting it up tells every visitor the product is broken. Worth a beat.
     if (next) {
-      setAsk({
+      ask({
         title: "Show the maintenance banner to everyone, including logged-out visitors?",
         body: (
           <>
@@ -87,8 +83,9 @@ export default function AdminNotificationsPage() {
           </>
         ),
         confirmLabel: "Put the banner up",
+        cancelLabel: "Cancel",
         tone: "warning",
-        run: () => applyToggle(true),
+        onConfirm: () => applyToggle(true),
       });
       return;
     }
@@ -201,12 +198,13 @@ export default function AdminNotificationsPage() {
     const timing = when
       ? `It will be delivered on ${when.toLocaleString()}.`
       : "It appears in their notification inbox right away.";
-    setAsk({
+    ask({
       title: `${when ? "Schedule" : "Send"} "${title.trim()}" to ${who}?`,
       body: <>{timing}</>,
       confirmLabel: when ? "Schedule it" : "Send it",
+      cancelLabel: "Cancel",
       tone: "default",
-      run: () => doSend(when),
+      onConfirm: () => doSend(when),
     });
   };
 
@@ -236,14 +234,15 @@ export default function AdminNotificationsPage() {
   const remove = (n: SentNotification) => {
     // Delivered and not-yet-delivered are different acts with different
     // consequences, so they get different words rather than one hedged sentence.
-    setAsk({
+    ask({
       title: n.delivered ? `Delete "${n.title}"?` : `Cancel "${n.title}"?`,
       body: n.delivered
         ? <>It disappears from every inbox it was delivered to.</>
         : <>It has not gone out yet, so nobody will ever see it.</>,
       confirmLabel: n.delivered ? "Delete it" : "Cancel it",
+      cancelLabel: "Cancel",
       tone: "danger",
-      run: async () => {
+      onConfirm: async () => {
         try {
           await deleteNotification(n.id);
           load();
@@ -276,18 +275,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "sans-serif", background: c.bg, color: c.text }}>
-      {/* Every consequential question on this page comes through here. */}
-      <ConfirmDialog
-        open={!!ask}
-        title={ask?.title ?? ""}
-        body={ask?.body ?? null}
-        confirmLabel={ask?.confirmLabel}
-        tone={ask?.tone}
-        busy={maintBusy || busy}
-        isDark={dark}
-        onCancel={() => setAsk(null)}
-        onConfirm={async () => { const pending = ask; setAsk(null); await pending?.run(); }}
-      />
+      {dialog}
 
       <AdminSidebar active="notifications" dark={dark} setDark={setDark} />
       <div style={{ flex: 1, overflow: "auto" }}>

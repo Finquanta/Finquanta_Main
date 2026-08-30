@@ -179,7 +179,7 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
    * convened. It's back, and anyone who finds it noisy there can turn it off
    * from the nav bar instead.
    */
-  const HIDDEN_PATHS = ["/profile-settings", "/settings"];
+  const HIDDEN_PATHS = ["/profile-settings"];
   const isHidden = HIDDEN_PATHS.some((p) => pathname?.startsWith(p));
 
   /**

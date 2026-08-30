@@ -99,6 +99,23 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/**
+ * One entry of the tooltip's payload.
+ *
+ * recharts 3 moved `payload` and `label` off `Tooltip`'s public prop types —
+ * the content renderer is still handed them at runtime, but they now arrive
+ * from context and are no longer declared. This component is rendered BY
+ * recharts, so it receives them regardless; declaring the shape here keeps the
+ * file typed instead of casting the whole thing to `any`.
+ */
+type ChartTooltipItem = {
+  name?: string
+  dataKey?: string | number
+  value?: number | string
+  color?: string
+  payload?: Record<string, unknown> & { fill?: string }
+}
+
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
@@ -108,6 +125,9 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
+      /** Supplied by recharts at runtime; see ChartTooltipItem above. */
+      payload?: ChartTooltipItem[]
+      label?: React.ReactNode
     }
 >(
   (
@@ -146,7 +166,7 @@ const ChartTooltipContent = React.forwardRef<
       if (labelFormatter) {
         return (
           <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+            {labelFormatter(value, payload as never)}
           </div>
         )
       }
@@ -180,10 +200,10 @@ const ChartTooltipContent = React.forwardRef<
       >
         {tooltipLabel}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
+          {payload?.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = config[key as keyof typeof config]
-            const indicatorColor = color || item.payload.fill || item.color
+            const indicatorColor = color || item.payload?.fill || item.color
 
             return (
               <div
@@ -194,7 +214,7 @@ const ChartTooltipContent = React.forwardRef<
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  formatter(item.value, item.name, item as never, index, item.payload as never)
                 ) : (
                   <>
                     {itemConfig?.icon ? (

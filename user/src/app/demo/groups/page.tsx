@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Layers, Plus, Trash2, Archive, TrendingUp, TrendingDown, Pencil, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { useDemoSession } from "@/lib/demo/DemoSessionProvider";
 import { demoErrorText } from '@/lib/demo/errors';
@@ -21,6 +22,7 @@ export default function DemoGroupsPage() {
   const { t } = useLanguage();
   const { refresh } = useDemoSession();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [report, setReport] = useState<GroupReportRow[]>([]);
@@ -65,18 +67,34 @@ export default function DemoGroupsPage() {
     }
   };
 
-  const archive = async (g: GroupReportRow) => {
-    if (!g.groupId) return;
-    if (!window.confirm(t("demo", "groupsArchiveConfirm").replace("{name}", g.name))) return;
-    try { await archiveGroup(g.groupId); if (expandedId === g.groupId) setExpandedId(null); load(); }
-    catch (e) { setError(demoErrorText(e, t, t("demo", "groupsArchiveError"))); }
+  const archive = (g: GroupReportRow) => {
+    const groupId = g.groupId;
+    if (!groupId) return;
+    ask({
+      title: t("demo", "groupsArchiveConfirm").replace("{name}", g.name),
+      body: t('dashboard', 'groupsArchiveBody'),
+      tone: 'warning',
+      confirmLabel: t('dashboard', 'confirmArchiveAction'),
+      onConfirm: async () => {
+        try { await archiveGroup(groupId); if (expandedId === groupId) setExpandedId(null); load(); }
+        catch (e) { setError(demoErrorText(e, t, t("demo", "groupsArchiveError"))); }
+      },
+    });
   };
 
-  const remove = async (g: GroupReportRow) => {
-    if (!g.groupId) return;
-    if (!window.confirm(t("demo", "groupsDeleteConfirm").replace("{name}", g.name))) return;
-    try { await deleteGroup(g.groupId); if (expandedId === g.groupId) setExpandedId(null); load(); }
-    catch (e) { setError(demoErrorText(e, t, t("demo", "groupsDeleteError"))); }
+  const remove = (g: GroupReportRow) => {
+    const groupId = g.groupId;
+    if (!groupId) return;
+    ask({
+      title: t("demo", "groupsDeleteConfirm").replace("{name}", g.name),
+      body: t('dashboard', 'groupsDeleteBody'),
+      tone: 'danger',
+      confirmLabel: t('dashboard', 'inboxDelete'),
+      onConfirm: async () => {
+        try { await deleteGroup(groupId); if (expandedId === groupId) setExpandedId(null); load(); }
+        catch (e) { setError(demoErrorText(e, t, t("demo", "groupsDeleteError"))); }
+      },
+    });
   };
 
   const startRename = (g: GroupReportRow) => {

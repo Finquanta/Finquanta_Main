@@ -7,9 +7,13 @@ import BusinessPlanGrid from '@/components/user_dashboard/business-plan/Business
 import { Lightbulb, Target, TrendingUp, Calendar, DollarSign, Users, ArrowRight, Plus } from 'lucide-react';
 import { getBusinessPlanMarketData, getBusinessPlanStats, listBusinessPlans } from '@/lib/api/business-plans';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useTheme } from '@/hooks/context/ThemeContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 
 export default function BusinessPlanPage() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const { ask } = useAsk();
   const [plans, setPlans] = useState(mockBusinessPlanPageProps.plans);
   const [stats, setStats] = useState(mockBusinessPlanPageProps.stats);
   const [marketData, setMarketData] = useState(mockBusinessPlanPageProps.marketData);
@@ -75,10 +79,14 @@ export default function BusinessPlanPage() {
   }, []);
 
   const handlePlanDelete = useCallback((plan: BusinessPlan) => {
-    if (confirm(`Are you sure you want to delete "${plan.title}"?`)) {
-      setPlans(prev => prev.filter(p => p.id !== plan.id));
-    }
-  }, []);
+    ask({
+      title: t("dashboard", "confirmDeleteTitle").replace("{name}", plan.title),
+      body: t("dashboard", "confirmCannotUndo"),
+      tone: 'danger',
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: () => setPlans(prev => prev.filter(p => p.id !== plan.id)),
+    });
+  }, [ask, t]);
 
   const handlePlanDuplicate = useCallback((plan: BusinessPlan) => {
     const duplicatedPlan: BusinessPlan = {

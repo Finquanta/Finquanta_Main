@@ -218,7 +218,7 @@ export default function UsagePage() {
                   <CartesianGrid vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
                   <YAxis domain={[0, 24]} tickFormatter={(v) => `${v}H`} tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <Tooltip formatter={(v: number) => [`${v}h`, ''] as any} />
+                  <Tooltip formatter={(v) => [`${v}h`, '']} />
                   <Bar dataKey="Free" fill="#16a34a" radius={[4,4,0,0]} />
                   <Bar dataKey="Entrepreneur" fill="#2563eb" radius={[4,4,0,0]} />
                   <Bar dataKey="Business" fill="#ef4444" radius={[4,4,0,0]} />

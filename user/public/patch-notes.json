@@ -1,6 +1,126 @@
 {
-  "generatedAt": "2026-08-28T17:50:25.183Z",
+  "generatedAt": "2026-08-29T21:22:53.726Z",
   "commits": [
+    {
+      "hash": "56a3826",
+      "author": "gio",
+      "date": "2026-08-29T16:51:32-04:00",
+      "subject": "refactor(inbox): keep the troubleshooting panel on localhost only"
+    },
+    {
+      "hash": "0586132",
+      "author": "gio",
+      "date": "2026-08-29T16:38:18-04:00",
+      "subject": "feat(capture): record a loan from a scanned document, and drop the browser confirm"
+    },
+    {
+      "hash": "3f16ec5",
+      "author": "gio",
+      "date": "2026-08-29T15:52:46-04:00",
+      "subject": "feat(bookkeeping): loan type is two options, with new-or-repayment beside it"
+    },
+    {
+      "hash": "6c7636b",
+      "author": "gio",
+      "date": "2026-08-29T15:23:48-04:00",
+      "subject": "fix(bookkeeping): buttons for the ledger, a dropdown for the type"
+    },
+    {
+      "hash": "4ea5fd2",
+      "author": "gio",
+      "date": "2026-08-29T15:05:39-04:00",
+      "subject": "fix(bookkeeping): loans had no direction to pick, and every one was filed as borrowed"
+    },
+    {
+      "hash": "fe403f0",
+      "author": "gio",
+      "date": "2026-08-29T14:33:28-04:00",
+      "subject": "feat(capture): upload several files at once, and fix two dead ends"
+    },
+    {
+      "hash": "35fc10b",
+      "author": "gio",
+      "date": "2026-08-29T11:54:22-04:00",
+      "subject": "feat(inbox): keep Edit on empty columns, and let the bin be emptied"
+    },
+    {
+      "hash": "c0c626c",
+      "author": "gio",
+      "date": "2026-08-29T11:10:42-04:00",
+      "subject": "feat(inbox): selection on all three columns, and delete now means the bin"
+    },
+    {
+      "hash": "02d32ae",
+      "author": "gio",
+      "date": "2026-08-29T00:17:14-04:00",
+      "subject": "fix(capture): write the schema in the form structured outputs actually accepts"
+    },
+    {
+      "hash": "a44ba10",
+      "author": "gio",
+      "date": "2026-08-28T17:51:26-04:00",
+      "subject": "fix(capture): pin the model for structured outputs, and stop hiding why reading failed"
+    },
+    {
+      "hash": "ecc1efc",
+      "author": "gio",
+      "date": "2026-08-28T17:21:08-04:00",
+      "subject": "fix(inbound): fetch attachments from the endpoint that actually has them"
+    },
+    {
+      "hash": "3547346",
+      "author": "gio",
+      "date": "2026-08-28T16:46:49-04:00",
+      "subject": "fix(inbound): read a PDF that mail labelled octet-stream, and add bulk actions"
+    },
+    {
+      "hash": "be70e71",
+      "author": "gio",
+      "date": "2026-08-28T16:27:30-04:00",
+      "subject": "feat(inbox): show the attachment, say what happened, and allow read/unread and delete"
+    },
+    {
+      "hash": "3cb312e",
+      "author": "gio",
+      "date": "2026-08-28T16:11:21-04:00",
+      "subject": "i18n(dashboard): translate the four remaining English-only components"
+    },
+    {
+      "hash": "87e2a0b",
+      "author": "gio",
+      "date": "2026-08-28T15:50:25-04:00",
+      "subject": "i18n(inbox): translate the inbox page, which shipped entirely in English"
+    },
+    {
+      "hash": "54eab27",
+      "author": "gio",
+      "date": "2026-08-28T15:37:07-04:00",
+      "subject": "fix(inbox): open what arrived, timestamp it, and notice it without a reload"
+    },
+    {
+      "hash": "61dc2b1",
+      "author": "gio",
+      "date": "2026-08-28T15:12:49-04:00",
+      "subject": "chore(server): drop @aws-sdk/client-s3, which was never meant to be installed"
+    },
+    {
+      "hash": "49b32a1",
+      "author": "gio",
+      "date": "2026-08-28T15:12:34-04:00",
+      "subject": "feat(capture): empty the recycle bin on a schedule"
+    },
+    {
+      "hash": "daa3bfc",
+      "author": "gio",
+      "date": "2026-08-28T14:01:15-04:00",
+      "subject": "chore(user): refresh the generated patch notes"
+    },
+    {
+      "hash": "1d9f9ed",
+      "author": "gio",
+      "date": "2026-08-28T14:00:37-04:00",
+      "subject": "feat(recurring): ask whether a repeating expense or payment happened again"
+    },
     {
       "hash": "5dbcd90",
       "author": "gio",

@@ -20,6 +20,7 @@ import type { Invoice as RealInvoice } from "@/lib/api/invoices";
 import type { BusinessProfile as RealBusinessProfile } from "@/lib/api/business";
 import type { Customer as RealCustomer } from "@/lib/api/customers";
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import { demoErrorText } from '@/lib/demo/errors';
 
 /**
@@ -30,6 +31,7 @@ const PREVIEW_DWELL_MS = 5_000;
 
 export default function DemoInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useLanguage();
+  const { ask } = useAsk();
   const { id } = use(params);
   const router = useRouter();
 
@@ -74,11 +76,21 @@ export default function DemoInvoicePage({ params }: { params: Promise<{ id: stri
     return () => window.clearTimeout(id);
   }, [loading, invoice]);
 
-  const remove = async () => {
+  const remove = () => {
     if (!invoice) return;
-    if (!window.confirm(t('demo','eConfirmDelete').replace('{name}', invoice.number))) return;
-    try { await deleteInvoice(invoice.id); router.push("/demo/invoices"); }
-    catch (e) { setError(demoErrorText(e, t, t("dashboard","errDeleteInvoice"))); }
+    const target = invoice;
+    ask({
+      title: t('demo','eConfirmDelete').replace('{name}', target.number),
+      // This screen is light-themed throughout, whatever the app theme is.
+      isDark: false,
+      body: t('dashboard', 'confirmCannotUndo'),
+      tone: 'danger',
+      confirmLabel: t('dashboard', 'inboxDelete'),
+      onConfirm: async () => {
+        try { await deleteInvoice(target.id); router.push("/demo/invoices"); }
+        catch (e) { setError(demoErrorText(e, t, t("dashboard","errDeleteInvoice"))); }
+      },
+    });
   };
 
   const btn = "flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50";
@@ -144,6 +156,6 @@ export default function DemoInvoicePage({ params }: { params: Promise<{ id: stri
           customer={customer as unknown as RealCustomer | null}
         />
       </div>
-    </div>
+      </div>
   );
 }

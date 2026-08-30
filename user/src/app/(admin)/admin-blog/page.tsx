@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkAdmin } from "@/lib/api/admin";
 import { listAllBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, BlogPost } from "@/lib/api/blog";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
+import { useConfirm } from "@/hooks/useConfirm";
 
 type Draft = { id?: string; title: string; excerpt: string; content: string; coverImageUrl: string; published: boolean };
 const EMPTY: Draft = { title: "", excerpt: "", content: "", coverImageUrl: "", published: false };
@@ -12,6 +13,7 @@ const EMPTY: Draft = { title: "", excerpt: "", content: "", coverImageUrl: "", p
 export default function AdminBlogPage() {
   const router = useRouter();
   const [dark, setDark] = useState(false);
+  const { ask, dialog } = useConfirm(dark);
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -45,13 +47,19 @@ export default function AdminBlogPage() {
   const edit = (p: BlogPost) =>
     setDraft({ id: p.id, title: p.title, excerpt: p.excerpt, content: p.content, coverImageUrl: p.coverImageUrl || "", published: p.published });
 
-  const remove = async (p: BlogPost) => {
-    if (!window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
-    setBusy(true);
-    try { await deleteBlogPost(p.id); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not delete."); }
-    finally { setBusy(false); }
-  };
+  const remove = (p: BlogPost) => ask({
+    title: `Delete "${p.title}"?`,
+    body: "This cannot be undone.",
+    tone: "danger",
+    confirmLabel: "Delete",
+    cancelLabel: "Cancel",
+    onConfirm: async () => {
+      setBusy(true);
+      try { await deleteBlogPost(p.id); await load(); }
+      catch (e) { setError(e instanceof Error ? e.message : "Could not delete."); }
+      finally { setBusy(false); }
+    },
+  });
 
   const togglePublish = async (p: BlogPost) => {
     setBusy(true);
@@ -146,6 +154,7 @@ export default function AdminBlogPage() {
           )}
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

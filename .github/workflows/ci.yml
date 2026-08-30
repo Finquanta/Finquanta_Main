@@ -41,24 +41,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: server/pnpm-lock.yaml
 
-      # NOT --frozen-lockfile, deliberately, and this should be revisited.
-      #
-      # Each project carries BOTH a package-lock.json and a pnpm-lock.yaml, so
-      # which one governs an install depends on what the platform picks. They
-      # have already drifted: as of 2026-08-14 server/pnpm-lock.yaml still
-      # pinned fastify 4 and typescript 5 while package.json (and the installed
-      # tree) were on fastify 5 and typescript 6, and it had not been committed
-      # since 2026-06-05 whereas package-lock.json was current to 2026-08-02.
-      #
-      # Turning on --frozen-lockfile before that is settled would make CI red on
-      # its first run for a reason unrelated to any code change, which is the
-      # fastest way to teach everyone to ignore it. Pick one lockfile per
-      # project, delete the other, then add the flag here.
       # --frozen-lockfile: fail rather than silently resolve a different tree.
       # The lockfiles had drifted badly (pnpm-lock said fastify 4, the manifest
       # wanted 5, node_modules had 5.12) and nothing caught it, because a plain
       # install just fixes the lockfile up and carries on. This makes CI the
-      # thing that notices.
+      # thing that notices. Every project is single-lockfile (pnpm) as of
+      # 2026-08-29 — admin's stale package-lock.json is gone.
       - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
@@ -72,7 +60,7 @@ jobs:
         run: pnpm test
 
   web:
-    name: web — typecheck
+    name: web — typecheck + tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -90,17 +78,61 @@ jobs:
           cache: pnpm
           cache-dependency-path: user/pnpm-lock.yaml
 
-      # See the note in the server job on why this is not --frozen-lockfile.
       # --frozen-lockfile: fail rather than silently resolve a different tree.
       # The lockfiles had drifted badly (pnpm-lock said fastify 4, the manifest
       # wanted 5, node_modules had 5.12) and nothing caught it, because a plain
       # install just fixes the lockfile up and carries on. This makes CI the
-      # thing that notices.
+      # thing that notices. Every project is single-lockfile (pnpm) as of
+      # 2026-08-29 — admin's stale package-lock.json is gone.
       - run: pnpm install --frozen-lockfile
 
       # No .next/ on a fresh checkout, so the generated route types this
       # tsconfig includes simply do not match — which is cleaner than running
       # locally, where a half-written .next/dev/types file can report phantom
       # syntax errors in code nobody wrote.
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      # Component tests (vitest + Testing Library). They render components
+      # directly — no dev server, no database, no network — so they are quick
+      # enough to sit in front of every push. They exist because the dialogs
+      # guarding every destructive action had behaviour that could only be
+      # checked by clicking, and one of them was silently broken for it.
+      - name: Tests
+        run: pnpm test
+
+  admin:
+    name: admin — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: admin/pnpm-lock.yaml
+
+      # --frozen-lockfile: fail rather than silently resolve a different tree.
+      - run: pnpm install --frozen-lockfile
+
+      # Admin was in neither job until now, and it was the last project still
+      # carrying two lockfiles — a package-lock.json from June beside a
+      # pnpm-lock.yaml from August, with nothing checking either. The install
+      # above is the part that blocks, because lockfile drift is what actually
+      # went wrong here and it is now guarded.
+      #
+      # Blocking. It briefly was not: admin had 16 pre-existing type errors
+      # (Column<T> render signatures, four isolatedModules type-only imports,
+      # and shadcn's chart.tsx against recharts 3, which moved `payload` and
+      # `label` off Tooltip's public props). Those are fixed, so this job is
+      # green on arrival and can be trusted to stay that way.
       - name: Typecheck
         run: pnpm exec tsc --noEmit

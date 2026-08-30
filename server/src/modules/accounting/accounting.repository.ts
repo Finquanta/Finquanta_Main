@@ -1,10 +1,58 @@
 import { Database } from '../../infrastructure/database';
 import {
   AccountBalance, AccountCode, CHART_OF_ACCOUNTS, CreateEntryInput,
-  DEBIT_NORMAL, JournalEntry,
+  DEBIT_NORMAL, JournalEntry, JournalLineInput,
 } from './accounting.types';
 
 const money = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+/** Whole cents, so sums are exact integers instead of binary fractions. */
+const cents = (n: number) => Math.round(money(n) * 100);
+
+/**
+ * Round every line to the cent, check the entry balances, or throw.
+ *
+ * Pure, exported and separate from `createEntry` so the rule that protects the
+ * ledger can be tested without a database.
+ *
+ * THE VALUES CHECKED ARE THE VALUES STORED, which is the whole point. The
+ * previous version compared `money(sum of raw debits)` against `money(sum of
+ * raw credits)` but wrote `money(line)` per line — two different roundings, and
+ * they disagree whenever several sub-cent lines each round down. Debits of
+ * 0.004 + 0.004 against a credit of 0.01 summed to 0.01 on both sides and was
+ * accepted, then stored as 0.00 + 0.00 against 0.01: a full cent of imbalance
+ * written by the guard whose only job was to prevent exactly that. Rounding
+ * first and summing the rounded values in integer cents makes the two agree by
+ * construction.
+ *
+ * The other three rules are things the old check never looked at: a negative
+ * amount (a negative debit is a credit, written wrong), a line carrying both a
+ * debit and a credit (which inflates both totals for no reason), and a line
+ * that rounds away to nothing.
+ */
+export function normalizeEntryLines(lines: JournalLineInput[] | undefined): JournalLineInput[] {
+  if (!lines?.length) throw new Error('An entry needs at least one line');
+
+  const normalized = lines.map((line, i) => {
+    const debit = money(line.debit ?? 0);
+    const credit = money(line.credit ?? 0);
+    const where = `Line ${i + 1} (${line.code})`;
+    if (!Number.isFinite(debit) || !Number.isFinite(credit)) throw new Error(`${where}: amounts must be numbers`);
+    if (debit < 0 || credit < 0) throw new Error(`${where}: amounts cannot be negative`);
+    if (debit > 0 && credit > 0) throw new Error(`${where}: a line is a debit or a credit, never both`);
+    if (debit === 0 && credit === 0) throw new Error(`${where}: rounds to zero — amounts are recorded to the cent`);
+    return { code: line.code, debit, credit };
+  });
+
+  const debits = normalized.reduce((s, l) => s + cents(l.debit), 0);
+  const credits = normalized.reduce((s, l) => s + cents(l.credit), 0);
+  if (debits <= 0 || credits <= 0) throw new Error('An entry must move a non-zero amount');
+  if (debits !== credits) {
+    throw new Error(`Entry does not balance: debits ${(debits / 100).toFixed(2)} vs credits ${(credits / 100).toFixed(2)}`);
+  }
+
+  return normalized;
+}
 
 /** The journal entries an invoice can put on the books. */
 const INVOICE_SOURCE_TYPES = ['invoice', 'invoice_payment', 'invoice_cancelled'];
@@ -172,16 +220,11 @@ export class AccountingRepository {
    * credits don't match — the ledger is never allowed to go out of balance.
    */
   async createEntry(input: CreateEntryInput): Promise<string> {
-    if (!input.lines?.length) throw new Error('An entry needs at least one line');
-
-    const debits = money(input.lines.reduce((s, l) => s + (l.debit || 0), 0));
-    const credits = money(input.lines.reduce((s, l) => s + (l.credit || 0), 0));
-    if (debits <= 0 || credits <= 0) throw new Error('An entry must move a non-zero amount');
-    if (debits !== credits) throw new Error(`Entry does not balance: debits ${debits} vs credits ${credits}`);
+    const lines = normalizeEntryLines(input.lines);
 
     const accounts = await this.getAccountMap(input.businessId);
     const accountIds: string[] = [];
-    for (const line of input.lines) {
+    for (const line of lines) {
       const id = accounts.get(line.code);
       if (!id) throw new Error(`Unknown account code: ${line.code}`);
       accountIds.push(id);
@@ -203,8 +246,8 @@ export class AccountingRepository {
         [
           entryId,
           accountIds,
-          input.lines.map((l) => money(l.debit || 0)),
-          input.lines.map((l) => money(l.credit || 0)),
+          lines.map((l) => l.debit),
+          lines.map((l) => l.credit),
         ]
       );
 

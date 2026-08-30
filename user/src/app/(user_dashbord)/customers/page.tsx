@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
   Customer, CustomerInput, listCustomers, createCustomer, updateCustomer, deleteCustomer,
@@ -23,6 +24,7 @@ export default function CustomersPage() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,11 +74,16 @@ export default function CustomersPage() {
     }
   };
 
-  const remove = async (c: Customer) => {
-    if (!window.confirm(`Delete ${c.name}? This cannot be undone.`)) return;
-    try { await deleteCustomer(c.id); load(); }
-    catch (err) { setError(err instanceof Error ? err.message : t("dashboard","errDeleteCustomer")); }
-  };
+  const remove = (c: Customer) => ask({
+    title: t("dashboard", "confirmDeleteTitle").replace("{name}", c.name),
+    body: t("dashboard", "confirmCannotUndo"),
+    tone: "danger",
+    confirmLabel: t("dashboard", "inboxDelete"),
+    onConfirm: async () => {
+      try { await deleteCustomer(c.id); load(); }
+      catch (err) { setError(err instanceof Error ? err.message : t("dashboard","errDeleteCustomer")); }
+    },
+  });
 
   const filtered = customers.filter((c) => {
     const q = query.trim().toLowerCase();

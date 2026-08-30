@@ -45,6 +45,8 @@ export default function BusinessProfileSettings({ isDark }: { isDark: boolean })
   const [biz, setBiz] = useState<BusinessProfile>({});
   const [bizSaving, setBizSaving] = useState(false);
   const [bizSaved, setBizSaved] = useState(false);
+  /** Save and logo-upload failures, beside the button instead of in an alert. */
+  const [bizError, setBizError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
   // Re-read whenever the active workspace changes: the API is scoped by the
@@ -57,13 +59,14 @@ export default function BusinessProfileSettings({ isDark }: { isDark: boolean })
   const saveBiz = async () => {
     setBizSaving(true);
     setBizSaved(false);
+    setBizError(null);
     try {
       const updated = await saveBusinessProfile(biz);
       setBiz(updated);
       setBizSaved(true);
       setTimeout(() => setBizSaved(false), 2500);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not save business profile.');
+      setBizError(e instanceof Error ? e.message : t('dashboard', 'errSaveBusinessProfile'));
     } finally {
       setBizSaving(false);
     }
@@ -209,11 +212,12 @@ export default function BusinessProfileSettings({ isDark }: { isDark: boolean })
                     const file = e.target.files?.[0];
                     if (!file) return;
                     setLogoUploading(true);
+                    setBizError(null);
                     try {
                       const saved = await uploadBusinessLogo(file);
                       setBiz((p) => ({ ...p, logoUrl: saved.logoUrl }));
                     } catch (err) {
-                      alert(err instanceof Error ? err.message : t("dashboard","errUploadLogo"));
+                      setBizError(err instanceof Error ? err.message : t("dashboard","errUploadLogo"));
                     } finally {
                       setLogoUploading(false);
                       e.target.value = '';
@@ -235,6 +239,7 @@ export default function BusinessProfileSettings({ isDark }: { isDark: boolean })
           {bizSaving ? t('onboarding', 'saving') : t('settings', 'saveChanges')}
         </button>
         {bizSaved && <span className="text-sm text-green-500">{t('settings', 'bizSaved')}</span>}
+        {bizError && <span role="alert" className="text-sm text-red-500">{bizError}</span>}
       </div>
     </div>
   );

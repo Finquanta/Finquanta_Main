@@ -6,6 +6,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import {
   BrainCategory, BrainNode, BrainNodeDetail, NodeType, flattenCategories,
   createBrainNode, updateBrainNode, deleteBrainNode, searchBrain, connectBrainNodes,
@@ -58,6 +59,7 @@ export default function AddNodeModal({
   onSaved: () => void;
 }) {
   const { t } = useLanguage();
+  const { ask } = useAsk();
 
   const [type, setType] = useState<NodeType>("note");
   const [title, setTitle] = useState("");
@@ -266,9 +268,19 @@ export default function AddNodeModal({
     }
   };
 
-  const remove = async () => {
+  const remove = () => {
     if (!editing) return;
-    if (!window.confirm(t("dashboard", "brainConfirmDeleteNode"))) return;
+    ask({
+      title: t("dashboard", "brainConfirmDeleteNode"),
+      body: t("dashboard", "confirmCannotUndo"),
+      tone: "danger",
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: () => runRemove(),
+    });
+  };
+
+  const runRemove = async () => {
+    if (!editing) return;
     setSaving(true);
     try {
       await deleteBrainNode(editing.id);

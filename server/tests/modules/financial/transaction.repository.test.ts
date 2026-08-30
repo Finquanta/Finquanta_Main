@@ -208,6 +208,15 @@ describe('TransactionRepository', () => {
       };
 
       const created = await repository.create(testBusinessId, testUserId, transactionData);
+
+      // `updatedAt` is stamped from the clock, and create-then-update inside the
+      // same millisecond produces the same timestamp — which made the last
+      // assertion in this test fail roughly one run in three. A real edit is
+      // never this fast; the wait removes the race without weakening what is
+      // being checked. It matters now that CI runs these on every push: a suite
+      // that is red at random is a suite people learn to ignore.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
       const updateData = {
         category: 'Updated Category',
         amount: 150,

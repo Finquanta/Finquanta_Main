@@ -1,7 +1,9 @@
 // src/app/inbox/components/InboxMetrics.tsx
 import React from 'react';
 import { MetricCard } from '@/components/widgets';
-import { InboxMetrics } from '../types';
+// Type-only: the component below shares this name, and isolatedModules needs
+// the distinction stated rather than inferred.
+import type { InboxMetrics } from '../types';
 
 interface InboxMetricsProps {
   metrics: InboxMetrics;

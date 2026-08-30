@@ -27,7 +27,7 @@ import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
-import ConfirmDialog from '@/components/user_dashboard/ConfirmDialog';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import CaptureButton from '@/components/user_dashboard/capture/CaptureButton';
 import PlanChip from '@/components/user_dashboard/PlanChip';
 import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
@@ -61,51 +61,17 @@ export default function DashboardPage() {
   const [bookkeepingRefresh, setBookkeepingRefresh] = useState(0);
 
   /**
-   * The destructive question currently on screen.
+   * Every destructive question on this page, through the shared hook.
    *
-   * One slot, because only one of these can be asked at a time — modelling it
-   * as a single value makes that true by construction rather than by luck. Same
-   * shape WorkspaceSwitcher uses.
-   *
-   * This replaces `window.confirm` for everything that removes something from
-   * the books. The browser's own box cannot be styled, is prefixed with
-   * "localhost:3000 says", and looks exactly like the scam prompts people have
-   * been trained to dismiss without reading — which is precisely the wrong
-   * dialog for "this erases an entry from your accounts".
+   * This used to be its own `ask` slot plus busy and error state and a rendered
+   * ConfirmDialog. The one thing it did that the shared dialog did not was keep
+   * the question on screen when the action failed, which matters here because
+   * these deletions have no error banner behind the dialog to fall back to.
+   * That is now `keepOpenOnError`.
    */
-  const [ask, setAsk] = useState<{
-    title: string;
-    body: React.ReactNode;
-    confirmLabel: string;
-    tone: 'default' | 'danger' | 'warning';
-    run: () => Promise<void>;
-  } | null>(null);
-  const [askBusy, setAskBusy] = useState(false);
-  const [askError, setAskError] = useState<string | null>(null);
-
-  /**
-   * Run the pending action, and keep the dialog open if it fails.
-   *
-   * The failures used to surface through `alert()` — the same unstyleable box,
-   * one beat after the one we just replaced. Reporting it inside the dialog
-   * keeps the whole interaction in the app, and leaves the question on screen
-   * so the user can simply press the button again.
-   */
-  const runAsk = async () => {
-    if (!ask) return;
-    setAskBusy(true);
-    setAskError(null);
-    try {
-      await ask.run();
-      setAsk(null);
-    } catch (e) {
-      setAskError(e instanceof Error ? e.message : t('dashboard', 'genericError'));
-    } finally {
-      setAskBusy(false);
-    }
-  };
-
-  const closeAsk = () => { setAsk(null); setAskError(null); };
+  const { ask: confirmAction } = useAsk();
+  const ask = (req: Omit<Parameters<typeof confirmAction>[0], 'keepOpenOnError'>) =>
+    confirmAction({ ...req, keepOpenOnError: true });
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalEditing, setGoalEditing] = useState<GoalEditing | null>(null);
   const [langOpen, setLangOpen] = useState(false);
@@ -113,9 +79,6 @@ export default function DashboardPage() {
   const [revMetric, setRevMetric] = useState<RevenueMetric>('revenue'); // revenue card: revenue/cashflow/expense
   const [revTotal, setRevTotal] = useState<number | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardOverviewResponse | null>(null);
-  const [clickCount, setClickCount] = useState(0);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   // Real notifications, pushed from the admin panel.
   const [notifications, setNotifications] = useState<InboxItem[]>([]);
@@ -135,6 +98,16 @@ export default function DashboardPage() {
   // Bookkeeping recently-deleted + undo
   const [recentlyDeleted, setRecentlyDeleted] = useState<DeletedEntry[]>([]);
   const [lastUndo, setLastUndo] = useState<DeletedEntry | null>(null);
+  /**
+   * Failures from the actions on this page.
+   *
+   * These used to go through `alert()` — the same unstyleable browser box the
+   * confirmations were moved off, one step later in the same flow. Asking
+   * "delete this?" in the app and then answering "couldn't" in a system dialog
+   * is the worst of both. Shown in the page instead, beside the undo banner,
+   * dismissible, and replaced by whatever fails next.
+   */
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false);
 
   useEffect(() => {
@@ -310,7 +283,7 @@ export default function DashboardPage() {
   const deleteLedgerRow = (tx: LedgerTransaction) => {
     const id = tx.transactionId;
     if (!id) return;
-    setAsk({
+    ask({
       title: 'Delete this entry?',
       body: (
         <>
@@ -320,7 +293,7 @@ export default function DashboardPage() {
       ),
       confirmLabel: 'Delete',
       tone: 'danger',
-      run: async () => {
+      onConfirm: async () => {
         await deleteTransaction(id);
         setBookkeepingRefresh((n) => n + 1);
         refresh();
@@ -337,7 +310,7 @@ export default function DashboardPage() {
   const deleteInvoiceRow = (tx: LedgerTransaction) => {
     const sourceId = tx.sourceId;
     if (!sourceId) return;
-    setAsk({
+    ask({
       title: 'Remove this invoice from your books?',
       body: (
         <>
@@ -350,7 +323,7 @@ export default function DashboardPage() {
       ),
       confirmLabel: 'Remove from books',
       tone: 'danger',
-      run: async () => {
+      onConfirm: async () => {
         await deleteInvoice(sourceId);
         setBookkeepingRefresh((n) => n + 1);
         refresh();
@@ -376,7 +349,7 @@ export default function DashboardPage() {
       setBookkeepingRefresh((n) => n + 1);
       refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("dashboard","errChangeGroup"));
+      setActionError(e instanceof Error ? e.message : t("dashboard","errChangeGroup"));
     }
   };
 
@@ -410,7 +383,7 @@ export default function DashboardPage() {
         if (!tx.sourceId) return;
         const [loans, payments] = await Promise.all([listLoans(), listLoanPayments(tx.sourceId)]);
         const loan = loans.find((l) => l.id === tx.sourceId);
-        if (!loan) return alert('Could not find that loan to edit.');
+        if (!loan) return setActionError(t('dashboard', 'errFindLoan'));
         setBookkeepingEditing({
           id: tx.id,
           invoiceName: loan.name,
@@ -445,7 +418,7 @@ export default function DashboardPage() {
       }
       setBookkeepingModalOpen(true);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not open that entry for editing.');
+      setActionError(e instanceof Error ? e.message : t('dashboard', 'errOpenEntry'));
     }
   };
 
@@ -455,7 +428,7 @@ export default function DashboardPage() {
     // Three different things behind one button, so the question has to say
     // which one is about to happen — a loan principal takes its payments with
     // it, and that is not something to discover afterwards.
-    setAsk({
+    ask({
       title: isLoanPayment
         ? 'Reverse this payment?'
         : isLoanPrincipal
@@ -475,7 +448,7 @@ export default function DashboardPage() {
       ),
       confirmLabel: isLoanPayment ? 'Reverse payment' : 'Delete',
       tone: 'danger',
-      run: async () => {
+      onConfirm: async () => {
         if (isLoanPayment) {
           await deleteLoanPayment(tx.id);
         } else if (isLoanPrincipal) {
@@ -510,7 +483,7 @@ export default function DashboardPage() {
       const url = await getReceiptObjectUrl(id);
       window.open(url, '_blank');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not open receipt.');
+      setActionError(e instanceof Error ? e.message : t('dashboard', 'errOpenReceipt'));
     }
   };
   const handleDeleteTransaction = async (tx: DashboardOverviewResponse['latestTransactions'][number]) => {
@@ -525,7 +498,7 @@ export default function DashboardPage() {
       setLastUndo(entry);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not delete this entry.');
+      setActionError(e instanceof Error ? e.message : t('dashboard', 'errDeleteEntryGeneric'));
     }
   };
 
@@ -547,7 +520,7 @@ export default function DashboardPage() {
       if (lastUndo?.deletedAt === entry.deletedAt) setLastUndo(null);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not restore this entry.');
+      setActionError(e instanceof Error ? e.message : t('dashboard', 'errRestoreEntry'));
     }
   };
 
@@ -569,12 +542,12 @@ export default function DashboardPage() {
   // Not strictly "the books", but it is the last `window.confirm` left on this
   // page, and one browser box among four styled dialogs reads as an oversight.
   const handleDeleteGoal = (id: string) => {
-    setAsk({
+    ask({
       title: 'Delete this goal?',
       body: <>This cannot be undone. Your entries are not affected.</>,
       confirmLabel: 'Delete',
       tone: 'danger',
-      run: async () => { await deleteGoal(id); await refresh(); },
+      onConfirm: async () => { await deleteGoal(id); await refresh(); },
     });
   };
 
@@ -602,10 +575,6 @@ export default function DashboardPage() {
 
   const displayName = me ? `${me.firstName} ${me.lastName}`.trim() || 'User' : 'User';
   const accountId = me ? finquantaAccountId(me.id) : '—';
-
-  useEffect(() => {
-    if (clickCount >= 10 && !feedbackDismissed) setShowFeedback(true);
-  }, [clickCount, feedbackDismissed]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -670,7 +639,6 @@ export default function DashboardPage() {
   return (
     <div
       className={`flex ${colors.bg}`}
-      onClick={() => setClickCount(c => c + 1)}
       // Shortened by the maintenance banner's height and pushed below it.
       // 0px when there is no banner. See components/MaintenanceBanner.tsx.
       style={{
@@ -1058,6 +1026,25 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Whatever just failed, said in the page rather than by the browser. */}
+            {actionError && (
+              <div
+                role="alert"
+                className={`flex items-start justify-between gap-3 text-xs rounded-lg px-3 py-2 mb-3 ${
+                  isDark ? 'bg-red-950 text-red-200 border border-red-900' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+              >
+                <span>{actionError}</span>
+                <button
+                  onClick={() => setActionError(null)}
+                  aria-label={t('dashboard', 'dialogCancel')}
+                  className="font-semibold shrink-0 hover:opacity-70"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             {/* Undo banner shown right after a delete */}
             {lastUndo && (
               <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 mb-3 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
@@ -1258,23 +1245,6 @@ export default function DashboardPage() {
         onSaved={refresh}
       />
 
-      {/* Every destructive question on this page comes through here. */}
-      <ConfirmDialog
-        open={!!ask}
-        title={ask?.title ?? ''}
-        body={
-          <>
-            {ask?.body}
-            {askError && <p className="mt-3 text-sm text-red-500">{askError}</p>}
-          </>
-        }
-        confirmLabel={ask?.confirmLabel}
-        tone={ask?.tone}
-        busy={askBusy}
-        isDark={isDark}
-        onConfirm={runAsk}
-        onCancel={closeAsk}
-      />
 
       {/* Goals check-in reminder */}
       {goalPromptOpen && (
@@ -1304,33 +1274,6 @@ export default function DashboardPage() {
                 {t('dashboard', 'later')}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Feedback Popup */}
-      {showFeedback && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
-          <div className={`rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center relative ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
-            <button
-              onClick={() => { setShowFeedback(false); setFeedbackDismissed(true); }}
-              className="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold"
-            >
-              x
-            </button>
-            <h2 className="text-xl font-bold mb-2">{t('settings', 'feedbackPopupTitle')}</h2>
-            <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t('settings', 'feedbackPopupDesc')}
-            </p>
-            <a
-              href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => { setShowFeedback(false); setFeedbackDismissed(true); }}
-              className="inline-block bg-green-500 hover:bg-green-600 text-white font-medium px-6 py-3 rounded-lg text-sm"
-            >
-              {t('settings', 'feedbackPopupButton')}
-            </a>
           </div>
         </div>
       )}

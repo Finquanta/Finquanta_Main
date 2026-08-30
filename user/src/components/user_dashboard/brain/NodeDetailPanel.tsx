@@ -6,6 +6,7 @@ import {
   Sparkles, Loader2, Lock, LockOpen,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import {
   BrainNodeDetail, LinkedNode, archiveBrainNode, disconnectBrainNodes, unarchiveBrainNode,
   enrichBrainNode, setNodeRestriction,
@@ -34,6 +35,7 @@ export default function NodeDetailPanel({
   onOpenNode?: (id: string) => void;
 }) {
   const { t } = useLanguage();
+  const { ask } = useAsk();
   const [finding, setFinding] = useState(false);
   /** What the last run actually did. Without this, "too short", "cap reached"
    *  and "worked fine" are indistinguishable — the run just appears to do
@@ -95,17 +97,22 @@ export default function NodeDetailPanel({
     }
   };
 
-  const unlink = async (edgeId: string) => {
-    if (!window.confirm(t("dashboard", "brainConfirmUnlink"))) return;
-    try {
-      await disconnectBrainNodes(edgeId);
-      onChanged();
-    } catch {
-      /* The panel refreshes from the server either way; a failed unlink just
-         leaves the link in place, which is the safe outcome. */
-      onChanged();
-    }
-  };
+  const unlink = (edgeId: string) => ask({
+    title: t("dashboard", "brainConfirmUnlink"),
+    body: t("dashboard", "confirmCannotUndo"),
+    tone: "danger",
+    confirmLabel: t("dashboard", "inboxDelete"),
+    onConfirm: async () => {
+      try {
+        await disconnectBrainNodes(edgeId);
+        onChanged();
+      } catch {
+        /* The panel refreshes from the server either way; a failed unlink just
+           leaves the link in place, which is the safe outcome. */
+        onChanged();
+      }
+    },
+  });
 
   const LinkRow = ({ link, removable }: { link: LinkedNode; removable: boolean }) => (
     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${border}`}>

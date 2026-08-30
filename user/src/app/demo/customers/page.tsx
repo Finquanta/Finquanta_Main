@@ -7,6 +7,7 @@ import {
 } from "@/lib/demo/api/customers";
 import { useDemoSession } from "@/lib/demo/DemoSessionProvider";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { demoColors } from "@/lib/demo/theme";
 import { demoFormOpenWhile } from "@/lib/demo/formGuard";
 import { useLanguage } from '@/hooks/context/LanguageContext';
@@ -25,6 +26,7 @@ export default function DemoCustomersPage() {
   const { recordInteraction } = useDemoSession();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
   // Named `col`, not `c` — the customer rows below already bind `c`.
   const col = demoColors(isDark);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -80,11 +82,16 @@ export default function DemoCustomersPage() {
     }
   };
 
-  const remove = async (c: Customer) => {
-    if (!window.confirm(t('demo','eConfirmDelete').replace('{name}', c.name))) return;
-    try { await deleteCustomer(c.id); load(); }
-    catch (err) { setError(demoErrorText(err, t, t("dashboard","errDeleteCustomer"))); }
-  };
+  const remove = (c: Customer) => ask({
+    title: t('demo','eConfirmDelete').replace('{name}', c.name),
+    body: t('dashboard', 'confirmCannotUndo'),
+    tone: 'danger',
+    confirmLabel: t('dashboard', 'inboxDelete'),
+    onConfirm: async () => {
+      try { await deleteCustomer(c.id); load(); }
+      catch (err) { setError(demoErrorText(err, t, t("dashboard","errDeleteCustomer"))); }
+    },
+  });
 
   const filtered = customers.filter((c) => {
     const q = query.trim().toLowerCase();

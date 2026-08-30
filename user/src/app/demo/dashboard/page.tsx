@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, FileText, Trash2, Lock, Pencil } from 'lucide-react';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import { demoColors } from '@/lib/demo/theme';
 import { useDemoSession } from '@/lib/demo/DemoSessionProvider';
 import { deleteTransaction } from '@/lib/demo/api/transactions';
@@ -52,6 +53,8 @@ export default function DemoDashboardPage() {
   const { theme } = useTheme();
   const { refresh, recordInteraction } = useDemoSession();
   const isDark = theme === 'dark';
+  const { ask } = useAsk();
+  const [error, setError] = useState<string | null>(null);
   const c = demoColors(isDark);
   const card = c.card;
   const buttonBg = c.buttonBg;
@@ -122,23 +125,31 @@ export default function DemoDashboardPage() {
       await assignToGroup(row.sourceType === 'invoice' ? 'invoice' : 'accrual', row.id, gid);
       onSaved();
     } catch (e) {
-      alert(demoErrorText(e, t, t("dashboard","errChangeGroup")));
+      setError(demoErrorText(e, t, t("dashboard","errChangeGroup")));
     }
   };
 
-  const remove = async (row: LedgerTransaction) => {
-    if (!window.confirm(t('demo', 'deleteConfirm').replace('{name}', row.category ?? row.description))) return;
-    try {
-      if (row.transactionId) await deleteTransaction(row.transactionId);
-      else await deleteEntry(row.id);
-      onSaved();
-    } catch (e) {
-      alert(demoErrorText(e, t, t("dashboard","errDeleteEntry")));
-    }
-  };
+  const remove = (row: LedgerTransaction) => ask({
+    title: t('demo', 'deleteConfirm').replace('{name}', row.category ?? row.description),
+    body: t('dashboard', 'confirmCannotUndo'),
+    tone: 'danger',
+    confirmLabel: t('dashboard', 'inboxDelete'),
+    onConfirm: async () => {
+      setError(null);
+      try {
+        if (row.transactionId) await deleteTransaction(row.transactionId);
+        else await deleteEntry(row.id);
+        onSaved();
+      } catch (e) {
+        setError(demoErrorText(e, t, t("dashboard","errDeleteEntry")));
+      }
+    },
+  });
 
   return (
     <div className="p-4 sm:p-6">
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+
       {/* Financial Health Score — the real card, scored off the demo ledger */}
       <div className="mb-4">
         <HealthScoreCard isDark={isDark} refreshKey={refreshKey} source={healthSource} />

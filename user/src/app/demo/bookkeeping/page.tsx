@@ -10,6 +10,7 @@ import {
 } from '@/lib/demo/api/accounting';
 import DemoBookkeepingModal from '@/components/demo/DemoBookkeepingModal';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import { demoColors } from '@/lib/demo/theme';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { demoErrorText } from '@/lib/demo/errors';
@@ -35,6 +36,7 @@ export default function DemoBookkeepingPage() {
   const { refresh, recordInteraction } = useDemoSession();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const { ask } = useAsk();
   const col = demoColors(isDark);
   const [modalOpen, setModalOpen] = useState(false);
   const [basis, setBasis] = useState<AccountingBasis>('cash');
@@ -57,17 +59,22 @@ export default function DemoBookkeepingPage() {
    * transaction it came from, a manual accrual entry through the ledger. Rows
    * owned by an invoice or a loan aren't deletable here.
    */
-  const remove = async (row: LedgerTransaction) => {
-    setError(null);
-    if (!window.confirm(t("dashboard","errDeleteThisEntry"))) return;
-    try {
-      if (row.transactionId) await deleteTransaction(row.transactionId);
-      else await deleteEntry(row.id);
-      onSaved();
-    } catch (e) {
-      setError(demoErrorText(e, t, t("dashboard","errDeleteEntry")));
-    }
-  };
+  const remove = (row: LedgerTransaction) => ask({
+    title: t("dashboard","errDeleteThisEntry"),
+    body: t('dashboard', 'confirmCannotUndo'),
+    tone: 'danger',
+    confirmLabel: t('dashboard', 'inboxDelete'),
+    onConfirm: async () => {
+      setError(null);
+      try {
+        if (row.transactionId) await deleteTransaction(row.transactionId);
+        else await deleteEntry(row.id);
+        onSaved();
+      } catch (e) {
+        setError(demoErrorText(e, t, t("dashboard","errDeleteEntry")));
+      }
+    },
+  });
 
   const cash = accounts.find((a) => a.code === 'CASH')?.balance ?? 0;
   const revenue = accounts.find((a) => a.code === 'REVENUE')?.balance ?? 0;

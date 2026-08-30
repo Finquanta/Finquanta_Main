@@ -4,10 +4,11 @@ import TrialEndedDialog from "@/components/user_dashboard/billing/TrialEndedDial
 import TrialStartedDialog from "@/components/user_dashboard/billing/TrialStartedDialog";
 import AccessChangedDialog from "@/components/user_dashboard/billing/AccessChangedDialog";
 import DemoMigrationBanner from "@/components/demo/DemoMigrationBanner";
+import ConfirmProvider from "@/components/user_dashboard/ConfirmProvider";
 
 export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <ConfirmProvider>
       {children}
       {/* No-op unless the user just arrived from the Try-It Demo. */}
       <DemoMigrationBanner />
@@ -35,6 +36,6 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
         <AccessChangedDialog />
       </Suspense>
       <ChatbotWidget />
-    </>
+    </ConfirmProvider>
   );
 }

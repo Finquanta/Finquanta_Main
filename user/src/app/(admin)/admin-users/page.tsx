@@ -8,6 +8,9 @@ import {
 } from "@/lib/api/admin";
 import { REMINDER_LABELS, REMINDER_TYPES, ReminderType } from "@/lib/api/lifecycle";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
+import { useConfirm } from "@/hooks/useConfirm";
+import { usePrompt } from "@/hooks/usePrompt";
+import { firstPasswordProblem } from "@/lib/password-rules";
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -18,6 +21,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [dark, setDark] = useState(false);
+  const { ask, dialog } = useConfirm(dark);
+  const { askFor, dialog: promptDialog } = usePrompt(dark);
   const [busyId, setBusyId] = useState<string>("");
   /** The user being deleted, when they own workspaces other people are in. */
   const [deleting, setDeleting] = useState<{ user: AdminUser; businesses: AdminDeletionBlocker[] } | null>(null);
@@ -145,9 +150,14 @@ export default function AdminUsersPage() {
     try { shared = await getAdminDeletionBlockers(u.id); } catch { shared = []; }
 
     if (shared.length > 0) { setDeleting({ user: u, businesses: shared }); return; }
-    if (window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) {
-      act(() => deleteAdminUser(u.id), u.id);
-    }
+    ask({
+      title: `Delete ${u.name}?`,
+      body: `${u.email} — this cannot be undone.`,
+      tone: "danger",
+      confirmLabel: "Delete user",
+      cancelLabel: "Cancel",
+      onConfirm: () => act(() => deleteAdminUser(u.id), u.id),
+    });
   };
 
   /** Per workspace: a member's id to hand it to, or DESTROY to delete it. */
@@ -163,25 +173,55 @@ export default function AdminUsersPage() {
       else successors[b.id] = choice;
     }
     const doomed = deleteWorkspaces.length;
-    if (!window.confirm(
-      `Delete ${deleting.user.name} (${deleting.user.email})?` +
-      (doomed ? `
-
-${doomed} workspace(s) will be destroyed along with every invoice and ledger entry in them.` : "") +
-      `
-
-This cannot be undone.`
-    )) return;
     const target = deleting.user.id;
-    setDeleting(null);
-    setDecisions({});
-    act(() => deleteAdminUser(target, { successors, deleteWorkspaces }), target);
+    const label = `${deleting.user.name} (${deleting.user.email})`;
+    ask({
+      title: `Delete ${deleting.user.name}?`,
+      body: (
+        <>
+          <p>{label}</p>
+          {doomed > 0 && (
+            <p className="mt-2">
+              {doomed} workspace(s) will be destroyed along with every invoice and
+              ledger entry in them.
+            </p>
+          )}
+          <p className="mt-2">This cannot be undone.</p>
+        </>
+      ),
+      tone: "danger",
+      confirmLabel: "Delete user",
+      cancelLabel: "Cancel",
+      onConfirm: () => {
+        setDeleting(null);
+        setDecisions({});
+        act(() => deleteAdminUser(target, { successors, deleteWorkspaces }), target);
+      },
+    });
   };
+  /**
+   * `type: "password"` rather than `window.prompt`, which echoed the new
+   * password in plain text in a box anyone beside the admin could read — and
+   * offered no way to check it against the rules before submitting, so a
+   * rejected password meant retyping the whole thing.
+   *
+   * Validated with the same `firstPasswordProblem` the signup form uses, so
+   * this cannot set a password the login screen would then refuse.
+   */
   const setPassword = (u: AdminUser) => {
     setOpenMenuId("");
-    const pw = window.prompt(`Set a new password for ${u.name} (${u.email}).\nAt least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.`);
-    if (!pw) return; // cancelled or empty
-    act(() => setAdminUserPassword(u.id, pw), u.id);
+    askFor({
+      title: "Set a new password",
+      body: <p>For {u.name} ({u.email}). They are not told about this — send it to them yourself.</p>,
+      label: "New password",
+      type: "password",
+      placeholder: "At least 8 characters",
+      confirmLabel: "Set password",
+      cancelLabel: "Cancel",
+      tone: "warning",
+      validate: (pw) => firstPasswordProblem(pw)?.label ?? null,
+      onSubmit: (pw) => act(() => setAdminUserPassword(u.id, pw), u.id),
+    });
   };
 
 
@@ -472,6 +512,8 @@ This cannot be undone.`
           </div>
         </div>
       )}
+      {dialog}
+      {promptDialog}
     </div>
   );
 }
