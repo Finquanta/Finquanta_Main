@@ -304,7 +304,12 @@ export async function stripeRoutes(fastify: FastifyInstance, options: { database
       const appUrl = process.env.APP_URL || 'http://localhost:3000';
       const session = await createPortalSession({
         customerId: sub.stripeCustomerId,
-        returnUrl: `${appUrl}/settings`,
+        // Billing is workspace-scoped and lives on /workspace-settings, which
+        // is deep-linkable by tab. This used to return to /settings — a page
+        // that had no billing panel on it, and which no longer exists at all,
+        // so Stripe was sending paying customers to a dead end straight after
+        // a billing action.
+        returnUrl: `${appUrl}/workspace-settings?tab=billing`,
       });
       return reply.send({ success: true, data: { url: session.url } });
     } catch (error) {
