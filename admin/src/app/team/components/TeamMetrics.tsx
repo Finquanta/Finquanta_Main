@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { MetricCard } from '@/components/widgets';
-import { TeamMetrics } from '../types';
+// Type-only: the component below shares this name, and isolatedModules needs
+// the distinction stated rather than inferred.
+import type { TeamMetrics } from '../types';
 
 interface TeamMetricsProps {
   metrics: TeamMetrics;

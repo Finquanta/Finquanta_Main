@@ -62,7 +62,6 @@ export default function TeamMembersTable({ members }: TeamMembersTableProps) {
       columns={columns}
       data={members}
       searchable={true}
-      filterable={true}
     />
   );
 }
