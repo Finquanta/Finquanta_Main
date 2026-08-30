@@ -7,9 +7,13 @@ import DocumentGrid from '@/components/user_dashboard/documents/DocumentGrid';
 import { Folder, FileText, Upload, Plus, X } from 'lucide-react';
 import { getDocumentStats, listDocuments } from '@/lib/api/documents';
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 
 export default function DocumentsPage() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const { ask } = useAsk();
   const [documents, setDocuments] = useState(mockDocumentsPageProps.documents);
   const [folders] = useState(mockDocumentsPageProps.folders);
   const [stats, setStats] = useState(mockDocumentsPageProps.stats);
@@ -53,13 +57,18 @@ export default function DocumentsPage() {
     ));
   }, []);
 
-  const handleDocumentDelete = useCallback((document: Document) => {
-    // Delete document with confirmation
-    if (confirm(`Are you sure you want to delete "${document.name}"?`)) {
-      setDocuments(prev => prev.filter(doc => doc.id !== document.id));
-      setSelectedDocuments(prev => prev.filter(id => id !== document.id));
-    }
-  }, []);
+  const handleDocumentDelete = useCallback((doc: Document) => {
+    ask({
+      title: t("dashboard", "confirmDeleteTitle").replace("{name}", doc.name),
+      body: t("dashboard", "confirmCannotUndo"),
+      tone: 'danger',
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: () => {
+        setDocuments(prev => prev.filter(d => d.id !== doc.id));
+        setSelectedDocuments(prev => prev.filter(id => id !== doc.id));
+      },
+    });
+  }, [ask, t]);
 
   const handleBulkDownload = useCallback((documentIds: string[]) => {
     // In a real app, this would create a zip file and download
@@ -68,12 +77,19 @@ export default function DocumentsPage() {
   }, []);
 
   const handleBulkDelete = useCallback((documentIds: string[]) => {
-    // Delete multiple documents with confirmation
-    if (confirm(`Are you sure you want to delete ${documentIds.length} document(s)?`)) {
-      setDocuments(prev => prev.filter(doc => !documentIds.includes(doc.id)));
-      setSelectedDocuments([]);
-    }
-  }, []);
+    ask({
+      // Count-free on purpose: "{n} document(s)" cannot be made to read well in
+      // the languages that inflect, and the selection is already on screen.
+      title: t("dashboard", "docDeleteSelectedTitle"),
+      body: t("dashboard", "confirmCannotUndo"),
+      tone: 'danger',
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: () => {
+        setDocuments(prev => prev.filter(doc => !documentIds.includes(doc.id)));
+        setSelectedDocuments([]);
+      },
+    });
+  }, [ask, t]);
 
   const handleUpload = useCallback(() => {
     // In a real app, this would open file upload dialog

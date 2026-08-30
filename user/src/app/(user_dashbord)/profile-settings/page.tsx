@@ -1,16 +1,16 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { restartTour } from '@/components/user_dashboard/tour/TourGuide';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import TwoFactorSettings from '@/components/user_dashboard/settings/TwoFactorSettings';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import NotificationSettingsComponent from '@/components/user_dashboard/settings/NotificationSettings';
-import BillingSettings from '@/components/user_dashboard/settings/BillingSettings';
 import FinnaSettings from '@/components/user_dashboard/settings/FinnaSettings';
 import { NotificationSettings } from '@/components/user_dashboard/settings/types';
 import { Sun, Moon } from 'lucide-react';
-import { BusinessProfile, getBusinessProfile, saveBusinessProfile, uploadBusinessLogo } from '@/lib/api/business';
 import DashboardShell from '@/components/user_dashboard/DashboardShell';
 import { logoutAndRedirect } from '@/lib/auth';
 import { DeletionBlocker, deleteAccount, getDeletionBlockers, getMe, saveMyProfile } from '@/lib/api/me';
@@ -33,7 +33,7 @@ const PRIMARY_GOALS = ["Grow revenue", "Reduce expenses", "Improve cash flow", "
  * before the split are still around, which is what this list is for.
  */
 const PERSONAL_SECTIONS = [
-  'profile-settings', 'notifications', 'languages', 'theme', 'feedback', 'legal', 'logout',
+  'profile-settings', 'security', 'notifications', 'languages', 'theme', 'feedback', 'legal', 'logout',
 ];
 
 export default function ProfileSettingsPage() {
@@ -69,6 +69,8 @@ export default function ProfileSettingsPage() {
    */
   const [phone, setPhone] = useState('');
   const [phoneSaved, setPhoneSaved] = useState(false);
+  /** Save failures, shown beside the button rather than in a browser alert. */
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [companyEmail, setCompanyEmail] = useState('');
   const [linkedin, setLinkedin] = useState('');
@@ -76,6 +78,7 @@ export default function ProfileSettingsPage() {
   const [country, setCountry] = useState('');
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const { ask } = useAsk();
   const router = useRouter();
   const setThemeMode = (nextTheme: 'light' | 'dark') => {
     if (theme !== nextTheme) {
@@ -95,13 +98,11 @@ export default function ProfileSettingsPage() {
     frequency: 'daily'
   });
 
-  // Business profile (the answers from onboarding) — loaded & saved here.
-  const [biz, setBiz] = useState<BusinessProfile>({});
-  const [bizSaving, setBizSaving] = useState(false);
-  const [bizSaved, setBizSaved] = useState(false);
-  const [logoUploading, setLogoUploading] = useState(false);
-
-  useEffect(() => { getBusinessProfile().then(setBiz).catch(() => {}); }, []);
+  // The Business Profile section used to live here and now lives in Workspace
+  // Settings, because it is workspace-scoped rather than personal. Its state,
+  // its loader and its save handler stayed behind unreferenced — the save could
+  // not be reached from anything on this page. Removed with the alert() sweep
+  // that found it.
   /**
    * Load the whole personal profile.
    *
@@ -132,6 +133,7 @@ export default function ProfileSettingsPage() {
   const saveProfile = async () => {
     setPhoneSaving(true);
     setPhoneSaved(false);
+    setPhoneError(null);
     try {
       await saveMyProfile({
         phone: phone.trim(),
@@ -144,14 +146,14 @@ export default function ProfileSettingsPage() {
       setPhoneSaved(true);
       setTimeout(() => setPhoneSaved(false), 2500);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not save your profile.');
+      setPhoneError(e instanceof Error ? e.message : t('dashboard', 'errSaveProfile'));
     } finally {
       setPhoneSaving(false);
     }
   };
 
-  // Delete account — irreversible, so it's gated behind re-entering the
-  // password plus a native confirm() as a second, harder-to-misclick step.
+  // Delete account — irreversible, so it is gated behind re-entering the
+  // password plus an in-app confirmation as a second, harder-to-misclick step.
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -189,48 +191,64 @@ export default function ProfileSettingsPage() {
 
   const unnominated = blockers.filter((b) => !successors[b.id]);
 
-  const confirmDeleteAccount = async () => {
+  /**
+   * What the handover question knows RIGHT NOW, not when the dialog opened.
+   *
+   * `getDeletionBlockers()` is still in flight while this panel is on screen,
+   * so `blockers` can arrive after the confirmation has been raised. A callback
+   * closed over the opening render would then check an empty list, pass, and
+   * post `successors: {}` for an account that does in fact own shared
+   * workspaces. The server refuses either way, but the question is supposed to
+   * be asked here rather than come back as an error.
+   */
+  const pending = useRef({ blockers, successors, password: deletePassword });
+  pending.current = { blockers, successors, password: deletePassword };
+
+  const confirmDeleteAccount = () => {
     if (!deletePassword.trim() || deleteSubmitting) return;
     if (unnominated.length > 0) {
       setDeleteError('Choose who takes over each shared workspace first.');
       return;
     }
-    const handovers = blockers.length
-      ? `
+    /**
+     * The gravest action in the product, so it gets the in-app dialog rather
+     * than the browser's box — which renders this identically to "delete this
+     * customer" and is the one people have learned to click through.
+     */
+    ask({
+      title: t('dashboard', 'deleteAcctTitle'),
+      body: (
+        <>
+          <p>{t('dashboard', 'deleteAcctBody')}</p>
+          {blockers.length > 0 && (
+            <p className="mt-2">
+              {t('dashboard', 'deleteAcctHandover').replace('{n}', String(blockers.length))}
+            </p>
+          )}
+        </>
+      ),
+      tone: 'danger',
+      confirmLabel: t('dashboard', 'deleteAcctAction'),
+      onConfirm: () => {
+        const now = pending.current;
+        if (now.blockers.some((b) => !now.successors[b.id])) {
+          setDeleteError('Choose who takes over each shared workspace first.');
+          return;
+        }
+        return runDeleteAccount(now.password, now.successors);
+      },
+    });
+  };
 
-${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be handed to the ` +
-        `${blockers.length === 1 ? 'person' : 'people'} you chose, not deleted.`
-      : '';
-    const sure = window.confirm(
-      'This permanently deletes your account AND your business’s entire financial history — invoices, bookkeeping, everything. This cannot be undone. Continue?' +
-      handovers
-    );
-    if (!sure) return;
+  const runDeleteAccount = async (password: string, handovers: Record<string, string>) => {
     setDeleteError(null);
     setDeleteSubmitting(true);
     try {
-      await deleteAccount(deletePassword.trim(), successors);
+      await deleteAccount(password.trim(), handovers);
       logoutAndRedirect('/login');
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : 'Could not delete your account.');
       setDeleteSubmitting(false);
-    }
-  };
-
-  const setBizField = (key: keyof BusinessProfile, value: string) => setBiz((p) => ({ ...p, [key]: value }));
-
-  const saveBiz = async () => {
-    setBizSaving(true);
-    setBizSaved(false);
-    try {
-      const updated = await saveBusinessProfile(biz);
-      setBiz(updated);
-      setBizSaved(true);
-      setTimeout(() => setBizSaved(false), 2500);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not save business profile.');
-    } finally {
-      setBizSaving(false);
     }
   };
 
@@ -257,6 +275,12 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
                /workspace-settings where each workspace gets its own. Adding one
                back here would give the same row two editors, and the copy under
                "your account" would again imply there is only one workspace. */
+            /* Two-factor authentication. It was built end to end — /2fa/setup,
+               /2fa/confirm, /2fa/disable, and verification at login — but its
+               only mount was the mock /settings page that nothing links to, so
+               nobody could turn it on. It is personal rather than
+               workspace-scoped, so it belongs here. */
+            { id: 'security', label: t('dashboard', 'spTwoFactor') },
             { id: 'languages', label: t('settings', 'languageSettings') },
             { id: 'theme', label: t('settings', 'themeSettings') },
             { id: 'notifications', label: t('settings', 'notificationSettings') },
@@ -442,6 +466,7 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
               >
                 {phoneSaving ? 'Saving…' : phoneSaved ? 'Saved' : t('settings', 'saveChanges')}
               </button>
+              {phoneError && <p role="alert" className="text-sm text-red-500">{phoneError}</p>}
             </div>
           </>
         )}
@@ -467,6 +492,12 @@ ${blockers.length} shared workspace${blockers.length === 1 ? '' : 's'} will be h
               onClick={() => { restartTour(); router.push('/dashboard'); }}
               className={`inline-flex items-center gap-2 text-white text-sm font-medium px-6 py-3 rounded-lg ${theme === 'dark' ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'}`}
             >{t("dashboard","psRestartTour")}</button>
+          </div>
+        )}
+
+        {activeSection === 'security' && (
+          <div className="max-w-2xl">
+            <TwoFactorSettings />
           </div>
         )}
 

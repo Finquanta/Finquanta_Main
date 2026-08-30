@@ -8,6 +8,8 @@ import {
   startAdminBusinessTrial, updateAdminBusiness,
 } from "@/lib/api/admin";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
+import { useConfirm } from "@/hooks/useConfirm";
+import { usePrompt } from "@/hooks/usePrompt";
 import { planTone as planToneColors } from "@/lib/planColors";
 
 /**
@@ -27,6 +29,8 @@ export default function AdminBusinessesPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [dark, setDark] = useState(false);
+  const { ask, dialog } = useConfirm(dark);
+  const { askFor, dialog: promptDialog } = usePrompt(dark);
   const [busyId, setBusyId] = useState<string>("");
   const [openMenuId, setOpenMenuId] = useState<string>("");
   const [editBiz, setEditBiz] = useState<AdminBusiness | null>(null);
@@ -179,64 +183,97 @@ export default function AdminBusinessesPage() {
    * customer here does NOT cancel a live subscription, and an admin who assumes
    * it does has just given away the product while still charging for it.
    */
-  const grandfatherFromPicker = async (b: AdminBusiness) => {
+  const grandfatherFromPicker = (b: AdminBusiness) => {
     setPlanFor(null);
 
     const paid = b.planKey !== "freemium";
-    if (paid && !window.confirm(
-      `Move ${b.name} from ${b.plan} to grandfathered?
-
-` +
-      `Their paid plan is cleared and they get full access free until the date you choose.` +
-      (b.subscriptionStatus === "active"
-        ? `
-
-WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
-          `cancel it in Stripe as well, or they will keep being charged.`
-        : "")
-    )) return;
-
-    const raw = window.prompt(
-      `Grandfather "${b.name}".
-
-` +
-      `They keep Business features free until the date this sets.
-
-` +
-      `Enter a number of months from today, or 0 to remove it.`,
-      "6"
-    );
-    if (raw === null) return;
-    const months = Number(raw);
-    if (!Number.isFinite(months) || months < 0) { setError("Enter a number of months."); return; }
-
-    act(async () => {
-      // Clear the paid plan first: grandfathered is a state of NOT paying, and
-      // leaving the old plan behind is what made this look like a no-op.
-      if (paid && months > 0) await setAdminBusinessPlan(b.id, "freemium");
-      await setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months));
-    }, b.id);
+    // A free workspace needs no warning; a paid one is having its plan cleared.
+    if (!paid) return askMonths(b, paid);
+    ask({
+      title: `Move ${b.name} to grandfathered?`,
+      body: (
+        <>
+          <p>Their {b.plan} plan is cleared and they get full access free until the date you choose.</p>
+          {b.subscriptionStatus === "active" && (
+            <p className="mt-2">
+              <strong>They have a live Stripe subscription.</strong> This does NOT cancel it —
+              cancel it in Stripe as well, or they will keep being charged.
+            </p>
+          )}
+        </>
+      ),
+      tone: "warning",
+      confirmLabel: "Grandfather",
+      cancelLabel: "Cancel",
+      onConfirm: () => askMonths(b, paid),
+    });
   };
+
+  /** Months are a NUMBER, so this is the input dialog rather than a confirm. */
+  const monthsValidator = (v: string) => {
+    const n = Number(v);
+    if (v.trim() === "" || !Number.isFinite(n) || n < 0) return "Enter a number of months, or 0 to remove it.";
+    return null;
+  };
+
+  const askMonths = (b: AdminBusiness, paid: boolean) => askFor({
+    title: `Grandfather "${b.name}"`,
+    body: (
+      <>
+        <p>{grandfatherStatus(b)}</p>
+        <p className="mt-1">They keep Business features free until the date this sets.</p>
+      </>
+    ),
+    label: "Months from today (0 removes it)",
+    defaultValue: "6",
+    type: "number",
+    confirmLabel: "Grandfather",
+    cancelLabel: "Cancel",
+    validate: monthsValidator,
+    onSubmit: (raw) => {
+      const months = Number(raw);
+      act(async () => {
+        // Clear the paid plan first: grandfathered is a state of NOT paying, and
+        // leaving the old plan behind is what made this look like a no-op.
+        if (paid && months > 0) await setAdminBusinessPlan(b.id, "freemium");
+        await setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months));
+      }, b.id);
+    },
+  });
+
+  /** Shown above the field — the thing a browser prompt could never display. */
+  const grandfatherStatus = (b: AdminBusiness) =>
+    b.grandfatheredUntil
+      ? `Currently grandfathered until ${fmtDate(b.grandfatheredUntil)}.`
+      : "Not grandfathered yet.";
 
   const startTrial = (b: AdminBusiness) =>
     act(() => startAdminBusinessTrial(b.id), b.id);
 
   const setGrandfather = (b: AdminBusiness) => {
     setOpenMenuId("");
-    const current = b.grandfatheredUntil
-      ? `Currently grandfathered until ${fmtDate(b.grandfatheredUntil)}.`
-      : "Not grandfathered yet.";
-    const raw = window.prompt(
-      `Grandfather "${b.name}".\n\n${current}\n\n` +
-      `They keep Business features free until the date this sets, whatever ` +
-      `plan they are billed for.\n\n` +
-      `Enter a number of months from today, or 0 to remove it.`,
-      "6"
-    );
-    if (raw === null) return;
-    const months = Number(raw);
-    if (!Number.isFinite(months) || months < 0) { setError("Enter a number of months."); return; }
-    act(() => setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months)), b.id);
+    askFor({
+      title: `Grandfather "${b.name}"`,
+      body: (
+        <>
+          <p>{grandfatherStatus(b)}</p>
+          <p className="mt-1">
+            They keep Business features free until the date this sets, whatever plan
+            they are billed for.
+          </p>
+        </>
+      ),
+      label: "Months from today (0 removes it)",
+      defaultValue: "6",
+      type: "number",
+      confirmLabel: "Grandfather",
+      cancelLabel: "Cancel",
+      validate: monthsValidator,
+      onSubmit: (raw) => {
+        const months = Number(raw);
+        act(() => setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months)), b.id);
+      },
+    });
   };
 
   const openTrial = (b: AdminBusiness) => {
@@ -261,16 +298,24 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
       b.id
     );
   };
-  const remove = (b: AdminBusiness) => {
+  const remove = (b: AdminBusiness) => ask({
     // Spelled out because this is not the same as deleting a note: the cascade
     // takes the whole ledger — invoices, transactions, customers, the Brain.
-    const ok = window.confirm(
-      `Delete the workspace "${b.name}" owned by ${b.ownerEmail}?\n\n` +
-      `This permanently removes its entire financial history — invoices, transactions, customers, groups and Company Brain. ` +
-      `It cannot be undone.`
-    );
-    if (ok) act(() => deleteAdminBusiness(b.id), b.id);
-  };
+    title: `Delete the workspace "${b.name}"?`,
+    body: (
+      <>
+        <p>Owned by {b.ownerEmail}.</p>
+        <p className="mt-2">
+          This permanently removes its entire financial history — invoices,
+          transactions, customers, groups and Company Brain. It cannot be undone.
+        </p>
+      </>
+    ),
+    tone: "danger",
+    confirmLabel: "Delete workspace",
+    cancelLabel: "Cancel",
+    onConfirm: () => act(() => deleteAdminBusiness(b.id), b.id),
+  });
 
   const d = {
     bg: dark ? "#0f172a" : "#f4f5f7", surface: dark ? "#1e293b" : "#fff", border: dark ? "#334155" : "#e5e7eb",
@@ -811,6 +856,8 @@ WARNING: they have a live Stripe subscription. This does NOT cancel it — ` +
           </div>
         </div>
       )}
+      {dialog}
+      {promptDialog}
     </div>
   );
 }

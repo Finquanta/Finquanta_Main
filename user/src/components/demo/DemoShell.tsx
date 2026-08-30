@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Globe, ChevronDown, Bell, Menu, LogOut } from 'lucide-react';
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import DashboardSidebar, { SidebarNavItem } from '@/components/user_dashboard/DashboardSidebar';
 import { useDemoSession } from '@/lib/demo/DemoSessionProvider';
 import { clearPendingDemo, stashForSignup } from '@/lib/demo/migrate';
@@ -46,6 +47,7 @@ const NAV: SidebarNavItem[] = [
 export default function DemoShell({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const { ask } = useAsk();
   const { businessName } = useDemoSession();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,15 +57,19 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
   const c = demoColors(isDark);
   const currentLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
 
-  const exitDemo = () => {
-    if (!window.confirm(t('demo', 'exitDemoConfirm'))) return;
-    reset();
+  const exitDemo = () => ask({
+    title: t('demo', 'exitDemoConfirm'),
+    body: t('dashboard', 'confirmCannotUndo'),
+    tone: 'danger',
+    onConfirm: () => {
+      reset();
     // The confirmation promises the work is discarded. A visit to /signup earlier
     // in the session leaves a stash behind in localStorage, so clearing only the
     // session would leave that copy to surface in the next account signed in.
-    clearPendingDemo();
-    router.push('/home');
-  };
+      clearPendingDemo();
+      router.push('/home');
+    },
+  });
 
   return (
     <div className={`flex h-screen ${c.bg}`}>

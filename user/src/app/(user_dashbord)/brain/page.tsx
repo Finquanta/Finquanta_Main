@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 import CompanyOverviewCard from "@/components/user_dashboard/brain/CompanyOverviewCard";
 import CategorySidebar from "@/components/user_dashboard/brain/CategorySidebar";
@@ -53,6 +54,7 @@ export default function CompanyBrainPage() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";
+  const { ask, askFor } = useAsk();
 
   const [overview, setOverview] = useState<BrainOverview | null>(null);
   const [nodes, setNodes] = useState<BrainNode[]>([]);
@@ -276,25 +278,44 @@ export default function CompanyBrainPage() {
     }
   };
 
-  const addCategory = async () => {
-    const name = window.prompt(t("dashboard", "brainNewCategoryPrompt"));
-    if (!name?.trim()) return;
-    try {
-      await createBrainCategory({ name: name.trim() });
-      loadOverview();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("dashboard", "brainErrCategory"));
-    }
-  };
+  const addCategory = () => askFor({
+    title: t("dashboard", "brainNewCategoryPrompt"),
+    label: t("dashboard", "brainCategoryNameLabel"),
+    validate: (v) => (v.trim() ? null : t("dashboard", "brainCategoryNameRequired")),
+    onSubmit: async (name) => {
+      try {
+        await createBrainCategory({ name: name.trim() });
+        loadOverview();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("dashboard", "brainErrCategory"));
+      }
+    },
+  });
 
-  const renameCategory = async (cat: BrainCategory) => {
-    const name = window.prompt(t("dashboard", "brainRenamePrompt"), cat.name);
-    if (name === null) return;
-    const role = window.prompt(t("dashboard", "brainRolePrompt"), cat.role ?? "");
+  /**
+   * Name first, then role — two questions, asked one after the other.
+   *
+   * As two browser prompts this was two grey boxes in a row with no way to see
+   * what you had just typed. Chaining the dialogs keeps that order but shows
+   * each question with its own field and a cancel that means cancel.
+   */
+  const renameCategory = (cat: BrainCategory) => askFor({
+    title: t("dashboard", "brainRenamePrompt"),
+    label: t("dashboard", "brainCategoryNameLabel"),
+    defaultValue: cat.name,
+    onSubmit: (name) => askFor({
+      title: t("dashboard", "brainRolePrompt"),
+      label: t("dashboard", "brainCategoryRoleLabel"),
+      defaultValue: cat.role ?? "",
+      onSubmit: (role) => saveCategory(cat, name, role),
+    }),
+  });
+
+  const saveCategory = async (cat: BrainCategory, name: string, role: string) => {
     try {
       await updateBrainCategory(cat.id, {
         name: name.trim() || cat.name,
-        role: role === null ? undefined : role,
+        role,
       });
       loadOverview();
     } catch (e) {
@@ -307,17 +328,22 @@ export default function CompanyBrainPage() {
    * category disappears from the tree and the graph, and everything filed in it
    * (and in its subcategories) moves to Unassigned rather than being destroyed.
    */
-  const archiveCategoryById = async (id: string, name: string) => {
-    if (!window.confirm(`${name} — ${t("dashboard", "brainConfirmArchiveCategory")}`)) return;
-    try {
-      await removeBrainCategory(id);
-      if (selectedId === id) setSelectedId(undefined);
-      if (focusCategoryId === id) setFocusCategoryId(null);
-      refreshAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("dashboard", "brainErrCategory"));
-    }
-  };
+  const archiveCategoryById = (id: string, name: string) => ask({
+    title: t("dashboard", "confirmArchiveTitle").replace("{name}", name),
+    body: t("dashboard", "brainConfirmArchiveCategory"),
+    tone: "warning",
+    confirmLabel: t("dashboard", "confirmArchiveAction"),
+    onConfirm: async () => {
+      try {
+        await removeBrainCategory(id);
+        if (selectedId === id) setSelectedId(undefined);
+        if (focusCategoryId === id) setFocusCategoryId(null);
+        refreshAll();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("dashboard", "brainErrCategory"));
+      }
+    },
+  });
 
   const archiveCategory = (cat: BrainCategory) => archiveCategoryById(cat.id, cat.name);
 
@@ -339,16 +365,21 @@ export default function CompanyBrainPage() {
     }
   };
 
-  const removeNode = async (id: string) => {
-    if (!window.confirm(t("dashboard", "brainConfirmDeleteNode"))) return;
-    try {
-      await deleteBrainNode(id);
-      if (openNode?.id === id) setOpenNode(null);
-      refreshAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("dashboard", "brainErrDeleteNode"));
-    }
-  };
+  const removeNode = (id: string) => ask({
+    title: t("dashboard", "brainConfirmDeleteNode"),
+    body: t("dashboard", "confirmCannotUndo"),
+    tone: "danger",
+    confirmLabel: t("dashboard", "inboxDelete"),
+    onConfirm: async () => {
+      try {
+        await deleteBrainNode(id);
+        if (openNode?.id === id) setOpenNode(null);
+        refreshAll();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("dashboard", "brainErrDeleteNode"));
+      }
+    },
+  });
 
   const card = isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
   const text = isDark ? "text-white" : "text-gray-900";

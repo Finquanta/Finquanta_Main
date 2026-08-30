@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { getMyReferrals, referralLink } from "@/lib/api/referrals";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 
 /**
  * The user's Finquanta ID, sitting in the top bar. Clicking it copies their
@@ -19,6 +20,7 @@ import { getMyReferrals, referralLink } from "@/lib/api/referrals";
 export default function ReferralIdChip({ isDark }: { isDark: boolean }) {
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { askFor } = useAsk();
 
   useEffect(() => {
     let alive = true;
@@ -37,8 +39,17 @@ export default function ReferralIdChip({ isDark }: { isDark: boolean }) {
       setTimeout(() => setCopied(false), 1800);
     } catch {
       // Clipboard blocked (insecure context, or the user said no). Fall back to
-      // showing the code so it can still be copied by hand.
-      window.prompt("Copy your referral link:", referralLink(code));
+      // showing the link in a field it can be selected out of by hand — the
+      // same job `window.prompt` was doing, without the browser's box.
+      askFor({
+        title: "Copy your referral link",
+        isDark,
+        body: <p>Your browser blocked the clipboard, so here it is to copy by hand.</p>,
+        label: "Referral link",
+        defaultValue: referralLink(code),
+        confirmLabel: "Done",
+        onSubmit: () => {},
+      });
     }
   };
 

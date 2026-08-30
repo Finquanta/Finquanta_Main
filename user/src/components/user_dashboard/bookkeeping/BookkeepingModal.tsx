@@ -6,7 +6,7 @@ import { Group, getGroups, createGroup } from '@/lib/api/groups';
 import { WorkflowType, WORKFLOW_META, workflowsInGroup, runWorkflow, deleteEntry } from '@/lib/api/accounting';
 import { Loan, LoanType, listLoans, createLoan, recordLoanPayment, previewSplit, deleteLoan, deleteLoanPayment } from '@/lib/api/loans';
 import { useLanguage } from '@/hooks/context/LanguageContext';
-import ConfirmDialog from '@/components/user_dashboard/ConfirmDialog';
+import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 
 /** The four debt actions — both directions of a loan. */
 export type DebtAction = 'loan_received' | 'loan_payment' | 'loan_issued' | 'loan_repayment_received';
@@ -131,8 +131,8 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
   // Business Group (cost/profit center) — cash entries only in v1.
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState<string>('');
-  /** Replacing a loan destroys its payments, so it is asked in-app, not by the browser. */
-  const [askReplaceLoan, setAskReplaceLoan] = useState(false);
+  /** Replacing a loan destroys its payments, so it is asked in-app. */
+  const { ask: askReplaceLoan } = useAsk();
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [savingGroup, setSavingGroup] = useState(false);
@@ -271,7 +271,19 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
       basis === 'debt' && !isPaymentAction(debtAction) &&
       editing?.ledger?.kind === 'loan' && editing.ledger.hasPayments && !replaceConfirmed
     ) {
-      setAskReplaceLoan(true);
+      askReplaceLoan({
+        title: t('dashboard', 'bkReplaceLoanTitle'),
+        body: t('dashboard', 'bkReplaceLoanBody'),
+        confirmLabel: t('dashboard', 'bkReplaceLoanConfirm'),
+        tone: 'danger',
+        // This modal is `bg-[#1a1a2e]` in BOTH themes, so the dialog matches
+        // the surface it sits on rather than the app's setting.
+        isDark: true,
+        // Re-runs the submit with the answer as an ARGUMENT — see the note on
+        // `replaceConfirmed` above. The dialog holds its busy state until that
+        // second pass settles, so the feedback stays where the click happened.
+        onConfirm: () => handleSubmit(true),
+      });
       return;
     }
 
@@ -682,21 +694,6 @@ export default function BookkeepingModal({ isOpen, onClose, onSaved, editing, al
         </button>
       </div>
 
-      {/* Replacing a loan deletes its payments. Asked in the app rather than by
-          the browser, whose box is prefixed with the host name and looks like
-          the prompts people are trained to dismiss without reading. */}
-      <ConfirmDialog
-        open={askReplaceLoan}
-        isDark
-        tone="danger"
-        title={t('dashboard', 'bkReplaceLoanTitle')}
-        body={t('dashboard', 'bkReplaceLoanBody')}
-        confirmLabel={t('dashboard', 'bkReplaceLoanConfirm')}
-        cancelLabel={t('dashboard', 'phoneCancel')}
-        busy={saving}
-        onCancel={() => setAskReplaceLoan(false)}
-        onConfirm={() => { setAskReplaceLoan(false); handleSubmit(true); }}
-      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Layers, Plus, Trash2, Archive, TrendingUp, TrendingDown, Pencil, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import DashboardShell from "@/components/user_dashboard/DashboardShell";
 import AddToBrainButton from "@/components/user_dashboard/brain/AddToBrainButton";
@@ -20,6 +21,7 @@ export default function GroupsPage() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [report, setReport] = useState<GroupReportRow[]>([]);
@@ -65,18 +67,39 @@ export default function GroupsPage() {
     }
   };
 
-  const archive = async (g: GroupReportRow) => {
-    if (!g.groupId) return;
-    if (!window.confirm(`Archive "${g.name}"? It stops showing here but its entries stay grouped — you can't currently un-archive from the UI.`)) return;
-    try { await archiveGroup(g.groupId); if (expandedId === g.groupId) setExpandedId(null); load(); }
-    catch (e) { setError(e instanceof Error ? e.message : t("dashboard","errArchiveGroup")); }
+  const archive = (g: GroupReportRow) => {
+    const groupId = g.groupId;
+    if (!groupId) return;
+    ask({
+      title: t("dashboard", "confirmArchiveTitle").replace("{name}", g.name),
+      body: t("dashboard", "groupsArchiveBody"),
+      tone: "warning",
+      confirmLabel: t("dashboard", "confirmArchiveAction"),
+      onConfirm: async () => {
+        try { await archiveGroup(groupId); if (expandedId === groupId) setExpandedId(null); load(); }
+        catch (e) { setError(e instanceof Error ? e.message : t("dashboard","errArchiveGroup")); }
+      },
+    });
   };
 
-  const remove = async (g: GroupReportRow) => {
-    if (!g.groupId) return;
-    if (!window.confirm(`Delete "${g.name}"? Its ${g.entries} ${g.entries === 1 ? "entry" : "entries"} stay on your books and move back to Unassigned. This can't be undone.`)) return;
-    try { await deleteGroup(g.groupId); if (expandedId === g.groupId) setExpandedId(null); load(); }
-    catch (e) { setError(e instanceof Error ? e.message : t("dashboard","errDeleteGroup")); }
+  const remove = (g: GroupReportRow) => {
+    const groupId = g.groupId;
+    if (!groupId) return;
+    ask({
+      title: t("dashboard", "confirmDeleteTitle").replace("{name}", g.name),
+      // Says plainly that the ENTRIES survive. Deleting a group sounds like
+      // deleting what is in it, and it is not. The count is deliberately NOT
+      // repeated here — the row this was clicked from already shows it, and a
+      // "{n} entries" sentence reads "1 entries" for a one-entry group in the
+      // languages that inflect, which no single string can fix.
+      body: t("dashboard", "groupsDeleteBody"),
+      tone: "danger",
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: async () => {
+        try { await deleteGroup(groupId); if (expandedId === groupId) setExpandedId(null); load(); }
+        catch (e) { setError(e instanceof Error ? e.message : t("dashboard","errDeleteGroup")); }
+      },
+    });
   };
 
   const startRename = (g: GroupReportRow) => {
@@ -118,6 +141,7 @@ export default function GroupsPage() {
   const field = `rounded-lg px-3 py-2 text-sm border outline-none ${isDark ? "bg-gray-800 border-gray-600 text-gray-100" : "bg-gray-50 border-gray-300 text-gray-800"}`;
 
   const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const entryWord = (n: number) => (n === 1 ? t("dashboard", "entrySingular") : t("dashboard", "entryPlural"));
 
   // Real groups sit above the Unassigned bucket regardless of net.
   const rows = useMemo(() => {
@@ -219,7 +243,7 @@ export default function GroupsPage() {
                         <button onClick={() => startRename(r)} className={`font-semibold truncate ${text} hover:text-blue-500 text-left`} title={t("dashboard","grpRenameHint")}>
                           {r.name}
                         </button>
-                        <span className={`text-xs ${sub} shrink-0`}>· {r.entries} {r.entries === 1 ? "entry" : "entries"}</span>
+                        <span className={`text-xs ${sub} shrink-0`}>· {r.entries} {entryWord(r.entries)}</span>
                         <button onClick={() => startRename(r)} className={`p-0.5 ${sub} hover:text-blue-500 shrink-0`} title={t("dashboard","grpRename")}>
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
@@ -228,7 +252,7 @@ export default function GroupsPage() {
                       <>
                         {/* Unassigned isn't a real group — it can't be renamed or deleted. */}
                         <span className={`font-semibold truncate ${sub} italic`}>{r.name}</span>
-                        <span className={`text-xs ${sub} shrink-0`}>· {r.entries} {r.entries === 1 ? "entry" : "entries"} with no group</span>
+                        <span className={`text-xs ${sub} shrink-0`}>· {r.entries} {entryWord(r.entries)} {t("dashboard", "grpNoGroup")}</span>
                       </>
                     )}
                   </div>

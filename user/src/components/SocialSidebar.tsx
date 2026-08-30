@@ -15,7 +15,6 @@ export default function SocialSidebar() {
     pathname?.startsWith("/payroll") ||
     pathname?.startsWith("/documents") ||
     pathname?.startsWith("/statistics") ||
-    pathname?.startsWith("/settings") ||
     pathname?.startsWith("/business-plan");
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Building2, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import {
   Invoice, STATUS_COLORS, listInvoices, listDeletedInvoices,
@@ -16,6 +17,7 @@ export default function InvoicesPage() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleted, setDeleted] = useState<Invoice[]>([]);
@@ -52,19 +54,28 @@ export default function InvoicesPage() {
    * still goes to the recycle bin, and restoring it puts the entries back.
    */
   const remove = (inv: Invoice) => {
+    // An invoice already IN the books is a different question from a draft:
+    // one erases ledger entries, the other just files a document away. Same
+    // button, two very different consequences, so they are worded apart.
     const inBooks = !!inv.arEntryId || inv.status === "paid";
-    const msg = inBooks
-      ? `${inv.number} is in your books.\n\nDeleting it removes it from your books completely, as if it had never been raised. It goes to the recycle bin, and you can restore it later.\n\nContinue?`
-      : `Move ${inv.number} to the recycle bin? You can restore it later.`;
-    if (!window.confirm(msg)) return;
-
-    act(inv.id, () => deleteInvoice(inv.id));
+    ask({
+      title: t("dashboard", "confirmDeleteTitle").replace("{name}", inv.number),
+      body: inBooks
+        ? t("dashboard", "invDeleteInBooksBody")
+        : t("dashboard", "invDeleteDraftBody"),
+      tone: inBooks ? "danger" : "warning",
+      confirmLabel: t("dashboard", "inboxDelete"),
+      onConfirm: () => act(inv.id, () => deleteInvoice(inv.id)),
+    });
   };
   const restore = (inv: Invoice) => act(inv.id, () => restoreInvoice(inv.id));
-  const destroy = (inv: Invoice) => {
-    if (!window.confirm(`Permanently delete ${inv.number}? This cannot be undone.`)) return;
-    act(inv.id, () => deleteInvoiceForever(inv.id));
-  };
+  const destroy = (inv: Invoice) => ask({
+    title: t("dashboard", "confirmDeleteForeverTitle").replace("{name}", inv.number),
+    body: t("dashboard", "confirmCannotUndo"),
+    tone: "danger",
+    confirmLabel: t("dashboard", "inboxDelete"),
+    onConfirm: () => act(inv.id, () => deleteInvoiceForever(inv.id)),
+  });
 
   const rows = inBin ? deleted : invoices;
 

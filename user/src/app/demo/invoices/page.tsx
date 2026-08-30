@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { Invoice, STATUS_COLORS, listInvoices, deleteInvoice, money } from "@/lib/demo/api/invoices";
 import { useTheme } from "@/hooks/context/ThemeContext";
+import { useAsk } from "@/components/user_dashboard/ConfirmProvider";
 import { demoColors } from "@/lib/demo/theme";
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { demoErrorText } from '@/lib/demo/errors';
@@ -13,6 +14,7 @@ export default function DemoInvoicesPage() {
   const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { ask } = useAsk();
   const c = demoColors(isDark);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [busyId, setBusyId] = useState("");
@@ -28,13 +30,18 @@ export default function DemoInvoicesPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const remove = async (inv: Invoice) => {
-    if (!window.confirm(t('demo','eConfirmDelete').replace('{name}', inv.number))) return;
-    setBusyId(inv.id);
-    try { await deleteInvoice(inv.id); load(); }
-    catch (e) { setError(demoErrorText(e, t, t('demo','eGeneric'))); }
-    finally { setBusyId(""); }
-  };
+  const remove = (inv: Invoice) => ask({
+    title: t('demo','eConfirmDelete').replace('{name}', inv.number),
+    body: t('dashboard', 'confirmCannotUndo'),
+    tone: 'danger',
+    confirmLabel: t('dashboard', 'inboxDelete'),
+    onConfirm: async () => {
+      setBusyId(inv.id);
+      try { await deleteInvoice(inv.id); load(); }
+      catch (e) { setError(demoErrorText(e, t, t('demo','eGeneric'))); }
+      finally { setBusyId(""); }
+    },
+  });
 
   return (
     <div className="p-4 sm:p-6">

@@ -39,6 +39,16 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
   const [activeId, setActiveId] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  /**
+   * Create/rename failures, shown in the menu rather than by the browser.
+   *
+   * These two were missed by the first alert() sweep, which only looked at the
+   * dashboard. A workspace name that collides, or a plan that has run out of
+   * seats, is a normal thing to hit here — and answering it with the same grey
+   * box the confirmations were moved off puts the error somewhere the dropdown
+   * cannot explain it.
+   */
+  const [actionError, setActionError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   /**
    * Which country this business operates in — asked at creation because that is
@@ -116,6 +126,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
+    setActionError(null);
     try {
       const biz = await createBusiness(newName.trim(), newCountry || undefined);
       setNewName("");
@@ -124,7 +135,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
       await load();
       switchTo(biz.id);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not create workspace.");
+      setActionError(e instanceof Error ? e.message : t("dashboard", "errCreateWorkspace"));
     }
   };
 
@@ -132,6 +143,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 
   const handleRename = async () => {
     if (!editName.trim() || !editingId) { setEditingId(""); return; }
+    setActionError(null);
     try {
       await renameBusiness(editingId, editName.trim());
       setEditingId("");
@@ -139,7 +151,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
       await load();
       window.dispatchEvent(new CustomEvent("finna:businessChanged", { detail: activeId }));
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not rename workspace.");
+      setActionError(e instanceof Error ? e.message : t("dashboard", "errRenameWorkspace"));
     }
   };
 
@@ -165,6 +177,11 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
 
       {open && mounted && pos && createPortal(
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }} className={`rounded-xl border shadow-xl overflow-hidden ${colors.menu}`}>
+          {actionError && (
+            <p role="alert" className="px-3 py-2 text-xs text-red-500 border-b border-red-500/20">
+              {actionError}
+            </p>
+          )}
           {/* Create sits at the TOP. It is the one action here rather than a
               choice among the rows, and at the bottom it drifted further out of
               reach with every business someone added. */}
