@@ -1022,6 +1022,8 @@
     "toastReviewIt": "Jetzt prüfen",
     "toastDismiss": "Ausblenden",
     "maintChipTitle": "Ein Administrator hat die Website in den Wartungsmodus versetzt.",
+    "betaChipLabel": "Beta",
+    "betaChipTitle": "Beta-Testumgebung",
     "maintChipLabel": "In Wartung",
     "phoneTitle": "Telefonnummer hinzufügen",
     "phoneIntro": "Das ist Ihre persönliche Nummer, nicht die des Unternehmens. Sie wird nur verwendet, um Sie zu Ihrem eigenen Konto zu erreichen.",

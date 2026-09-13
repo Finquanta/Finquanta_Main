@@ -9,6 +9,8 @@ import { getMe, finquantaAccountId } from "@/lib/api/me";
 import { checkAdmin } from "@/lib/api/admin";
 import { logoutAndRedirect } from "@/lib/auth";
 import MaintenanceChip from "./MaintenanceChip";
+import BetaChip from "./BetaChip";
+import { hrefFor } from "@/lib/hosts";
 import PlanChip from "./PlanChip";
 import VerifyEmailChip from "./VerifyEmailChip";
 import PhoneChip from "./PhoneChip";
@@ -99,6 +101,7 @@ export default function DashboardSidebar({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
             <MaintenanceChip />
+            <BetaChip />
           </div>
           <button onClick={onClose} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
             <X className="h-5 w-5" />
@@ -112,7 +115,8 @@ export default function DashboardSidebar({
             </Link>
           ))}
           {isAdmin && (
-            <Link href="/admin-users" className={linkClass("/admin-users")} onClick={onClose}>
+            // The admin panel is on its own address once the split is live.
+            <Link href={hrefFor("admin", "/admin-users")} className={linkClass("/admin-users")} onClick={onClose}>
               {t("dashboard", "adminPanel")}
             </Link>
           )}

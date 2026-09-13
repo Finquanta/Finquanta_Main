@@ -1022,6 +1022,8 @@
     "toastReviewIt": "Le vérifier",
     "toastDismiss": "Ignorer",
     "maintChipTitle": "Un administrateur a mis le site en mode maintenance.",
+    "betaChipLabel": "Bêta",
+    "betaChipTitle": "Environnement de test bêta",
     "maintChipLabel": "En maintenance",
     "phoneTitle": "Ajoutez votre numéro de téléphone",
     "phoneIntro": "Il s'agit de votre numéro personnel, pas de celui de l'entreprise. Il sert uniquement à vous joindre au sujet de votre compte.",

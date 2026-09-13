@@ -1022,6 +1022,8 @@
     "toastReviewIt": "Revisarlo",
     "toastDismiss": "Descartar",
     "maintChipTitle": "Un administrador ha puesto el sitio en modo de mantenimiento.",
+    "betaChipLabel": "Beta",
+    "betaChipTitle": "Entorno de pruebas beta",
     "maintChipLabel": "En mantenimiento",
     "phoneTitle": "Añade tu número de teléfono",
     "phoneIntro": "Este es tu número personal, no el de la empresa. Solo se usa para contactarte sobre tu propia cuenta.",

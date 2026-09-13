@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import HamburgerMenu from "./ui/HamburgerMenu";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { BetaBadge } from "./user_dashboard/BetaChip";
 
 export function NavBarComponent() {
   const router = useRouter();
@@ -35,6 +36,8 @@ export function NavBarComponent() {
             <Link href="/" className="flex items-center">
               <Image src="/images/finquanta_logo.svg" width={96} height={96} alt="Finquanta Logo" className="w-20 sm:w-28 md:w-36 h-auto" />
             </Link>
+            {/* The marketing site has no dark mode. */}
+            <BetaBadge isDark={false} />
           </div>
 
           {/* Navigation Links */}

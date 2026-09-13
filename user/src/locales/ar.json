@@ -1022,6 +1022,8 @@
     "toastReviewIt": "مراجعته",
     "toastDismiss": "تجاهل",
     "maintChipTitle": "قام أحد المسؤولين بوضع الموقع في وضع الصيانة.",
+    "betaChipLabel": "تجريبي",
+    "betaChipTitle": "بيئة الاختبار التجريبية",
     "maintChipLabel": "قيد الصيانة",
     "phoneTitle": "أضف رقم هاتفك",
     "phoneIntro": "هذا رقمك الشخصي، وليس رقم الشركة. يُستخدم فقط للتواصل معك بشأن حسابك.",

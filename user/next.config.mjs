@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  // Dev only: lets app.localhost / admin.localhost / beta.localhost load the
+  // dev server's scripts, for trying the domain split locally.
+  allowedDevOrigins: ['*.localhost'],
   // Baseline security headers on every response. (No strict CSP yet — it needs
   // careful allowlisting for inline scripts, Turnstile and Sentry.)
   async headers() {
