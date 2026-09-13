@@ -1022,6 +1022,8 @@
     "toastReviewIt": "去查看",
     "toastDismiss": "忽略",
     "maintChipTitle": "管理员已将网站置于维护模式。",
+    "betaChipLabel": "测试版",
+    "betaChipTitle": "测试版环境",
     "maintChipLabel": "维护中",
     "phoneTitle": "添加您的电话号码",
     "phoneIntro": "这是您的个人号码，而非企业号码。仅用于就您本人的账户与您联系。",
