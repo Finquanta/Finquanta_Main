@@ -1025,6 +1025,8 @@
     "toastReviewIt": "確認する",
     "toastDismiss": "閉じる",
     "maintChipTitle": "管理者がサイトをメンテナンスモードにしました。",
+    "betaChipLabel": "ベータ",
+    "betaChipTitle": "ベータテスト環境",
     "maintChipLabel": "メンテナンス中",
     "phoneTitle": "電話番号を追加",
     "phoneIntro": "これは会社の番号ではなく、あなた個人の番号です。ご自身のアカウントに関するご連絡にのみ使用します。",

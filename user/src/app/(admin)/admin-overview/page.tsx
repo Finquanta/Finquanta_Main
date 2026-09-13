@@ -32,7 +32,9 @@ export default function AdminOverviewPage() {
 
   useEffect(() => { setDark(readAdminDark()); }, []);
 
-  const bounceToLogin = useCallback(() => router.replace("/login"), [router]);
+  // The admin sign-in, not the customer one. `/login` does not exist on
+  // admin.finquanta.ai, so this used to strand a logged-out admin on a 404.
+  const bounceToLogin = useCallback(() => router.replace("/admin-login"), [router]);
 
   useEffect(() => {
     setLoading(true);

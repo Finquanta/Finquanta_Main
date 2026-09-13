@@ -35,6 +35,8 @@ import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
 import PhoneChip from '@/components/user_dashboard/PhoneChip';
 import { DASHBOARD_VERSION } from '@/lib/version';
 import MaintenanceChip from '@/components/user_dashboard/MaintenanceChip';
+import BetaChip from '@/components/user_dashboard/BetaChip';
+import { hrefFor } from '@/lib/hosts';
 import InboundArrivalToast from '@/components/user_dashboard/InboundArrivalToast';
 import RecurringDueDialog from '@/components/user_dashboard/RecurringDueDialog';
 import InboxBell from '@/components/user_dashboard/InboxBell';
@@ -663,6 +665,7 @@ export default function DashboardPage() {
           <div className="flex flex-col items-start">
             <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
             <MaintenanceChip />
+            <BetaChip />
           </div>
           <button onClick={() => setSidebarOpen(false)} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
             <X className="h-5 w-5" />
@@ -698,7 +701,7 @@ export default function DashboardPage() {
             {t('dashboard', 'settings')}
           </Link>
           {isAdmin && (
-            <Link href="/admin-users" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <Link href={hrefFor('admin', '/admin-users')} className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
               {t('dashboard', 'adminPanel')}
             </Link>
           )}

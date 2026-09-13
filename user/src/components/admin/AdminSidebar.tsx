@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { parseHost } from "@/lib/hosts";
 import { logoutAndRedirect } from "@/lib/auth";
 import { ADMIN_VERSION } from "@/lib/version";
 
@@ -42,6 +44,9 @@ export const writeAdminDark = (v: boolean) => { if (typeof window !== "undefined
 
 export default function AdminSidebar({ active, dark, setDark }: { active: Tab; dark: boolean; setDark: (v: boolean) => void }) {
   const router = useRouter();
+  // beta. is the test copy; say so, so nobody mistakes it for the real panel.
+  const [isBeta, setIsBeta] = useState(false);
+  useEffect(() => { setIsBeta(parseHost(window.location.host).kind === "beta"); }, []);
   const muted = dark ? "#94a3b8" : "#6b7280";
   const surface = dark ? "#1e293b" : "#fff";
   const border = dark ? "#334155" : "#e5e7eb";
@@ -74,8 +79,19 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
         .admin-nav .nav-sep { height: 1px; margin: 6px 16px; background: ${border}; }
       `}</style>
 
-      <div style={{ padding: "0 14px 14px" }}>
+      <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 26, width: "auto" }} />
+        {/* Admin stays English, so a plain label rather than the dashboard's BetaChip. */}
+        {isBeta && (
+          <span style={{
+            marginTop: 6, display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "2px 8px",
+            fontSize: 10, fontWeight: 600, lineHeight: 1.2,
+            border: `1px solid ${dark ? "#5b21b6" : "#ddd6fe"}`,
+            background: dark ? "#4c1d9533" : "#ede9fe", color: dark ? "#c4b5fd" : "#5b21b6",
+          }}>
+            Beta
+          </span>
+        )}
       </div>
 
       {NAV.map((n, i) => {

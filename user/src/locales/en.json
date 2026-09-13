@@ -1025,6 +1025,8 @@
     "toastReviewIt": "Review it",
     "toastDismiss": "Dismiss",
     "maintChipTitle": "An admin has put the site into maintenance mode.",
+    "betaChipLabel": "Beta",
+    "betaChipTitle": "Beta testing environment",
     "maintChipLabel": "Under Maintenance",
     "phoneTitle": "Add your phone number",
     "phoneIntro": "This is your personal number, not the business one. It is only used to reach you about your own account.",
