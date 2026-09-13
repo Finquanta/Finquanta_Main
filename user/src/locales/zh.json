@@ -1175,7 +1175,9 @@
     "bxExport": "导出",
     "psRegNumber": "公司注册号",
     "psTaxNumber": "税号",
-    "psIdsHint": "选填。填写后会显示在账簿导出文件的抬头。"
+    "psIdsHint": "选填。填写后会显示在账簿导出文件的抬头。",
+    "invRegNo": "注册号",
+    "invTaxNo": "税号"
   },
   "demo": {
     "acAp": "应付账款",

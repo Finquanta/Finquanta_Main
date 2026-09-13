@@ -1175,7 +1175,9 @@
     "bxExport": "Export",
     "psRegNumber": "Company registration number",
     "psTaxNumber": "Tax number",
-    "psIdsHint": "Optional. Shown in the header of your book exports when filled in."
+    "psIdsHint": "Optional. Shown in the header of your book exports when filled in.",
+    "invRegNo": "Reg. No.",
+    "invTaxNo": "Tax No."
   },
   "demo": {
     "acAp": "Accounts Payable",

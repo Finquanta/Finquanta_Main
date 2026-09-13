@@ -1175,7 +1175,9 @@
     "bxExport": "Exporter",
     "psRegNumber": "Numéro d’immatriculation de l’entreprise",
     "psTaxNumber": "Numéro fiscal",
-    "psIdsHint": "Facultatif. Affiché en tête de vos exports comptables s’il est renseigné."
+    "psIdsHint": "Facultatif. Affiché en tête de vos exports comptables s’il est renseigné.",
+    "invRegNo": "N° d’immatriculation",
+    "invTaxNo": "N° fiscal"
   },
   "demo": {
     "acAp": "Dettes fournisseurs",

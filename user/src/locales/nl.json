@@ -1175,7 +1175,9 @@
     "bxExport": "Exporteren",
     "psRegNumber": "Inschrijvingsnummer bedrijf",
     "psTaxNumber": "Fiscaal nummer",
-    "psIdsHint": "Optioneel. Staat bovenaan je boekhoudexports als je het invult."
+    "psIdsHint": "Optioneel. Staat bovenaan je boekhoudexports als je het invult.",
+    "invRegNo": "Registratienr.",
+    "invTaxNo": "Fiscaal nr."
   },
   "demo": {
     "acAp": "Crediteuren",

@@ -1175,7 +1175,9 @@
     "bxExport": "Exportieren",
     "psRegNumber": "Handelsregisternummer",
     "psTaxNumber": "Steuernummer",
-    "psIdsHint": "Optional. Erscheint im Kopf Ihrer Buchhaltungsexporte, wenn ausgefüllt."
+    "psIdsHint": "Optional. Erscheint im Kopf Ihrer Buchhaltungsexporte, wenn ausgefüllt.",
+    "invRegNo": "Handelsreg.-Nr.",
+    "invTaxNo": "Steuer-Nr."
   },
   "demo": {
     "acAp": "Verbindlichkeiten",

@@ -1175,7 +1175,9 @@
     "bxExport": "Exportar",
     "psRegNumber": "Número de registro da empresa",
     "psTaxNumber": "Número de identificação fiscal",
-    "psIdsHint": "Opcional. Aparece no cabeçalho das suas exportações contábeis quando preenchido."
+    "psIdsHint": "Opcional. Aparece no cabeçalho das suas exportações contábeis quando preenchido.",
+    "invRegNo": "Nº de registro",
+    "invTaxNo": "Nº fiscal"
   },
   "demo": {
     "acAp": "Contas a pagar",

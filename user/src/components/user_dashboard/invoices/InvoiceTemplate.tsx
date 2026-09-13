@@ -44,6 +44,16 @@ export default function InvoiceTemplate({
             {business.businessEmail && <p className="text-slate-600">{business.businessEmail}</p>}
             {business.businessPhone && <p className="text-slate-600">{business.businessPhone}</p>}
             {business.website && <p className="text-slate-600">{business.website}</p>}
+            {/* Statutory identifiers. Many jurisdictions require the tax (VAT)
+                number on an invoice. Labelled, because a bare number means
+                nothing to the recipient; printed only when filled in, so a sole
+                trader without either gets no empty label. */}
+            {business.registrationNumber?.trim() && (
+              <p className="text-slate-600">{t("dashboard","invRegNo")} {business.registrationNumber.trim()}</p>
+            )}
+            {business.taxNumber?.trim() && (
+              <p className="text-slate-600">{t("dashboard","invTaxNo")} {business.taxNumber.trim()}</p>
+            )}
           </div>
         </div>
         <div className="text-right text-[13px] leading-5">
