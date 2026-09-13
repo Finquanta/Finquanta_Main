@@ -16,17 +16,32 @@ export const metadata: Metadata = {
 icons: {
   icon: '/favicon.svg',
 },
+  // 1200x600 JPEG (~60KB), downscaled from the 6912x3456 master PNG, which was
+  // 7.7MB — far past what link-preview crawlers fetch comfortably. Dimensions
+  // are declared so platforms can lay out the card without downloading first.
+  // The PNG stays in /images so previews already cached against it still load.
   openGraph: {
     title: "Finquanta - AI-Powered Company Brain",
     description: "The AI-powered company brain that keeps your books and remembers why.",
-    images: '/images/Finquanta_Metatag.png',
+    images: [{
+      url: '/images/Finquanta_Metatag.jpg',
+      width: 1200,
+      height: 600,
+      alt: 'Finquanta - AI-Powered Company Brain',
+      type: 'image/jpeg',
+    }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: "Finquanta - AI-Powered Company Brain",
     description: "The AI-powered company brain that keeps your books and remembers why.",
-    images: '/images/Finquanta_Metatag.png',
+    images: [{
+      url: '/images/Finquanta_Metatag.jpg',
+      width: 1200,
+      height: 600,
+      alt: 'Finquanta - AI-Powered Company Brain',
+    }],
   },
 };
 
