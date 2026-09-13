@@ -7,6 +7,26 @@
  */
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
+/**
+ * The link a developer actually needs from an email, for the no-API-key log.
+ *
+ * This used to be "the first URL in the HTML". That held while emails were a
+ * heading and a button. The dark shell puts the logo, a finquanta.ai header
+ * link and image sources ABOVE the call to action, so the first URL became the
+ * logo — and someone reading a reset link off the log locally got a PNG.
+ *
+ * Takes only hrefs (never image sources), drops the brand, social and
+ * unsubscribe links every email carries, then prefers one that carries a token.
+ * Exported so the rule can be tested without sending anything.
+ */
+export function actionLink(html: string): string | undefined {
+  const chrome = /instagram\.com|(^|\/\/)x\.com|linkedin\.com|^https?:\/\/(www\.)?finquanta\.ai\/?$|\/unsubscribe/;
+  const candidates = [...html.matchAll(/href="([^"]+)"/g)]
+    .map((m) => m[1]!.replace(/&amp;/g, '&'))
+    .filter((u) => /^https?:\/\//.test(u) && !chrome.test(u));
+  return candidates.find((u) => /[?&](token|t)=|\/join\//.test(u)) ?? candidates[0];
+}
+
 export interface SendEmailOptions {
   to: string;
   subject: string;
@@ -34,7 +54,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
     // stays unconditional so the outage is still loud in production.
     const link =
       process.env.NODE_ENV !== 'production'
-        ? html.match(/https?:\/\/[^"'\s>]+/)?.[0]
+        ? actionLink(html)
         : undefined;
     console.warn(
       `[email] RESEND_API_KEY not set — nothing sent to ${to}\n` +

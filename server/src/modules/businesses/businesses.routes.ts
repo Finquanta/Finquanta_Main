@@ -8,6 +8,7 @@ import { syncSeats } from '../billing/seats';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { transferOwnership } from '../shared/transfer-ownership';
 import { sendEmail } from '../../infrastructure/email';
+import { appUrl } from '../../infrastructure/email-template';
 import { inviteEmailHtml } from './invite-email';
 
 const isValidRole = (r: unknown): r is BusinessRole => BUSINESS_ROLES.includes(r as BusinessRole);
@@ -141,8 +142,10 @@ export async function businessRoutes(fastify: FastifyInstance, options: { databa
         }
 
         const business = await repo.getBusinessById(id);
-        const appUrl = process.env.APP_URL || 'http://localhost:3000';
-        const link = `${appUrl}/join/${token}`;
+        // The shared appUrl(), not a local copy. This used to read APP_URL alone
+        // with its own localhost fallback, so an invite could point somewhere
+        // different from every other email's links.
+        const link = `${appUrl()}/join/${token}`;
         // The token carries only id/email, so the display name is looked up.
         const inviter = await repo.inviterName(request.user!.id);
 

@@ -206,10 +206,12 @@ export class AuthService {
     const link = `${appUrl()}/verify-email?token=${rawToken}`;
     // No unsubscribe: this is transactional, and there is nothing to opt out of.
     const html = renderEmail({
-      title: 'Confirm your Finquanta email',
+      title: 'Verify Your Email',
+      // Must match expiresAt above.
+      expiresIn: 'Expires in 24 hours',
       sections: [{
         paragraphs: [
-          'Welcome! Please confirm your email address to finish setting up your account. This link is valid for 24 hours.',
+          'Welcome! Please confirm your email address to finish setting up your account.',
           'Confirming also adds 7 days to your free trial, as long as the trial is still running.',
         ],
         cta: { label: 'Confirm email', url: link },
@@ -450,9 +452,11 @@ export class AuthService {
 
     const link = `${appUrl()}/reset-password?token=${rawToken}`;
     const html = renderEmail({
-      title: 'Reset your Finquanta password',
+      title: 'Reset Your Password',
+      // Must match expiresAt above.
+      expiresIn: 'Expires in 1 hour',
       sections: [{
-        paragraphs: ['We received a request to reset your password. This link is valid for 1 hour.'],
+        paragraphs: ['We received a request to reset your password.'],
         cta: { label: 'Reset password', url: link },
       }],
       footerNote: "If you didn't request this, you can safely ignore this email — your password won't change.",
