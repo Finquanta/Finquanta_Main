@@ -11,21 +11,21 @@ import MaintenanceBanner from "@/components/MaintenanceBanner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Finquanta - AI Powered Finance",
-  description: "Finquanta AI is modern money management platform powered by AI. Track expenses, optimize investments, and reach your goals all in one place.",
+  title: "Finquanta - AI-Powered Company Brain",
+  description: "Finquanta is the AI-powered company brain for your business. It keeps your books, remembers every decision, and turns your numbers into answers you can act on.",
 icons: {
   icon: '/favicon.svg',
 },
   openGraph: {
-    title: "Finquanta - AI Powered Finance",
-    description: "Finquanta AI is modern money management platform powered by AI.",
+    title: "Finquanta - AI-Powered Company Brain",
+    description: "The AI-powered company brain that keeps your books and remembers why.",
     images: '/images/Finquanta_Metatag.png',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Finquanta - AI Powered Finance",
-    description: "Finquanta AI is modern money management platform powered by AI.",
+    title: "Finquanta - AI-Powered Company Brain",
+    description: "The AI-powered company brain that keeps your books and remembers why.",
     images: '/images/Finquanta_Metatag.png',
   },
 };

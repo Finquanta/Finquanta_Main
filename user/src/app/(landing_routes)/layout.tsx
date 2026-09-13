@@ -10,6 +10,7 @@ import Footer from "@/components/layout/Footer";
 import { useState } from "react";
 import ContactUsModal from "@/components/contactUs";
 import ChatbotWidget from "@/components/ChatbotWidget";
+import SocialSidebar from "@/components/SocialSidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -50,6 +51,12 @@ export default function RootLayout({
           use by IP, so this cannot be driven into unbounded spend. */}
       <ClientOnly>
         <ChatbotWidget variant="landing" />
+      </ClientOnly>
+      {/* Socials, email and back-to-top. Mounted here rather than globally so
+          it is scoped to the marketing pages by construction — the dashboard
+          never renders this layout. Sits bottom-LEFT; Finna owns the right. */}
+      <ClientOnly>
+        <SocialSidebar />
       </ClientOnly>
     </>
   );

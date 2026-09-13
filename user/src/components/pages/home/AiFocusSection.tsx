@@ -15,7 +15,10 @@ const AiFocusSection = () => {
 
   return (
     <section className="w-full pt-32 pb-20 bg-white px-4 sm:px-6 lg:px-8">
-      <div className="relative py-12 mb-32 flex items-center justify-center overflow-hidden w-full">
+      {/* data-social-anchor: SocialSidebar shows itself once this banner has
+          scrolled past. Explicit hook so restyling this div cannot silently
+          change the rail's behaviour. */}
+      <div data-social-anchor className="relative py-12 mb-32 flex items-center justify-center overflow-hidden w-full">
         <Image src="/images/image_69.png" alt="Financial AI Technology Background" fill className="absolute object-cover z-0" priority />
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-medium text-white relative z-10 text-center px-4">
           {t("features", "banner")}
