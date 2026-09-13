@@ -175,6 +175,12 @@ export class ProfileRepository {
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_email VARCHAR(320)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS business_phone VARCHAR(40)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255)`);
+    // Statutory identifiers for the Books Export header (and, later, the invoice
+    // header, which currently cannot show a company number at all). Both
+    // optional: a sole trader has neither, and the export omits the line
+    // entirely rather than printing an empty label.
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS registration_number VARCHAR(60)`);
+    await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS tax_number VARCHAR(60)`);
     // Section 9 — signup questions that feed the Health Score and Finna.
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS has_debt VARCHAR(20)`);
     await this.database.query(`ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS primary_goal VARCHAR(60)`);
@@ -276,8 +282,9 @@ export class ProfileRepository {
         logo_url, address_line1, address_line2, city, region, postal_code,
         business_email, business_phone, website,
         has_debt, primary_goal,
-        onboarding_completed, founded_date, description, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,NOW(),NOW())
+        onboarding_completed, founded_date, description,
+        registration_number, tax_number, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,NOW(),NOW())
       ON CONFLICT (business_id) WHERE business_id IS NOT NULL DO UPDATE SET
         business_name = COALESCE(EXCLUDED.business_name, business_profiles.business_name),
         business_type = COALESCE(EXCLUDED.business_type, business_profiles.business_type),
@@ -304,6 +311,11 @@ export class ProfileRepository {
         onboarding_completed = business_profiles.onboarding_completed OR EXCLUDED.onboarding_completed,
         founded_date = COALESCE(EXCLUDED.founded_date, business_profiles.founded_date),
         description = COALESCE(EXCLUDED.description, business_profiles.description),
+        -- Books Export header. Same COALESCE rule as every field above: sending
+        -- nothing keeps the old value, sending '' clears it, and the export
+        -- treats '' as absent so the line disappears.
+        registration_number = COALESCE(EXCLUDED.registration_number, business_profiles.registration_number),
+        tax_number = COALESCE(EXCLUDED.tax_number, business_profiles.tax_number),
         updated_at = NOW()
       RETURNING *
     `;
@@ -335,7 +347,12 @@ export class ProfileRepository {
       data.onboardingCompleted ?? false,
       // An empty string would fail the DATE cast; treat "cleared" as null.
       data.foundedDate || null,
-      data.description ?? null
+      data.description ?? null,
+      // Trimmed so a stray space does not print as a "filled in" number.
+      // The body is untyped JSON, so guard before trimming: anything that is
+      // not a string is treated as "not sent" rather than crashing the save.
+      typeof data.registrationNumber === 'string' ? data.registrationNumber.trim() : null,
+      typeof data.taxNumber === 'string' ? data.taxNumber.trim() : null
     ]);
     return this.mapBusiness(result.rows[0]);
   }
@@ -364,6 +381,8 @@ export class ProfileRepository {
       businessEmail: row.business_email ?? undefined,
       businessPhone: row.business_phone ?? undefined,
       website: row.website ?? undefined,
+      registrationNumber: row.registration_number ?? undefined,
+      taxNumber: row.tax_number ?? undefined,
       // pg returns DATE as a Date object; the client wants a plain YYYY-MM-DD.
       foundedDate: row.founded_date
         ? new Date(row.founded_date).toISOString().slice(0, 10)

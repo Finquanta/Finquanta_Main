@@ -58,6 +58,14 @@ server.register(fastifyCors, {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Business-Id'],
+  /**
+   * Without this the browser hides `Content-Disposition` from JavaScript on a
+   * cross-origin response, so a fetch-driven download cannot read the filename
+   * the server chose and every Books Export saves as "download". The frontend
+   * is a different origin from the API in every environment, so this is not an
+   * edge case.
+   */
+  exposedHeaders: ['Content-Disposition'],
 });
 
 server.register(fastifyJwt, {

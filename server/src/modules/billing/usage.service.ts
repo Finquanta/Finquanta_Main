@@ -28,7 +28,8 @@ import { PlanLimits } from './plans';
  * downgrading simply lowers the ceiling back down over the same count.
  */
 
-export type UsageMetric = 'finna_messages' | 'council_sessions' | 'document_scans' | 'imports';
+export type UsageMetric =
+  | 'finna_messages' | 'council_sessions' | 'document_scans' | 'imports' | 'exports';
 
 /** Which plan limit governs which metric. */
 const LIMIT_FOR: Record<UsageMetric, keyof PlanLimits> = {
@@ -39,6 +40,10 @@ const LIMIT_FOR: Record<UsageMetric, keyof PlanLimits> = {
   // lines it carries, or the cap would mean nothing on a small sheet and be
   // unusable on a large one.
   imports: 'importsPerMonth',
+  // Books Export. Counted per DOWNLOAD, never per preview: previewing has to
+  // stay free or the two-step flow punishes the person for checking their work
+  // before committing to it.
+  exports: 'exportsPerMonth',
 };
 
 /**

@@ -450,7 +450,14 @@ export class AccountingRepository {
   async listTransactions(
     businessId: string,
     basis: 'cash' | 'accrual' = 'cash',
-    limit = 100
+    limit = 100,
+    /**
+     * Date bounds, for Books Export. Applied in SQL because the range is what
+     * bounds the result set; group and type filtering stay in JS, where this
+     * method already derives both. Existing callers pass three arguments and
+     * are unaffected.
+     */
+    filters?: { startDate?: string; endDate?: string }
   ): Promise<Array<{
     id: string;
     date: string | null;
@@ -484,6 +491,22 @@ export class AccountingRepository {
          )`
       : '';
 
+    // Built positionally so the date bounds stay parameterised. `limit` has to
+    // be pushed last, since its placeholder number depends on how many date
+    // bounds were supplied.
+    const params: unknown[] = [businessId];
+    let dateClause = '';
+    if (filters?.startDate) {
+      params.push(filters.startDate);
+      dateClause += ` AND e.date >= $${params.length}::date`;
+    }
+    if (filters?.endDate) {
+      params.push(filters.endDate);
+      dateClause += ` AND e.date <= $${params.length}::date`;
+    }
+    params.push(limit);
+    const limitPlaceholder = `$${params.length}`;
+
     const result = await this.database.query(
       `SELECT
          e.id, e.date, e.description, e.source_type, e.source_id,
@@ -509,10 +532,10 @@ export class AccountingRepository {
               ON e.source_type IN ('invoice','invoice_payment','invoice_cancelled') AND i.id = e.source_id
        LEFT JOIN loans ln
               ON e.source_type IN ('loan_received','loan_issued','loan_payment','loan_repayment_received') AND ln.id = e.source_id
-       WHERE e.business_id = $1::uuid ${cashOnly}
+       WHERE e.business_id = $1::uuid ${cashOnly}${dateClause}
        ORDER BY e.date DESC, e.created_at DESC
-       LIMIT $2`,
-      [businessId, limit]
+       LIMIT ${limitPlaceholder}`,
+      params
     );
 
     const rows = result.rows as any[];

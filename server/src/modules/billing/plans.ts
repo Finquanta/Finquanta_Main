@@ -81,6 +81,18 @@ export interface PlanLimits {
    */
   scansPerMonth: number | null;
   /**
+   * Books Exports (download the ledger or invoice list as a file) per month.
+   *
+   * Charged on DOWNLOAD only — previewing an export is free, so nobody pays
+   * for checking the range before committing to it.
+   *
+   * Unlike the AI metrics, an export costs essentially nothing to serve: it is
+   * pure data formatting with no model call. So these numbers are positioning,
+   * not cost control. Advertised in the pricing comparison table — keep the two
+   * in step.
+   */
+  exportsPerMonth: number | null;
+  /**
    * Workspaces allowed. `null` on every tier — workspaces are not capped.
    *
    * A workspace is the thing a plan is bought FOR, not something a plan doles
@@ -133,6 +145,9 @@ export const PLANS: Record<PlanKey, Plan> = {
       importsPerMonth: 3,
       // A taste, not a trial: enough to scan a few real bills and see it work.
       scansPerMonth: 5,
+      // One a month: a free user can still get their own books out, which is
+      // a data-portability floor, not a feature.
+      exportsPerMonth: 1,
       businesses: null,
     },
   },
@@ -172,6 +187,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       groups: 10,
       importsPerMonth: 20,
       scansPerMonth: 25,
+      exportsPerMonth: 5,
       businesses: null,
     },
   },
@@ -210,6 +226,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       groups: null,
       importsPerMonth: 50,
       scansPerMonth: 100,
+      exportsPerMonth: 10,
       /**
        * One, like every self-serve tier.
        *
@@ -244,6 +261,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       groups: null,
       importsPerMonth: null,
       scansPerMonth: 500,
+      exportsPerMonth: null,
       businesses: null,
     },
   },
@@ -269,6 +287,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       groups: null,
       importsPerMonth: null,
       scansPerMonth: null,
+      exportsPerMonth: null,
       businesses: null,
     },
   },

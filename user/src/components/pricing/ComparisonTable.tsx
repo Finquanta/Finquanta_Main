@@ -64,6 +64,8 @@ const ROWS: Row[] = [
   { key: 'pfCouncilSessions', free: '—', starter: '—', entrepreneur: '10', business: '30' },
   { key: 'pfGroups', free: '3', starter: '10', entrepreneur: 'pfUnlimited', business: 'pfUnlimited' },
   { key: 'pfScans', free: '5', starter: '25', entrepreneur: '100', business: '500' },
+  // Books Export. Must match exportsPerMonth in server plans.ts exactly.
+  { key: 'pfExports', free: '1', starter: '5', entrepreneur: '10', business: 'pfUnlimited' },
   /**
    * NO WORKSPACES ROW, deliberately.
    *

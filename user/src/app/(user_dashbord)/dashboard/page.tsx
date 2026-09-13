@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText, Download } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
 import { isFinnaHidden, setFinnaHidden } from '@/lib/finnaVisibility';
 import BookkeepingModal, { BookkeepingEditing, DebtAction } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
@@ -29,6 +29,7 @@ import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/Rev
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
 import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import CaptureButton from '@/components/user_dashboard/capture/CaptureButton';
+import ExportModal from '@/components/user_dashboard/exports/ExportModal';
 import PlanChip from '@/components/user_dashboard/PlanChip';
 import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
 import PhoneChip from '@/components/user_dashboard/PhoneChip';
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [bookkeepingModalOpen, setBookkeepingModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [bookkeepingEditing, setBookkeepingEditing] = useState<BookkeepingEditing | null>(null);
   const [bookkeepingRefresh, setBookkeepingRefresh] = useState(0);
 
@@ -982,10 +984,15 @@ export default function DashboardPage() {
               className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               <Plus className="h-4 w-4" />{t("dashboard","dashAddData")}</button>
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+            >
+              <Download className="h-4 w-4" />{t("dashboard","bxExport")}</button>
             <Link
               href="/invoices/new"
               data-tour="invoices"
-              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              className="flex items-center gap-1.5 bg-[#ff8600] hover:bg-[#e67300] text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               <FileText className="h-4 w-4" />{t("dashboard","dashCreateInvoice")}</Link>
             {/* Photograph a bill instead of typing it. Sits beside the other two
@@ -1022,6 +1029,12 @@ export default function DashboardPage() {
                 <span className={`text-xs ${colors.text}`}>{t('dashboard', 'last30Days')}</span>
                 <button onClick={openNewBookkeeping} className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-600">
                   {t('dashboard', 'addData')}
+                </button>
+                <button
+                  onClick={() => setExportModalOpen(true)}
+                  className="bg-green-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-green-600"
+                >
+                  {t('dashboard', 'bxExport')}
                 </button>
               </div>
             </div>
@@ -1231,6 +1244,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        isDark={isDark}
+      />
 
       <BookkeepingModal
         isOpen={bookkeepingModalOpen}

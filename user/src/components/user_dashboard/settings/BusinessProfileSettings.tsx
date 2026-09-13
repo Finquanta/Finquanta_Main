@@ -176,6 +176,17 @@ export default function BusinessProfileSettings({ isDark }: { isDark: boolean })
             <label className={labelCls}>{t("dashboard","invWebsite")}</label>
             <input className={inputCls} value={biz.website ?? ''} onChange={(e) => setBizField('website', e.target.value)} placeholder={t("dashboard","invWebsite")} />
           </div>
+          {/* Statutory identifiers. Optional — a sole trader often has neither —
+              and the export prints each line only when it is filled in. */}
+          <div>
+            <label className={labelCls}>{t("dashboard","psRegNumber")}</label>
+            <input className={inputCls} value={biz.registrationNumber ?? ''} onChange={(e) => setBizField('registrationNumber', e.target.value)} placeholder="12345678" maxLength={60} />
+          </div>
+          <div>
+            <label className={labelCls}>{t("dashboard","psTaxNumber")}</label>
+            <input className={inputCls} value={biz.taxNumber ?? ''} onChange={(e) => setBizField('taxNumber', e.target.value)} placeholder="GB123456789" maxLength={60} />
+          </div>
+          <p className={`sm:col-span-2 -mt-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{t("dashboard","psIdsHint")}</p>
           <div className="sm:col-span-2">
             <label className={labelCls}>{t("dashboard","invBusinessAddress")}</label>
             <input className={`${inputCls} mb-2`} value={biz.addressLine1 ?? ''} onChange={(e) => setBizField('addressLine1', e.target.value)} placeholder={t("dashboard","invAddrLine1")} />

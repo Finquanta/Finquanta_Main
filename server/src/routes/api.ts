@@ -42,6 +42,7 @@ import { siteRoutes } from '../modules/site/site.routes';
 import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
+import { exportsRoutes } from '../modules/exports/exports.routes';
 import { captureRoutes } from '../modules/capture/capture.routes';
 import { inboundRoutes } from '../modules/inbound/inbound.routes';
 import { inboundWebhookRoutes } from '../modules/inbound/inbound.webhook';
@@ -376,6 +377,14 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // string one. Fastify scopes that to the plugin instance, so isolating it
   // here keeps every other route parsing JSON normally.
   await fastify.register(stripeWebhookRoutes, { database });
+
+  /**
+   * Books Export. Registered here because it reads from accounting, invoices,
+   * groups, profile and billing — all of which are already up by this point.
+   * Adds no table of its own: a file is generated and streamed on the request,
+   * so there is no ensureSchema() to call.
+   */
+  await fastify.register(exportsRoutes, { database });
 
   // Registered after groups and accounting because its pins read from both.
   try {

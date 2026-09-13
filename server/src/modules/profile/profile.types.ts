@@ -51,6 +51,10 @@ export interface BusinessProfile {
   businessEmail?: string;
   businessPhone?: string;
   website?: string;
+  // Statutory identifiers, both optional. Printed in the Books Export header
+  // only when filled in.
+  registrationNumber?: string;
+  taxNumber?: string;
   // Company Brain overview card. Not asked at onboarding — edited on the card.
   /** YYYY-MM-DD. */
   foundedDate?: string;
