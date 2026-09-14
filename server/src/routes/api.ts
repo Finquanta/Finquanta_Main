@@ -4,6 +4,7 @@ import { authRoutes } from '../modules/auth/auth.routes';
 import { transactionRoutes } from '../modules/financial/transaction.routes';
 import { Database } from '../infrastructure/database';
 import { setBetaRecipientCheck } from '../infrastructure/email';
+import { ensureBaseSchema } from '../infrastructure/base-schema';
 import { profileRoutes } from '../modules/profile/profile.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { bookkeepingRoutes } from '../modules/bookkeeping/bookkeeping.routes';
@@ -169,6 +170,15 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Register authentication routes
   const database = new Database();
 
+  // A brand-new database (beta's) has none of the original tables that every
+  // ensureSchema below builds on. No-op on any database that already has users.
+  // Not swallowed: an empty database that cannot get its base tables cannot
+  // serve anything, and failing here names the actual cause.
+  const freshDatabase = await ensureBaseSchema(database);
+  if (freshDatabase) {
+    fastify.log.info('Created the base tables on an empty database');
+  }
+
   // beta.finquanta.ai only emails people who have a beta account — imported
   // workspaces carry real customers' addresses. No-op unless BETA_SITE=true.
   if (process.env.BETA_SITE === 'true') {
@@ -245,10 +255,21 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   }
 
   // Ensure the business onboarding table exists (idempotent).
+  //
+  // On an EMPTY database this cannot finish yet: its business_id column
+  // references `businesses`, which is created just below. The table itself is
+  // created (the businesses backfill reads it), the rest is completed once
+  // businesses exists. On an existing database this finishes first time.
+  let businessProfilesReady = false;
   try {
     await new ProfileRepository(database).ensureBusinessSchema();
+    businessProfilesReady = true;
   } catch (error) {
-    fastify.log.error({ error }, 'Failed to ensure business_profiles schema');
+    if (freshDatabase) {
+      fastify.log.warn('business_profiles set up partially; finishing after businesses exists');
+    } else {
+      fastify.log.error({ error }, 'Failed to ensure business_profiles schema');
+    }
   }
 
   // Ensure businesses/members/invites tables exist and every user has a default
@@ -260,6 +281,13 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     await businessesRepo.ensureDataScoping();
   } catch (error) {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
+  }
+  if (!businessProfilesReady) {
+    try {
+      await new ProfileRepository(database).ensureBusinessSchema();
+    } catch (error) {
+      fastify.log.error({ error }, 'Failed to ensure business_profiles schema');
+    }
   }
   await fastify.register(businessRoutes, { database });
 
