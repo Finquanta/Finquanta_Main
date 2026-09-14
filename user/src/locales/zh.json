@@ -1204,7 +1204,9 @@
     "psTaxNumber": "税号",
     "psIdsHint": "选填。填写后会显示在账簿导出文件的抬头。",
     "invRegNo": "注册号",
-    "invTaxNo": "税号"
+    "invTaxNo": "税号",
+    "sidebarCollapse": "收起侧边栏",
+    "sidebarExpand": "展开侧边栏"
   },
   "demo": {
     "acAp": "应付账款",

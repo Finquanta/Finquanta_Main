@@ -1204,7 +1204,9 @@
     "psTaxNumber": "Numéro fiscal",
     "psIdsHint": "Facultatif. Affiché en tête de vos exports comptables s’il est renseigné.",
     "invRegNo": "N° d’immatriculation",
-    "invTaxNo": "N° fiscal"
+    "invTaxNo": "N° fiscal",
+    "sidebarCollapse": "Réduire la barre latérale",
+    "sidebarExpand": "Développer la barre latérale"
   },
   "demo": {
     "acAp": "Dettes fournisseurs",

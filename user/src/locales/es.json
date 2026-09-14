@@ -1204,7 +1204,9 @@
     "psTaxNumber": "Número de identificación fiscal",
     "psIdsHint": "Opcional. Aparece en la cabecera de tus exportaciones contables si lo completas.",
     "invRegNo": "N.º de registro",
-    "invTaxNo": "N.º fiscal"
+    "invTaxNo": "N.º fiscal",
+    "sidebarCollapse": "Contraer barra lateral",
+    "sidebarExpand": "Expandir barra lateral"
   },
   "demo": {
     "acAp": "Cuentas por pagar",

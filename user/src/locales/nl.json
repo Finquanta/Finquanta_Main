@@ -1204,7 +1204,9 @@
     "psTaxNumber": "Fiscaal nummer",
     "psIdsHint": "Optioneel. Staat bovenaan je boekhoudexports als je het invult.",
     "invRegNo": "Registratienr.",
-    "invTaxNo": "Fiscaal nr."
+    "invTaxNo": "Fiscaal nr.",
+    "sidebarCollapse": "Zijbalk inklappen",
+    "sidebarExpand": "Zijbalk uitklappen"
   },
   "demo": {
     "acAp": "Crediteuren",

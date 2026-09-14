@@ -1204,7 +1204,9 @@
     "psTaxNumber": "Tax Number",
     "psIdsHint": "Optional. Shown in the header of your book exports when filled in.",
     "invRegNo": "Reg. No.",
-    "invTaxNo": "Tax No."
+    "invTaxNo": "Tax No.",
+    "sidebarCollapse": "Collapse sidebar",
+    "sidebarExpand": "Expand sidebar"
   },
   "demo": {
     "acAp": "Accounts Payable",

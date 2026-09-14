@@ -1204,7 +1204,9 @@
     "psTaxNumber": "Steuernummer",
     "psIdsHint": "Optional. Erscheint im Kopf Ihrer Buchhaltungsexporte, wenn ausgefüllt.",
     "invRegNo": "Handelsreg.-Nr.",
-    "invTaxNo": "Steuer-Nr."
+    "invTaxNo": "Steuer-Nr.",
+    "sidebarCollapse": "Seitenleiste einklappen",
+    "sidebarExpand": "Seitenleiste ausklappen"
   },
   "demo": {
     "acAp": "Verbindlichkeiten",

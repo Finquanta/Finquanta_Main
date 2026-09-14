@@ -1204,7 +1204,9 @@
     "psTaxNumber": "税番号",
     "psIdsHint": "任意。入力すると帳簿エクスポートのヘッダーに表示されます。",
     "invRegNo": "登録番号",
-    "invTaxNo": "税番号"
+    "invTaxNo": "税番号",
+    "sidebarCollapse": "サイドバーを折りたたむ",
+    "sidebarExpand": "サイドバーを展開"
   },
   "demo": {
     "acAp": "買掛金",

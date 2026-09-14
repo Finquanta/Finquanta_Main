@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, LogOut, X, Pencil, Trash2, Check, Paperclip, RefreshCw, MessageSquare, Menu, Plus, FileText, Download } from 'lucide-react';
+import { Globe, ChevronDown, Bell, LogOut, Pencil, Trash2, Check, Paperclip, RefreshCw, Menu, Plus, FileText, Download } from 'lucide-react';
 import { logoutAndRedirect } from '@/lib/auth';
 import { isFinnaHidden, setFinnaHidden } from '@/lib/finnaVisibility';
 import BookkeepingModal, { BookkeepingEditing, DebtAction } from '@/components/user_dashboard/bookkeeping/BookkeepingModal';
@@ -20,23 +20,16 @@ import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from '@/hooks/context/Lang
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { DashboardOverviewResponse, getDashboardOverview, deleteGoal, RevenueMetric } from '@/lib/api/dashboard';
 import { deleteTransaction, createTransaction, getReceiptObjectUrl, Recurrence } from '@/lib/api/transactions';
-import { getMe, updateName, finquantaAccountId, CurrentUser } from '@/lib/api/me';
+import { getMe, updateName, CurrentUser } from '@/lib/api/me';
 import { resendVerification } from '@/lib/api/verify';
 import { getBusinessProfile } from '@/lib/api/business';
-import { checkAdmin } from '@/lib/api/admin';
 import { Reminder, getReminders, createReminder, updateReminder, deleteReminder } from '@/lib/api/reminders';
 import RevenueChart, { METRICS } from '@/components/user_dashboard/dashboard/RevenueChart';
 import WorkspaceSwitcher from '@/components/user_dashboard/WorkspaceSwitcher';
 import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
 import CaptureButton from '@/components/user_dashboard/capture/CaptureButton';
 import ExportModal from '@/components/user_dashboard/exports/ExportModal';
-import PlanChip from '@/components/user_dashboard/PlanChip';
-import VerifyEmailChip from '@/components/user_dashboard/VerifyEmailChip';
-import PhoneChip from '@/components/user_dashboard/PhoneChip';
-import { DASHBOARD_VERSION } from '@/lib/version';
-import MaintenanceChip from '@/components/user_dashboard/MaintenanceChip';
-import BetaChip from '@/components/user_dashboard/BetaChip';
-import { hrefFor } from '@/lib/hosts';
+import DashboardSidebar from '@/components/user_dashboard/DashboardSidebar';
 import InboundArrivalToast from '@/components/user_dashboard/InboundArrivalToast';
 import RecurringDueDialog from '@/components/user_dashboard/RecurringDueDialog';
 import InboxBell from '@/components/user_dashboard/InboxBell';
@@ -215,12 +208,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
-  }, []);
-
-  // Show the Admin Panel link only to admins / super admins / owners.
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => {
-    checkAdmin().then(() => setIsAdmin(true)).catch(() => setIsAdmin(false));
   }, []);
 
   // If onboarding wasn't completed, send the user to finish it — unless they
@@ -578,7 +565,6 @@ export default function DashboardPage() {
   };
 
   const displayName = me ? `${me.firstName} ${me.lastName}`.trim() || 'User' : 'User';
-  const accountId = me ? finquantaAccountId(me.id) : '—';
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -607,7 +593,6 @@ export default function DashboardPage() {
   // Color variables - simplified and clear
   const colors = {
     bg: isDark ? 'bg-gray-900' : 'bg-white',
-    sidebar: isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200',
     card: isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900 border border-gray-200',
     topbar: isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
     text: isDark ? 'text-gray-300' : 'text-gray-700',
@@ -650,101 +635,14 @@ export default function DashboardPage() {
         height: "calc(100vh - var(--maintenance-h, 0px))",
       }}
     >
-      {/* Mobile/tablet overlay behind the drawer */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
-      )}
-
       {/* Email lands while nobody is looking — this is how you find out. */}
       <InboundArrivalToast />
       <RecurringDueDialog />
 
-      {/* SIDEBAR — static on desktop, off-canvas drawer on tablet/mobile */}
-      <div className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 ${colors.sidebar} border-r flex flex-col py-6 px-4 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="mb-8 flex items-start justify-between">
-          <div className="flex flex-col items-start">
-            <img src="/images/finquanta_logo.svg" alt="Finquanta" className="w-28 h-auto" />
-            <MaintenanceChip />
-            <BetaChip />
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className={`lg:hidden p-1 rounded-md ${colors.text}`} aria-label="Close menu">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <nav className="flex flex-col gap-1" data-tour="sidebar">
-          {/* Keep this list in step with NAV in DashboardSidebar.tsx — this page
-              builds its own sidebar instead of using DashboardShell, so a link
-              added there does not appear here. */}
-          <Link href="/brain" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'brainTitle')}
-          </Link>
-          <Link href="/dashboard" className="text-[13px] font-semibold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-lg">
-            {t('dashboard', 'title')}
-          </Link>
-          <Link href="/invoices" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'invoices')}
-          </Link>
-          <Link href="/customers" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'customers')}
-          </Link>
-          <Link href="/activity" data-tour="activity" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'activity')}
-          </Link>
-          <Link href="/groups" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'groups')}
-          </Link>
-          <Link href="/referrals" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'referAB')}
-          </Link>
-          <Link href="/profile-settings" className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-            {t('dashboard', 'settings')}
-          </Link>
-          {isAdmin && (
-            <Link href={hrefFor('admin', '/admin-users')} className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${isDark ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-              {t('dashboard', 'adminPanel')}
-            </Link>
-          )}
-        </nav>
-
-        {/* The legal documents used to sit loose down here. They now live under
-            Settings → Legal, which keeps this to what you actually click. */}
-        <div className="mt-auto flex flex-col gap-2 text-xs">
-          {/* Also duplicated from DashboardSidebar.tsx. This page builds its own
-              sidebar rather than using DashboardShell, so anything added there
-              is invisible on /dashboard until it is added here too — which is
-              exactly how the plan chip came to show on every page EXCEPT the
-              dashboard. */}
-          <div className="mb-1">
-            <PlanChip isDark={isDark} />
-            {/* Only rendered for unverified accounts; silent otherwise. */}
-            <VerifyEmailChip isDark={isDark} />
-            {/* Also self-hiding: gone once a number is on file. */}
-            <PhoneChip isDark={isDark} />
-          </div>
-          <p className={`mt-4 ${colors.subtext}`}>{t('dashboard', 'finquantaId')}: {accountId}</p>
-          {/* This whole block is still duplicated from DashboardSidebar.tsx and
-              removing it is an open cleanup — but the version at least can no
-              longer drift, because both read the same constant. */}
-          <p className={colors.subtext}>{t('dashboard', 'version')} {DASHBOARD_VERSION}</p>
-          <a
-            href="https://airtable.com/appvpi5gHRidiIhw8/pagLtSSYVhxqHrWFk/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 mt-1 font-medium text-green-600 hover:text-green-700 hover:underline"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            {t('dashboard', 'sendFeedback')}
-          </a>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {t('settings', 'logOut')}
-          </button>
-        </div>
-      </div>
+      {/* The shared sidebar, drawer overlay included. This page used to build
+          its own copy, which is how links and chips kept reaching every page
+          except this one. */}
+      <DashboardSidebar isDark={isDark} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col overflow-hidden">
