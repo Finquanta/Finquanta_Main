@@ -14,6 +14,7 @@ import WorkspaceSettingsModal from "@/components/user_dashboard/settings/Workspa
 import { MyBilling, getMyBilling } from "@/lib/api/billing";
 import { planTone } from "@/lib/planColors";
 import { COUNTRIES } from "@/lib/countries";
+import { realAppUrl } from "@/lib/hosts";
 import ConfirmDialog from "./ConfirmDialog";
 import { getMe } from "@/lib/api/me";
 import { useLanguage } from "@/hooks/context/LanguageContext";
@@ -213,6 +214,19 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
               <Plus className="h-3.5 w-3.5" />{t("dashboard","wsCreateBusiness")}
             </button>
           )}
+
+          {/* Beta only: bring a workspace's real books into this test site, or
+              refresh a copy. Confirmed on the real site, so beta never holds its
+              credentials. The menu only renders after mount, so reading the
+              address here cannot differ between server and client. */}
+          {(() => {
+            const href = realAppUrl("/beta-import");
+            return href ? (
+              <a href={href} className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 font-medium border-t ${colors.divider} ${colors.item}`}>
+                <Building2 className="h-3.5 w-3.5" />{t("dashboard","bimpTitle")}
+              </a>
+            ) : null;
+          })()}
 
           <div className={`border-t ${colors.divider}`}>
             <div className={`px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide ${colors.sub}`}>{t("dashboard","wsYourBusinesses")}</div>
@@ -784,6 +798,10 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
                         {holdsSeat(m.role)
                           ? <span className="ml-1.5 text-[10px] font-bold uppercase text-green-600">seat</span>
                           : <span className={`ml-1.5 text-[10px] uppercase ${sub}`}>free</span>}
+                        {/* Ticked by the owner in "Import my real books". */}
+                        {m.betaTester && (
+                          <span className="ml-1.5 text-[10px] font-bold uppercase text-violet-600">beta tester</span>
+                        )}
                       </p>
                       <p className={`text-xs truncate ${sub}`}>{m.email}</p>
                     </div>

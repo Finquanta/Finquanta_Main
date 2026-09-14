@@ -83,7 +83,9 @@ services:
       - key: RESET_EMAIL_FROM
         value: Finquanta <no-reply@finquanta.ai>
 
-      # The production API, for "Import my real books".
+      # The production API, for "Import my real books" — the same address the
+      # real site's frontend uses as NEXT_PUBLIC_API_URL, ending in /api.
+      # Production in turn needs BETA_SITE_URL=https://beta.finquanta.ai.
       - key: PRODUCTION_API_URL
         sync: false
 

@@ -116,6 +116,15 @@ export class BusinessesRepository {
     await this.database.query(`ALTER TABLE business_invites ADD COLUMN IF NOT EXISTS email_sent_to VARCHAR(255)`);
 
     /**
+     * Members the owner chose to test this workspace's copy on beta.finquanta.ai.
+     * Set when the owner starts "Import my real books"; shown as a badge in the
+     * team list on the real site.
+     */
+    await this.database.query(
+      `ALTER TABLE business_members ADD COLUMN IF NOT EXISTS beta_tester BOOLEAN NOT NULL DEFAULT false`
+    );
+
+    /**
      * Workspace-level restriction, set from the admin panel. Mirrors
      * `users.status` — 'active' | 'suspended' — and is enforced in
      * `withBusiness`, so one guard covers every business-scoped route.
@@ -360,7 +369,7 @@ export class BusinessesRepository {
 
   async listMembers(businessId: string): Promise<BusinessMember[]> {
     const result = await this.database.query(
-      `SELECT m.user_id, m.role, u.first_name, u.last_name, u.email
+      `SELECT m.user_id, m.role, m.beta_tester, u.first_name, u.last_name, u.email
        FROM business_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.business_id = $1
@@ -372,6 +381,7 @@ export class BusinessesRepository {
       name: `${r.first_name ?? ''} ${r.last_name ?? ''}`.trim() || r.email,
       email: r.email,
       role: r.role,
+      betaTester: r.beta_tester === true,
     }));
   }
 

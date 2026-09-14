@@ -44,6 +44,7 @@ import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
 import { exportsRoutes } from '../modules/exports/exports.routes';
+import { betaImportRoutes } from '../modules/beta-import/beta-import.routes';
 import { captureRoutes } from '../modules/capture/capture.routes';
 import { inboundRoutes } from '../modules/inbound/inbound.routes';
 import { inboundWebhookRoutes } from '../modules/inbound/inbound.webhook';
@@ -261,6 +262,10 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
   }
   await fastify.register(businessRoutes, { database });
+
+  // Import my real books — both halves; BETA_SITE decides which one answers.
+  // After businesses, because its tables reference businesses and users.
+  await fastify.register(betaImportRoutes, { database });
 
   // Ledger tables (accounts / journal_entries / journal_lines). Must come after
   // businesses, since accounts are scoped to a business. Per-business chart of

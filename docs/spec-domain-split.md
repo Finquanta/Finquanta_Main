@@ -107,8 +107,33 @@ Not a copy of production. Beta has to run with `NODE_ENV=production`, which
 switches off every development-only safety net in the server, and a copy of
 production would bring real customers' emails, Stripe subscription ids and
 inbound addresses with it. An empty database has nothing real to damage; the
-server creates the schema on first boot. Owners can later choose to bring a
-workspace in ("Import my real books", separate spec).
+server creates the schema on first boot. Owners can choose to bring a workspace
+in (below).
+
+### Import my real books
+
+An owner copies one workspace from the real site into beta. One way only.
+
+1. On beta, the workspace switcher shows **Import my real books** → opens
+   `app.finquanta.ai/beta-import`.
+2. There, signed in as the real owner: pick the workspace and tick the members
+   who may test it. Ticked members get a **beta tester** badge in the real
+   team list. Production creates a one-time code (hashed, single use, 10
+   minutes) and sends the browser to `beta.finquanta.ai/import?code=…`.
+3. Beta's server redeems the code with production for a 30-minute session,
+   pulls the rows page by page, writes them in one transaction, then copies the
+   files. Ticked members join when they sign up or log in on beta with the same
+   email.
+
+Copies the books, receipts and scans, Company Brain, business plans and the
+owner's documents, keeping the original ids; only user ids change. Never copies
+Stripe ids, billing records, inbound addresses, referrals, sessions or other
+members' data. Bookkeeping journal entries are rebuilt on beta, not copied.
+Importing the same workspace again replaces the beta copy.
+
+Code: `server/src/modules/beta-import/` (`copy-plan.ts` is the table list).
+Needs `BETA_SITE_URL=https://beta.finquanta.ai` on the **production** API and
+`PRODUCTION_API_URL` (the production API address, ending in `/api`) on beta.
 
 ### Safety checks in code
 
