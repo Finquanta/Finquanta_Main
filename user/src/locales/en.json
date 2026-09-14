@@ -1173,8 +1173,8 @@
     "bxPreviewFailed": "Could not build that preview.",
     "bxDownloadFailed": "Could not download that export.",
     "bxExport": "Export",
-    "psRegNumber": "Company registration number",
-    "psTaxNumber": "Tax number",
+    "psRegNumber": "Company Registration Number",
+    "psTaxNumber": "Tax Number",
     "psIdsHint": "Optional. Shown in the header of your book exports when filled in.",
     "invRegNo": "Reg. No.",
     "invTaxNo": "Tax No."
