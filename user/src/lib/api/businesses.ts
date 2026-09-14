@@ -24,6 +24,8 @@ export interface BusinessMember {
   name: string;
   email: string;
   role: BusinessRole;
+  /** Chosen by the owner to test this workspace's copy on beta.finquanta.ai. */
+  betaTester?: boolean;
 }
 
 export interface InviteInfo {

@@ -3,6 +3,7 @@ import { ApiInfoResponse, ApiResponse } from '@/types';
 import { authRoutes } from '../modules/auth/auth.routes';
 import { transactionRoutes } from '../modules/financial/transaction.routes';
 import { Database } from '../infrastructure/database';
+import { setBetaRecipientCheck } from '../infrastructure/email';
 import { profileRoutes } from '../modules/profile/profile.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { bookkeepingRoutes } from '../modules/bookkeeping/bookkeeping.routes';
@@ -43,6 +44,7 @@ import { fxRoutes } from '../modules/fx/fx.routes';
 import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
 import { exportsRoutes } from '../modules/exports/exports.routes';
+import { betaImportRoutes } from '../modules/beta-import/beta-import.routes';
 import { captureRoutes } from '../modules/capture/capture.routes';
 import { inboundRoutes } from '../modules/inbound/inbound.routes';
 import { inboundWebhookRoutes } from '../modules/inbound/inbound.webhook';
@@ -166,6 +168,19 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Register authentication routes
   const database = new Database();
+
+  // beta.finquanta.ai only emails people who have a beta account — imported
+  // workspaces carry real customers' addresses. No-op unless BETA_SITE=true.
+  if (process.env.BETA_SITE === 'true') {
+    setBetaRecipientCheck(async (email) => {
+      const { rows } = await database.query(
+        'SELECT 1 FROM users WHERE lower(email) = lower($1) LIMIT 1',
+        [email.trim()]
+      );
+      return rows.length > 0;
+    });
+  }
+
   await fastify.register(authRoutes, {
     prefix: '/v1/auth',
     database
@@ -247,6 +262,10 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure businesses schema');
   }
   await fastify.register(businessRoutes, { database });
+
+  // Import my real books — both halves; BETA_SITE decides which one answers.
+  // After businesses, because its tables reference businesses and users.
+  await fastify.register(betaImportRoutes, { database });
 
   // Ledger tables (accounts / journal_entries / journal_lines). Must come after
   // businesses, since accounts are scoped to a business. Per-business chart of

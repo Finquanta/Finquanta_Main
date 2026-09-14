@@ -33,7 +33,43 @@ export interface SendEmailOptions {
   html: string;
 }
 
+/**
+ * Beta only (BETA_SITE=true): who may receive email.
+ *
+ * A workspace imported from the real books brings real customers' addresses,
+ * and beta can send invoices, invites and staff notices like production does.
+ * So beta delivers only to people who have a beta account; everything else is
+ * logged and skipped.
+ *
+ * Registered at boot by whoever owns the database (routes/api.ts), because this
+ * module has none. Until one is registered, beta sends nothing — failing closed
+ * is the point.
+ */
+type RecipientCheck = (email: string) => Promise<boolean>;
+let betaRecipientCheck: RecipientCheck | null = null;
+
+export function setBetaRecipientCheck(check: RecipientCheck | null): void {
+  betaRecipientCheck = check;
+}
+
+async function blockedOnBeta(to: string): Promise<boolean> {
+  if (process.env.BETA_SITE !== 'true') return false;
+  if (!betaRecipientCheck) return true;
+  try {
+    return !(await betaRecipientCheck(to));
+  } catch {
+    return true;
+  }
+}
+
 export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void> {
+  if (await blockedOnBeta(to)) {
+    // Not a failure of the flow that asked: the address simply is not a beta
+    // tester. The link is never logged — this runs in production mode.
+    console.warn(`[email] beta: ${to} has no beta account — not sent (subject: ${subject})`);
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESET_EMAIL_FROM || 'Finquanta <onboarding@resend.dev>';
 

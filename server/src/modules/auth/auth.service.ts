@@ -11,6 +11,7 @@ import { appUrl, renderEmail } from '../../infrastructure/email-template';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
 import { BillingRepository } from '../billing/billing.repository';
+import { claimBetaMemberInvites } from '../beta-import/beta-members';
 import { TRIAL_DAYS_UNVERIFIED, TRIAL_DAYS_VERIFIED } from '../billing/plans';
 /** 14 verified minus 7 unverified — the difference verifying is worth. */
 const TRIAL_VERIFY_BONUS_DAYS = TRIAL_DAYS_VERIFIED - TRIAL_DAYS_UNVERIFIED;
@@ -162,6 +163,9 @@ export class AuthService {
     } catch (error) {
       console.error('DEFAULT BUSINESS ERROR:', error instanceof Error ? error.message : String(error));
     }
+
+    // Beta only: join any imported workspace whose owner ticked this email.
+    await claimBetaMemberInvites(this.database, user.id);
 
     // Send the "confirm your email" link (non-fatal — signup still succeeds if
     // email delivery fails; the user can resend later).
@@ -318,6 +322,9 @@ export class AuthService {
       };
     }
 
+    // Beta only: someone ticked after they already had a beta account.
+    await claimBetaMemberInvites(this.database, user.id);
+
     // Generate tokens (drop the internal DB id — the client only gets the JWTs)
     const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
 
@@ -347,6 +354,8 @@ export class AuthService {
 
     const user = await this.userRepository.findById(userId);
     if (!user) throw new Error('Incorrect code.');
+
+    await claimBetaMemberInvites(this.database, user.id);
 
     const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
     return {
