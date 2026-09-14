@@ -5,7 +5,7 @@ import {
   AdminBusiness, AdminBillingOverview, checkAdmin, deleteAdminBusiness,
   extendAdminBusinessTrial, adjustAdminBusinessGrandfather, getAdminBillingOverview, listAdminBusinesses,
   assignAdminBusinessOwner, setAdminBusinessGrandfather, setAdminBusinessPlan, setAdminBusinessStatus,
-  startAdminBusinessTrial, updateAdminBusiness,
+  startAdminBusinessTrial, updateAdminBusiness, setAdminBusinessBeta, refreshAdminBusinessBeta,
 } from "@/lib/api/admin";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -136,6 +136,9 @@ export default function AdminBusinessesPage() {
   };
   const toggleStatus = (b: AdminBusiness) =>
     act(() => setAdminBusinessStatus(b.id, b.status === "suspended" ? "active" : "suspended"), b.id);
+  // Turning beta on copies the workspace into beta.finquanta.ai; off keeps that copy.
+  const toggleBeta = (b: AdminBusiness) => act(() => setAdminBusinessBeta(b.id, !b.beta), b.id);
+  const refreshBeta = (b: AdminBusiness) => act(() => refreshAdminBusinessBeta(b.id), b.id);
 
   /**
    * Hand an abandoned workspace to someone, by email.
@@ -460,7 +463,17 @@ export default function AdminBusinessesPage() {
                   const dim = b.status === "suspended" ? 0.55 : 1;
                   return (
                     <tr key={b.id} style={{ borderBottom: `0.5px solid ${d.border}` }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 600, opacity: dim }}>{b.name || "—"}</td>
+                      <td style={{ padding: "10px 12px", fontWeight: 600, opacity: dim }}>
+                        {b.name || "—"}
+                        {b.beta && (
+                          <span style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 999,
+                            border: `1px solid ${d.border}`, background: "#ede9fe", color: "#5b21b6", verticalAlign: "middle",
+                          }}>
+                            Beta
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: "10px 12px", opacity: dim }}>
                         {/* An ownerless workspace is the one an admin is most
                             likely to be looking for, so it says so loudly and
@@ -555,6 +568,8 @@ export default function AdminBusinessesPage() {
                                     label={b.grandfatheredUntil ? "Change grandfathering" : "Grandfather workspace"}
                                     onClick={() => setGrandfather(b)}
                                   />
+                                  <MenuItem label={b.beta ? "Remove from beta" : "Make beta"} onClick={() => toggleBeta(b)} />
+                                  {b.beta && <MenuItem label="Refresh beta copy" onClick={() => refreshBeta(b)} />}
                                   <MenuItem label={b.status === "suspended" ? "Unrestrict" : "Restrict"} onClick={() => toggleStatus(b)} />
                                   <MenuItem label="Delete" danger onClick={() => remove(b)} />
                                 </div>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Building2, Bot, CreditCard } from 'lucide-react';
+import { Building2, Bot, CreditCard, FlaskConical } from 'lucide-react';
 import BusinessProfileSettings from './BusinessProfileSettings';
 import FinnaSettings from './FinnaSettings';
 import BillingSettings from './BillingSettings';
+import BetaSettings from './BetaSettings';
 import { Business, listBusinesses } from '@/lib/api/businesses';
 
 /** Where apiFetch reads the workspace it scopes every request to. */
@@ -22,12 +23,13 @@ const ACTIVE_KEY = 'activeBusinessId';
  * carries X-Business-Id, so none of them needs to know a workspace exists.
  */
 
-export type WorkspaceTab = 'business-profile' | 'finna' | 'billing';
+export type WorkspaceTab = 'business-profile' | 'finna' | 'billing' | 'beta';
 
 export const WORKSPACE_TABS: { id: WorkspaceTab; label: string; icon: typeof Building2 }[] = [
   { id: 'business-profile', label: 'Business Profile', icon: Building2 },
   { id: 'finna', label: 'Finna Overview', icon: Bot },
   { id: 'billing', label: 'Billing', icon: CreditCard },
+  { id: 'beta', label: 'Beta', icon: FlaskConical },
 ];
 
 export default function WorkspaceSettingsPanel({
@@ -131,6 +133,7 @@ export default function WorkspaceSettingsPanel({
         {tab === 'business-profile' && <BusinessProfileSettings isDark={isDark} />}
         {tab === 'finna' && <FinnaSettings isDark={isDark} />}
         {tab === 'billing' && <BillingSettings isDark={isDark} />}
+        {tab === 'beta' && <BetaSettings isDark={isDark} />}
       </div>
     </div>
   );

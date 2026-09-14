@@ -83,9 +83,8 @@ const APP_SEGMENTS = new Set([
   // The demo stashes its data for the account created at signup, in the same
   // browser storage — split them across addresses and the import finds nothing.
   'demo',
-  // Import my real books: /beta-import is where an owner confirms on the real
-  // product; /import is where beta receives the one-time code.
-  'beta-import', 'import',
+  // "Open in beta" lands here on beta with a one-time sign-in link.
+  'sso',
 ]);
 
 const MARKETING_SEGMENTS = new Set(['home', 'pricing', 'pricing-comparison', 'blog']);
@@ -185,21 +184,4 @@ export function hrefFor(
   const { kind, base } = parseHost(loc.host, baseDomains);
   if ((kind !== 'app' && kind !== 'admin') || kind === surface) return path;
   return `${loc.protocol}//${hostFor(surface, base)}${path}`;
-}
-
-/**
- * On beta, the real product's address for `path` — where "Import my real books"
- * sends an owner to confirm. Null anywhere else, where there is no real site to
- * import from.
- */
-export function realAppUrl(
-  path: string,
-  loc: { host: string; protocol: string } | undefined =
-    typeof window === 'undefined' ? undefined : window.location,
-  baseDomains?: readonly string[]
-): string | null {
-  if (!loc) return null;
-  const { kind, base } = parseHost(loc.host, baseDomains);
-  if (kind !== 'beta') return null;
-  return `${loc.protocol}//${hostFor('app', base)}${path}`;
 }

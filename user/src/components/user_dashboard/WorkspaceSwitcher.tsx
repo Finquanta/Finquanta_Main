@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Building2, ChevronDown, Plus, UserPlus, Copy, Check, X, Pencil, Eye, ArrowLeft, Trash2,
-  LogOut, Crown, Send, Link as LinkIcon, Settings,
+  LogOut, Crown, Send, Link as LinkIcon, Settings, FlaskConical,
 } from "lucide-react";
 import {
   Business, BusinessMember, BusinessRole, BUSINESS_ROLES,
@@ -14,7 +14,8 @@ import WorkspaceSettingsModal from "@/components/user_dashboard/settings/Workspa
 import { MyBilling, getMyBilling } from "@/lib/api/billing";
 import { planTone } from "@/lib/planColors";
 import { COUNTRIES } from "@/lib/countries";
-import { realAppUrl } from "@/lib/hosts";
+import { parseHost } from "@/lib/hosts";
+import { openInBeta } from "@/lib/api/betaImport";
 import ConfirmDialog from "./ConfirmDialog";
 import { getMe } from "@/lib/api/me";
 import { useLanguage } from "@/hooks/context/LanguageContext";
@@ -215,19 +216,6 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
             </button>
           )}
 
-          {/* Beta only: bring a workspace's real books into this test site, or
-              refresh a copy. Confirmed on the real site, so beta never holds its
-              credentials. The menu only renders after mount, so reading the
-              address here cannot differ between server and client. */}
-          {(() => {
-            const href = realAppUrl("/beta-import");
-            return href ? (
-              <a href={href} className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 font-medium border-t ${colors.divider} ${colors.item}`}>
-                <Building2 className="h-3.5 w-3.5" />{t("dashboard","bimpTitle")}
-              </a>
-            ) : null;
-          })()}
-
           <div className={`border-t ${colors.divider}`}>
             <div className={`px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide ${colors.sub}`}>{t("dashboard","wsYourBusinesses")}</div>
           </div>
@@ -253,6 +241,13 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                       <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
                       <span className="truncate">{b.name}</span>
                       {b.plan && <PlanPill plan={b.plan} tone={b.planTone} isDark={isDark} />}
+                      {b.beta && (
+                        <span className={`text-[10px] font-semibold leading-none rounded-full border px-1.5 py-0.5 flex-shrink-0 ${
+                          isDark ? "border-violet-800 bg-violet-900/30 text-violet-300" : "border-violet-200 bg-violet-100 text-violet-800"
+                        }`}>
+                          {t("dashboard", "wsBetaPill")}
+                        </span>
+                      )}
                     </span>
                     <span className={`block pl-[22px] text-[10px] ${colors.sub}`}>{b.role}</span>
                   </button>
@@ -269,6 +264,22 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                         active workspace from `activeBusinessId`, so opening
                         them without switching would show the gear you clicked
                         on one row while editing a different workspace's books. */}
+                    {/* Beta workspace: go to its copy on beta.finquanta.ai, signed
+                        in, with no account to create there. Not shown on beta
+                        itself, where you already are. The menu renders only
+                        after mount, so reading the address here is safe. */}
+                    {b.beta && (b.role === "Owner" || b.betaTester) && parseHost(window.location.host).kind !== "beta" && (
+                      <button
+                        onClick={() => {
+                          setActionError(null);
+                          openInBeta(b.id).catch((e) => setActionError(e instanceof Error ? e.message : String(e)));
+                        }}
+                        className="text-gray-400 hover:text-violet-500"
+                        title={t("dashboard", "wsBetaOpen")}
+                      >
+                        <FlaskConical className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => { switchTo(b.id); setSettingsFor(b); }}
                       className="text-gray-400 hover:text-blue-500"

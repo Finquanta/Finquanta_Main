@@ -125,6 +125,23 @@ export class BusinessesRepository {
     );
 
     /**
+     * Beta workspace: cloned into beta.finquanta.ai's database. Turning it on
+     * starts a copy; `beta_copy_*` records how the latest one went, so the owner
+     * and the admin panel can see it without asking beta.
+     */
+    for (const column of [
+      'beta_enabled BOOLEAN NOT NULL DEFAULT false',
+      'beta_updated_at TIMESTAMPTZ',
+      'beta_updated_by UUID',
+      `beta_copy_status VARCHAR(20) NOT NULL DEFAULT 'none'`,
+      'beta_copy_started_at TIMESTAMPTZ',
+      'beta_copied_at TIMESTAMPTZ',
+      'beta_copy_error TEXT',
+    ]) {
+      await this.database.query(`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS ${column}`);
+    }
+
+    /**
      * Workspace-level restriction, set from the admin panel. Mirrors
      * `users.status` — 'active' | 'suspended' — and is enforced in
      * `withBusiness`, so one guard covers every business-scoped route.
@@ -266,7 +283,8 @@ export class BusinessesRepository {
    */
   async listForUser(userId: string): Promise<Business[]> {
     const result = await this.database.query(
-      `SELECT b.id, b.name, b.owner_id, m.role,
+      `SELECT b.id, b.name, b.owner_id, m.role, m.beta_tester,
+              b.beta_enabled, b.beta_copy_status,
               s.plan, s.status, s.trial_ends_at, s.grandfathered_until
        FROM business_members m
        JOIN businesses b ON b.id = m.business_id
@@ -282,6 +300,11 @@ export class BusinessesRepository {
       role: r.role,
       plan: planBadgeFromRow(r).label,
       planTone: planBadgeFromRow(r).tone,
+      /** Cloned into beta.finquanta.ai. */
+      beta: r.beta_enabled === true,
+      betaCopyStatus: r.beta_copy_status ?? 'none',
+      /** This member was ticked to test the beta copy. */
+      betaTester: r.beta_tester === true,
     }));
   }
 

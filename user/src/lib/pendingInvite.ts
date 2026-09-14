@@ -66,31 +66,5 @@ export function peekPendingInvite(): string | null {
  */
 export function postAuthDestination(fallback = '/dashboard'): string {
   const token = peekPendingInvite();
-  if (token) return `/join/${token}`;
-  const path = takePostAuthPath();
-  return path ?? fallback;
-}
-
-const RETURN_KEY = 'finquanta_post_auth_path';
-
-/**
- * Come back to this page after logging in.
- *
- * For pages reached by a link that only works signed in — "Import my real
- * books" arrives carrying a one-time code, and losing it at the login screen
- * means starting over. Same-site paths only, so it cannot become an open
- * redirect.
- */
-export function rememberPostAuthPath(path: string): void {
-  if (typeof window === 'undefined') return;
-  if (!path.startsWith('/') || path.startsWith('//')) return;
-  localStorage.setItem(RETURN_KEY, path);
-}
-
-function takePostAuthPath(): string | null {
-  if (typeof window === 'undefined') return null;
-  const path = localStorage.getItem(RETURN_KEY);
-  if (!path) return null;
-  localStorage.removeItem(RETURN_KEY);
-  return path.startsWith('/') && !path.startsWith('//') ? path : null;
+  return token ? `/join/${token}` : fallback;
 }

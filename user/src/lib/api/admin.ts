@@ -54,6 +54,11 @@ export interface AdminBusiness {
   businessPhone: string;
   status: string;
   createdAt: string | null;
+  /** Cloned into beta.finquanta.ai, and how the latest copy went. */
+  beta: boolean;
+  betaCopyStatus: 'none' | 'copying' | 'done' | 'failed';
+  betaCopiedAt: string | null;
+  betaCopyError: string | null;
 }
 
 export interface AdminBillingOverview {
@@ -222,6 +227,16 @@ export async function updateAdminBusiness(
 /** Restrict ('suspended') or reactivate ('active') a workspace. */
 export async function setAdminBusinessStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
   await apiFetch(`/v1/admin/businesses/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+/** Make a workspace a beta workspace (starts copying it into beta), or take it out. Audited. */
+export async function setAdminBusinessBeta(id: string, enabled: boolean): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/beta`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
+}
+
+/** Copy a beta workspace into beta again, replacing the copy there. Audited. */
+export async function refreshAdminBusinessBeta(id: string): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/beta/refresh`, { method: 'POST' });
 }
 
 /** Irreversible — takes the workspace's entire financial history with it. */

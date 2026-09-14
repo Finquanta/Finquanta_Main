@@ -6,7 +6,7 @@ import { parseHost } from "@/lib/hosts";
 import { logoutAndRedirect } from "@/lib/auth";
 import { ADMIN_VERSION } from "@/lib/version";
 
-type Tab = "overview" | "users" | "businesses" | "blog" | "usage" | "playbook" | "audit" | "patch" | "referrals" | "notifications" | "deletions";
+type Tab = "overview" | "users" | "businesses" | "beta" | "blog" | "usage" | "playbook" | "audit" | "patch" | "referrals" | "notifications" | "deletions";
 
 /**
  * Grouped rather than one long list of eleven.
@@ -22,6 +22,8 @@ const NAV: { key: Tab; label: string; href: string; group: number }[] = [
   // Directly under Users: business data used to be columns on that tab, where
   // joining it duplicated every owner of more than one workspace.
   { key: "businesses", label: "Workspaces", href: "/admin-businesses", group: 0 },
+  // The workspaces cloned into beta.finquanta.ai.
+  { key: "beta", label: "Beta", href: "/admin-beta", group: 0 },
   // Beside Users and Workspaces, because it answers a question about them: the
   // accounts that USED to be there. Not folded into Audit Logs — that records
   // admin actions only, so self-closed accounts never appeared in it.

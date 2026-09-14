@@ -2,23 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { KNOWN_SEGMENTS, decide, hrefFor, parseHost, pathKind, realAppUrl } from './hosts';
-
-describe('realAppUrl — from beta back to the real product', () => {
-  it('points beta at app. on the same base', () => {
-    expect(realAppUrl('/beta-import', { host: 'beta.finquanta.ai', protocol: 'https:' }))
-      .toBe('https://app.finquanta.ai/beta-import');
-    expect(realAppUrl('/beta-import', { host: 'beta.localhost:3000', protocol: 'http:' }))
-      .toBe('http://app.localhost:3000/beta-import');
-  });
-
-  it('is null anywhere that is not beta — there is no real site to import from', () => {
-    for (const host of ['app.finquanta.ai', 'finquanta.ai', 'admin.finquanta.ai', 'finquanta-abc.vercel.app']) {
-      expect(realAppUrl('/beta-import', { host, protocol: 'https:' })).toBeNull();
-    }
-    expect(realAppUrl('/beta-import', undefined)).toBeNull();
-  });
-});
+import { KNOWN_SEGMENTS, decide, hrefFor, parseHost, pathKind } from './hosts';
 
 describe('hrefFor — links that cross addresses', () => {
   it('points the dashboard admin link at admin. once the split is live', () => {

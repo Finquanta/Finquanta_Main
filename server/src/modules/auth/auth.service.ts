@@ -11,7 +11,7 @@ import { appUrl, renderEmail } from '../../infrastructure/email-template';
 import { isPasswordPwned } from '../../infrastructure/pwned';
 import { ReferralsRepository } from '../referrals/referrals.repository';
 import { BillingRepository } from '../billing/billing.repository';
-import { claimBetaMemberInvites } from '../beta-import/beta-members';
+import { ProductionIdentity, claimBetaMemberInvites, findOrCreateBetaUser } from '../beta-import/beta-members';
 import { TRIAL_DAYS_UNVERIFIED, TRIAL_DAYS_VERIFIED } from '../billing/plans';
 /** 14 verified minus 7 unverified — the difference verifying is worth. */
 const TRIAL_VERIFY_BONUS_DAYS = TRIAL_DAYS_VERIFIED - TRIAL_DAYS_UNVERIFIED;
@@ -188,6 +188,33 @@ export class AuthService {
     // Generate tokens (drop the internal DB id — the client only gets the JWTs)
     const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
 
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      },
+      ...tokens
+    };
+  }
+
+  /**
+   * Beta only: sign someone in on the real site's word ("Open in beta").
+   *
+   * The caller has already redeemed a one-time link with production, which
+   * answered with who it belongs to. No password is involved — beta never
+   * holds one that works.
+   */
+  async signInFromProduction(identity: ProductionIdentity): Promise<AuthResponse> {
+    const user = await findOrCreateBetaUser(this.database, identity);
+    if (user.status === 'suspended') {
+      throw new Error('Your account has been suspended. Please contact support.');
+    }
+    await claimBetaMemberInvites(this.database, user.id);
+
+    const { refreshTokenId: _refreshTokenId, ...tokens } = await this.generateTokens(user);
     return {
       user: {
         id: user.id,

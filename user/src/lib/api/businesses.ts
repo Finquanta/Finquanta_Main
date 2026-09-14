@@ -17,6 +17,11 @@ export interface Business {
   plan?: string;
   /** Colour key for that label — see lib/planColors. */
   planTone?: string;
+  /** Cloned into beta.finquanta.ai. */
+  beta?: boolean;
+  betaCopyStatus?: 'none' | 'copying' | 'done' | 'failed';
+  /** You were ticked to test this workspace's beta copy. */
+  betaTester?: boolean;
 }
 
 export interface BusinessMember {

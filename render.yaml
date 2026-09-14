@@ -83,11 +83,17 @@ services:
       - key: RESET_EMAIL_FROM
         value: Finquanta <no-reply@finquanta.ai>
 
-      # The production API, for "Import my real books" — the same address the
-      # real site's frontend uses as NEXT_PUBLIC_API_URL, ending in /api.
-      # Production in turn needs BETA_SITE_URL=https://beta.finquanta.ai.
+      # The production API, for copying beta workspaces and "Open in beta" —
+      # the address the real site's frontend uses as NEXT_PUBLIC_API_URL,
+      # ending in /api.
       - key: PRODUCTION_API_URL
         sync: false
+      # Shared with production: production sends it when asking beta to copy a
+      # workspace. Generated here; copy the value into the PRODUCTION service
+      # as BETA_SYNC_SECRET, along with BETA_SITE_URL=https://beta.finquanta.ai
+      # and BETA_API_URL=<this service's address>/api.
+      - key: BETA_SYNC_SECRET
+        generateValue: true
 
       - key: ANTHROPIC_API_KEY
         sync: false

@@ -262,6 +262,7 @@ export class AdminRepository {
   async listBusinesses(): Promise<AdminBusinessRow[]> {
     const result = await this.database.query(`
       SELECT b.id, b.name, b.created_at, b.status,
+             b.beta_enabled, b.beta_copy_status, b.beta_copied_at, b.beta_copy_error,
              u.email AS owner_email, u.first_name, u.last_name,
              prev.email AS previous_owner_email,
              bp.country, bp.industry, bp.business_phone,
@@ -306,6 +307,11 @@ export class AdminRepository {
       businessPhone: r.business_phone ?? '',
       status: r.status ?? 'active',
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+      /** Cloned into beta.finquanta.ai, and how the latest copy went. */
+      beta: r.beta_enabled === true,
+      betaCopyStatus: r.beta_copy_status ?? 'none',
+      betaCopiedAt: r.beta_copied_at ? new Date(r.beta_copied_at).toISOString() : null,
+      betaCopyError: r.beta_copy_error ?? null,
     }));
   }
 
