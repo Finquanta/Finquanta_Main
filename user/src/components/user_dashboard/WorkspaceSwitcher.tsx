@@ -109,7 +109,9 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
       const next = !v;
       if (next && btnRef.current) {
         const r = btnRef.current.getBoundingClientRect();
-        const width = 288;
+        // Wide enough for a long workspace name, its badges and the beta status
+        // without cutting any of them off; never wider than the screen.
+        const width = Math.min(420, window.innerWidth - 16);
         const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
         setPos({ top: r.bottom + 6, left, width });
       }
@@ -173,7 +175,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
         {/* "Workspace" is the user-facing name for a `businesses` row. One
             workspace is one business with its own books; a person belongs to as
             many as they like. The table keeps its internal name. */}
-        <span className="max-w-[140px] truncate">{active?.name || t("dashboard", "businessLabel")}</span>
+        <span className="max-w-[220px] truncate">{active?.name || t("dashboard", "businessLabel")}</span>
         <ChevronDown className="h-3 w-3" />
       </button>
 
@@ -239,17 +241,36 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                   <button onClick={() => switchTo(b.id)} className="min-w-0 flex-1 text-left">
                     <span className="flex items-center gap-2 min-w-0">
                       <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span className="truncate">{b.name}</span>
+                      <span className="min-w-0 break-words">{b.name}</span>
                       {b.plan && <PlanPill plan={b.plan} tone={b.planTone} isDark={isDark} />}
                       {b.beta && (
                         <span className={`text-[10px] font-semibold leading-none rounded-full border px-1.5 py-0.5 flex-shrink-0 ${
-                          isDark ? "border-violet-800 bg-violet-900/30 text-violet-300" : "border-violet-200 bg-violet-100 text-violet-800"
+                          isDark ? "border-green-800 bg-green-900/30 text-green-300" : "border-green-200 bg-green-100 text-green-800"
                         }`}>
                           {t("dashboard", "wsBetaPill")}
                         </span>
                       )}
                     </span>
-                    <span className={`block pl-[22px] text-[10px] ${colors.sub}`}>{b.role}</span>
+                    <span className={`block pl-[22px] text-[10px] ${colors.sub}`}>
+                      {b.role}
+                      {/* How this workspace's beta copy stands, so it can be read
+                          without opening settings. */}
+                      {b.beta && (
+                        <span className={b.betaCopyStatus === "failed" ? "text-red-500" : "text-green-600"}>
+                          {" · "}
+                          {b.betaCopyStatus === "copying"
+                            ? t("dashboard", "wsBetaRowCopying")
+                            : b.betaCopyStatus === "failed"
+                              ? t("dashboard", "wsBetaRowFailed")
+                              : b.betaCopyStatus === "done"
+                                ? t("dashboard", "wsBetaRowCopied")
+                                : t("dashboard", "wsBetaRowNone")}
+                          {b.betaCopyStatus === "done" && b.betaCopiedAt
+                            ? ` ${new Date(b.betaCopiedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
+                            : ""}
+                        </span>
+                      )}
+                    </span>
                   </button>
                   <span className="flex items-center gap-1.5 flex-shrink-0">
                     {canRename && (
@@ -274,7 +295,7 @@ export default function WorkspaceSwitcher({ isDark }: { isDark: boolean }) {
                           setActionError(null);
                           openInBeta(b.id).catch((e) => setActionError(e instanceof Error ? e.message : String(e)));
                         }}
-                        className="text-gray-400 hover:text-violet-500"
+                        className="text-green-500 hover:text-green-600"
                         title={t("dashboard", "wsBetaOpen")}
                       >
                         <FlaskConical className="h-4 w-4" />
@@ -811,7 +832,7 @@ function TeamModal({ business, isDark, onClose, onChanged }: {
                           : <span className={`ml-1.5 text-[10px] uppercase ${sub}`}>free</span>}
                         {/* Ticked by the owner in "Import my real books". */}
                         {m.betaTester && (
-                          <span className="ml-1.5 text-[10px] font-bold uppercase text-violet-600">beta tester</span>
+                          <span className="ml-1.5 text-[10px] font-bold uppercase text-green-600">beta tester</span>
                         )}
                       </p>
                       <p className={`text-xs truncate ${sub}`}>{m.email}</p>

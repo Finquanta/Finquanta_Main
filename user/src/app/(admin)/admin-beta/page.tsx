@@ -68,7 +68,7 @@ export default function AdminBetaPage() {
 
   const Status = ({ b }: { b: AdminBusiness }) => {
     const look = {
-      none: { label: "Not copied", fg: c.muted, bg: dark ? "rgba(148,163,184,.18)" : "#f1f5f9" },
+      none: { label: "Not Copied", fg: c.muted, bg: dark ? "rgba(148,163,184,.18)" : "#f1f5f9" },
       copying: { label: "Copying…", fg: dark ? "#c4b5fd" : "#5b21b6", bg: dark ? "rgba(139,92,246,.2)" : "#ede9fe" },
       done: { label: "Copied", fg: dark ? "#4ade80" : "#15803d", bg: dark ? "rgba(34,197,94,.18)" : "#dcfce7" },
       failed: { label: "Failed", fg: dark ? "#f87171" : "#b91c1c", bg: dark ? "rgba(239,68,68,.18)" : "#fee2e2" },
@@ -84,8 +84,8 @@ export default function AdminBetaPage() {
   const failed = rows.filter((b) => b.betaCopyStatus === "failed").length;
   const button = (primary = false) => ({
     borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-    border: `1px solid ${primary ? "#7c3aed" : c.border}`,
-    background: primary ? "#7c3aed" : c.card, color: primary ? "#fff" : c.text,
+    border: `1px solid ${primary ? "#16a34a" : c.border}`,
+    background: primary ? "#16a34a" : c.card, color: primary ? "#fff" : c.text,
   });
 
   return (
@@ -103,7 +103,7 @@ export default function AdminBetaPage() {
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button onClick={() => openInBeta().catch((e) => setError(e instanceof Error ? e.message : String(e)))} style={button(true)}>
-                Open beta
+                Open Beta
               </button>
               <button onClick={load} disabled={loading} style={{ ...button(), opacity: loading ? 0.6 : 1 }}>
                 {loading ? "Refreshing…" : "Refresh"}
@@ -113,15 +113,15 @@ export default function AdminBetaPage() {
 
           <div style={{ display: "flex", gap: 12, margin: "16px 0" }}>
             <div style={{ border: `0.5px solid ${c.border}`, borderRadius: 12, padding: "14px 16px", background: c.card, minWidth: 160 }}>
-              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Beta workspaces</p>
+              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Beta Workspaces</p>
               <p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700 }}>{rows.length}</p>
             </div>
             <div style={{ border: `0.5px solid ${c.border}`, borderRadius: 12, padding: "14px 16px", background: c.card, minWidth: 160 }}>
-              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Copying now</p>
+              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Copying Now</p>
               <p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700 }}>{copying}</p>
             </div>
             <div style={{ border: `0.5px solid ${c.border}`, borderRadius: 12, padding: "14px 16px", background: c.card, minWidth: 160 }}>
-              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Last copy failed</p>
+              <p style={{ margin: 0, fontSize: 12, color: c.muted, fontWeight: 600 }}>Last Copy Failed</p>
               <p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700, color: failed ? "#dc2626" : c.text }}>{failed}</p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function AdminBetaPage() {
                   <th style={{ padding: "10px 14px", fontWeight: 600 }}>Workspace</th>
                   <th style={{ padding: "10px 14px", fontWeight: 600 }}>Owner</th>
                   <th style={{ padding: "10px 14px", fontWeight: 600 }}>Copy</th>
-                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Last copied</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Last Copied</th>
                   <th style={{ padding: "10px 14px", fontWeight: 600 }} />
                 </tr>
               </thead>
@@ -162,14 +162,14 @@ export default function AdminBetaPage() {
                           onClick={() => act(b.id, () => refreshAdminBusinessBeta(b.id))}
                           style={{ ...button(), marginRight: 6, opacity: busyId === b.id || b.betaCopyStatus === "copying" ? 0.5 : 1 }}
                         >
-                          Refresh copy
+                          Refresh Copy
                         </button>
                         <button
                           disabled={busyId === b.id}
                           onClick={() => act(b.id, () => setAdminBusinessBeta(b.id, false))}
                           style={{ ...button(), color: "#dc2626", opacity: busyId === b.id ? 0.5 : 1 }}
                         >
-                          Remove from beta
+                          Remove from Beta
                         </button>
                       </td>
                     </tr>

@@ -284,7 +284,7 @@ export class BusinessesRepository {
   async listForUser(userId: string): Promise<Business[]> {
     const result = await this.database.query(
       `SELECT b.id, b.name, b.owner_id, m.role, m.beta_tester,
-              b.beta_enabled, b.beta_copy_status,
+              b.beta_enabled, b.beta_copy_status, b.beta_copied_at,
               s.plan, s.status, s.trial_ends_at, s.grandfathered_until
        FROM business_members m
        JOIN businesses b ON b.id = m.business_id
@@ -303,6 +303,7 @@ export class BusinessesRepository {
       /** Cloned into beta.finquanta.ai. */
       beta: r.beta_enabled === true,
       betaCopyStatus: r.beta_copy_status ?? 'none',
+      betaCopiedAt: r.beta_copied_at ? new Date(r.beta_copied_at).toISOString() : null,
       /** This member was ticked to test the beta copy. */
       betaTester: r.beta_tester === true,
     }));

@@ -112,7 +112,7 @@ export default function BetaSettings({ isDark }: { isDark: boolean }) {
     <div className="space-y-5 max-w-2xl">
       <div className="space-y-1">
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          <FlaskConical className="h-5 w-5 text-violet-500" />
+          <FlaskConical className="h-5 w-5 text-green-500" />
           {t("dashboard", "wsBetaTitle")}
         </h3>
         <p className={`text-sm ${sub}`}>{t("dashboard", "wsBetaIntro")}</p>
@@ -149,7 +149,7 @@ export default function BetaSettings({ isDark }: { isDark: boolean }) {
                 {canOpen && (
                   <button
                     onClick={() => openInBeta(business.id).catch((e) => setError(message(e)))}
-                    className="rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium px-4 py-2"
+                    className="rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2"
                   >
                     {t("dashboard", "wsBetaOpen")}
                   </button>

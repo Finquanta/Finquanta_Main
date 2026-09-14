@@ -20,6 +20,8 @@ export interface Business {
   /** Cloned into beta.finquanta.ai. */
   beta?: boolean;
   betaCopyStatus?: 'none' | 'copying' | 'done' | 'failed';
+  /** When the latest copy into beta finished. */
+  betaCopiedAt?: string | null;
   /** You were ticked to test this workspace's beta copy. */
   betaTester?: boolean;
 }

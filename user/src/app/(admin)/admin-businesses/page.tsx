@@ -468,7 +468,7 @@ export default function AdminBusinessesPage() {
                         {b.beta && (
                           <span style={{
                             marginLeft: 6, fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 999,
-                            border: `1px solid ${d.border}`, background: "#ede9fe", color: "#5b21b6", verticalAlign: "middle",
+                            border: `1px solid ${d.border}`, background: "#dcfce7", color: "#15803d", verticalAlign: "middle",
                           }}>
                             Beta
                           </span>
@@ -568,8 +568,8 @@ export default function AdminBusinessesPage() {
                                     label={b.grandfatheredUntil ? "Change grandfathering" : "Grandfather workspace"}
                                     onClick={() => setGrandfather(b)}
                                   />
-                                  <MenuItem label={b.beta ? "Remove from beta" : "Make beta"} onClick={() => toggleBeta(b)} />
-                                  {b.beta && <MenuItem label="Refresh beta copy" onClick={() => refreshBeta(b)} />}
+                                  <MenuItem label={b.beta ? "Remove from Beta" : "Make Beta"} onClick={() => toggleBeta(b)} />
+                                  {b.beta && <MenuItem label="Refresh Beta Copy" onClick={() => refreshBeta(b)} />}
                                   <MenuItem label={b.status === "suspended" ? "Unrestrict" : "Restrict"} onClick={() => toggleStatus(b)} />
                                   <MenuItem label="Delete" danger onClick={() => remove(b)} />
                                 </div>

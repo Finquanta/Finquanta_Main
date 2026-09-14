@@ -34,8 +34,8 @@ export function BetaBadge({ isDark }: { isDark: boolean }) {
       title={t("dashboard", "betaChipTitle")}
       className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${
         isDark
-          ? "border-violet-800 bg-violet-900/30 text-violet-300"
-          : "border-violet-200 bg-violet-100 text-violet-800"
+          ? "border-green-800 bg-green-900/30 text-green-300"
+          : "border-green-200 bg-green-100 text-green-800"
       }`}
     >
       <FlaskConical className="h-2.5 w-2.5" />

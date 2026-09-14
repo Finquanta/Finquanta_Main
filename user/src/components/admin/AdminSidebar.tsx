@@ -88,8 +88,8 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
           <span style={{
             marginTop: 6, display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "2px 8px",
             fontSize: 10, fontWeight: 600, lineHeight: 1.2,
-            border: `1px solid ${dark ? "#5b21b6" : "#ddd6fe"}`,
-            background: dark ? "#4c1d9533" : "#ede9fe", color: dark ? "#c4b5fd" : "#5b21b6",
+            border: `1px solid ${dark ? "#166534" : "#bbf7d0"}`,
+            background: dark ? "#14532d40" : "#dcfce7", color: dark ? "#86efac" : "#15803d",
           }}>
             Beta
           </span>
