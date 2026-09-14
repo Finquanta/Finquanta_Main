@@ -3,6 +3,7 @@ import { ApiInfoResponse, ApiResponse } from '@/types';
 import { authRoutes } from '../modules/auth/auth.routes';
 import { transactionRoutes } from '../modules/financial/transaction.routes';
 import { Database } from '../infrastructure/database';
+import { setBetaRecipientCheck } from '../infrastructure/email';
 import { profileRoutes } from '../modules/profile/profile.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { bookkeepingRoutes } from '../modules/bookkeeping/bookkeeping.routes';
@@ -166,6 +167,19 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Register authentication routes
   const database = new Database();
+
+  // beta.finquanta.ai only emails people who have a beta account — imported
+  // workspaces carry real customers' addresses. No-op unless BETA_SITE=true.
+  if (process.env.BETA_SITE === 'true') {
+    setBetaRecipientCheck(async (email) => {
+      const { rows } = await database.query(
+        'SELECT 1 FROM users WHERE lower(email) = lower($1) LIMIT 1',
+        [email.trim()]
+      );
+      return rows.length > 0;
+    });
+  }
+
   await fastify.register(authRoutes, {
     prefix: '/v1/auth',
     database

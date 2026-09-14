@@ -1,0 +1,99 @@
+# Render Blueprint — the BETA backend only (serves beta.finquanta.ai).
+#
+# Production is configured in the Render dashboard and is deliberately NOT
+# declared here. A Blueprint manages every service it lists, so syncing this
+# file must never be able to change the live API.
+#
+# Values marked `sync: false` are secrets or personal data: Render asks for them
+# once when the Blueprint is created, and they never live in git. What each one
+# must (and must not) be is in docs/spec-domain-split.md → Beta.
+#
+# Deliberately absent — beta must run without them, and the server refuses to
+# start as beta if the first two are set (assertBetaConfig in
+# server/src/config/config.ts):
+#   CRON_SECRET                    no scheduled jobs on beta
+#   RESEND_INBOUND_SIGNING_SECRET  no inbound email on beta
+#   INBOUND_EMAIL_DOMAIN
+#   STORAGE_DRIVER, S3_*           files stay in beta's own database
+#   SENTRY_DSN                     or beta errors look like production errors
+#   LIFECYCLE_ALLOW_SEND           ignored in production mode anyway
+
+services:
+  - type: web
+    name: finquanta-api-beta
+    runtime: node
+    plan: free
+    # Region cannot be changed after creation. Pick the same one as the
+    # production API, so both sit near their databases.
+    # region: oregon
+    branch: beta
+    rootDir: server
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: node dist/index.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: BETA_SITE
+        value: "true"
+
+      # Addresses
+      - key: APP_URL
+        value: https://beta.finquanta.ai
+      - key: CORS_ORIGIN
+        value: https://beta.finquanta.ai
+
+      # Database: the EMPTY beta database, never a copy of production.
+      - key: DATABASE_URL
+        sync: false
+      # Production's database host, host only. The server refuses to start if
+      # DATABASE_URL names it.
+      - key: PRODUCTION_DB_HOST
+        sync: false
+
+      # Fresh secrets, so a production login is never valid on beta.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+      # Stripe TEST mode only (sk_test_...). The server refuses a live key.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_STARTER_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_STARTER_YEARLY
+        sync: false
+      - key: STRIPE_PRICE_ENTREPRENEUR_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_ENTREPRENEUR_YEARLY
+        sync: false
+      - key: STRIPE_PRICE_BUSINESS_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_BUSINESS_YEARLY
+        sync: false
+
+      # Email. On beta, delivery is limited to people with a beta account.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESET_EMAIL_FROM
+        value: Finquanta <no-reply@finquanta.ai>
+
+      # The production API, for "Import my real books".
+      - key: PRODUCTION_API_URL
+        sync: false
+
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+
+      # Accounts promoted to staff roles on boot.
+      - key: OWNER_EMAILS
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false

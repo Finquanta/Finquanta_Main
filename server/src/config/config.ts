@@ -34,6 +34,7 @@ export const config = {
  * Called from server.ts before listen(). No-op outside production.
  */
 export function assertConfig(): void {
+  assertBetaConfig();
   if (config.NODE_ENV !== 'production') return;
 
   const required: Record<string, string | undefined> = {
@@ -58,4 +59,74 @@ export function assertConfig(): void {
       `Refusing to start in production — fix these environment variables:\n  - ${problems.join('\n  - ')}`
     );
   }
+}
+
+/**
+ * The beta API (beta.finquanta.ai) runs with NODE_ENV=production — it needs the
+ * SSL and the checks above — and that switches off every development-only safety
+ * net: the dev database guard, the lifecycle send gate. These stand in for them.
+ *
+ * Refuses to start rather than warn. A beta API with a live Stripe key can
+ * charge real cards; one pointed at production's database is not a test site.
+ *
+ * Also refuses the reverse mistake: an API serving a beta address without
+ * BETA_SITE=true would skip every check here.
+ */
+export function assertBetaConfig(env: NodeJS.ProcessEnv = process.env): void {
+  const appHost = hostOf(env.APP_URL);
+
+  if (env.BETA_SITE !== 'true') {
+    if (appHost?.startsWith('beta.')) {
+      throw new Error(
+        'Refusing to start: APP_URL is a beta address but BETA_SITE is not "true", so the beta safety checks would not run.'
+      );
+    }
+    return;
+  }
+
+  const problems: string[] = [];
+
+  const stripeKey = env.STRIPE_SECRET_KEY?.trim();
+  if (stripeKey && !stripeKey.startsWith('sk_test_')) {
+    problems.push('STRIPE_SECRET_KEY must be a test-mode key (sk_test_...)');
+  }
+
+  // Neon gives one database two hostnames, with and without `-pooler`.
+  const prodHost = normaliseDbHost(env.PRODUCTION_DB_HOST);
+  const dbHost = normaliseDbHost(hostOf(env.DATABASE_URL));
+  if (!prodHost) {
+    problems.push('PRODUCTION_DB_HOST is not set — without it nothing stops DATABASE_URL naming the production database');
+  } else if (dbHost === prodHost) {
+    problems.push('DATABASE_URL points at the production database');
+  }
+
+  // Beta runs no scheduled jobs and receives no mail; either secret set means a
+  // production value was copied across.
+  for (const key of ['CRON_SECRET', 'RESEND_INBOUND_SIGNING_SECRET'] as const) {
+    if (env[key]?.trim()) problems.push(`${key} must not be set on beta`);
+  }
+
+  if (appHost && !appHost.startsWith('beta.') && appHost !== 'localhost') {
+    problems.push(`APP_URL is ${appHost}, which is not a beta address`);
+  }
+
+  if (problems.length) {
+    throw new Error(
+      `Refusing to start as beta — fix these environment variables:\n  - ${problems.join('\n  - ')}`
+    );
+  }
+}
+
+function hostOf(url: string | undefined): string | undefined {
+  if (!url?.trim()) return undefined;
+  try {
+    return new URL(url.trim()).hostname.toLowerCase() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normaliseDbHost(host: string | undefined): string | undefined {
+  const h = host?.trim().toLowerCase();
+  return h ? h.replace('-pooler.', '.') : undefined;
 }
