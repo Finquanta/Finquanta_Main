@@ -1525,7 +1525,9 @@
     "openMenu": "打开菜单",
     "closeMenu": "关闭菜单",
     "tryTheDemo": "试用演示",
-    "compare": "对比"
+    "compare": "对比",
+    "backToTop": "返回顶部",
+    "emailUs": "给我们发邮件"
   },
   "newsletter": {
     "description": "订阅Finquanta AI新闻通讯获取最新信息。",

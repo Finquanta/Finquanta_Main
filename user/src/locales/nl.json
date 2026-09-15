@@ -1525,7 +1525,9 @@
     "openMenu": "Menu openen",
     "closeMenu": "Menu sluiten",
     "tryTheDemo": "Probeer de demo",
-    "compare": "Vergelijken"
+    "compare": "Vergelijken",
+    "backToTop": "Terug naar boven",
+    "emailUs": "Mail ons"
   },
   "newsletter": {
     "description": "Abonneer u op de Finquanta AI-nieuwsbrief.",

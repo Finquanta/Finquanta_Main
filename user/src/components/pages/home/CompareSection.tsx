@@ -69,7 +69,10 @@ export default function CompareSection() {
       </div>
 
       <div className="mt-10 overflow-hidden rounded-3xl border border-fq-ink/10 bg-white shadow-[0_30px_70px_-45px_rgba(15,18,16,0.35)]">
-        <div className="overflow-x-auto">
+        {/* `relative` is load-bearing: without a positioned scroll box, the
+            sticky first column's overflow widened a phone's layout to ~706px,
+            pushing the fixed Finna bubble and Back to Top off the screen. */}
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-sm">
             <caption className="sr-only">{t("home", "compareTitle")}</caption>
             <thead>

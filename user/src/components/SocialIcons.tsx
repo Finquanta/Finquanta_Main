@@ -34,6 +34,12 @@ export function LinkedInIcon({ className }: IconProps) {
   );
 }
 
+/**
+ * Where the email button in the side column sends people. The same address the
+ * Corporate plan enquiry uses (lib/pricing.ts), chosen by the user for now.
+ */
+export const CONTACT_EMAIL = "jeeordahnoh@gmail.com";
+
 export const SOCIAL_LINKS = [
   { name: "Instagram", href: "https://www.instagram.com/finquanta", Icon: InstagramIcon },
   { name: "X", href: "https://x.com/finquanta", Icon: XIcon },

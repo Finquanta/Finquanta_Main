@@ -1525,7 +1525,9 @@
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
     "tryTheDemo": "Essayer la démo",
-    "compare": "Comparer"
+    "compare": "Comparer",
+    "backToTop": "Retour en haut",
+    "emailUs": "Écrivez-nous"
   },
   "newsletter": {
     "description": "Inscrivez-vous a la newsletter Finquanta AI.",

@@ -243,18 +243,12 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
   }, [mode, isDashboard]);
 
   /**
-   * Tells SocialSidebar whether the bubble is docked under it, which decides
-   * whether the short line joining the two is drawn.
+   * Restore a dragged position, clamped in case the window has since shrunk.
+   * Not on the marketing site: the bubble is fixed there, so a position saved
+   * from an earlier drag must not undock it (or switch off its pulse).
    */
   useEffect(() => {
-    if (!isLanding) return;
-    const root = document.documentElement;
-    root.dataset.finnaDocked = bubblePos ? "0" : "1";
-    return () => { delete root.dataset.finnaDocked; };
-  }, [isLanding, bubblePos]);
-
-  /** Restore a dragged position, clamped in case the window has since shrunk. */
-  useEffect(() => {
+    if (isLanding) return;
     try {
       const raw = window.localStorage.getItem(BUBBLE_POS_KEY);
       if (!raw) return;
@@ -1088,20 +1082,22 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
       {isVisible && (
         <button
           data-tour="finna"
-          onPointerDown={onBubblePointerDown}
+          // On the marketing site the bubble is fixed under the social column
+          // and can't be dragged; only the product lets people move it.
+          onPointerDown={isLanding ? undefined : onBubblePointerDown}
           // Suppressed after a drag so releasing the bubble doesn't also open
           // the chat — moving something and opening it are different intents.
           onClick={() => { if (!dragMoved.current) setOpen(!open); }}
-          title="Drag to move"
+          title={isLanding ? "Finna" : "Drag to move"}
           style={{
             position: "fixed",
-            bottom: bubblePos?.bottom ?? bubbleDefault.bottom,
-            right: bubblePos?.right ?? bubbleDefault.right,
+            bottom: isLanding ? bubbleDefault.bottom : bubblePos?.bottom ?? bubbleDefault.bottom,
+            right: isLanding ? bubbleDefault.right : bubblePos?.right ?? bubbleDefault.right,
             zIndex: 9999,
             width: BUBBLE_SIZE,
             height: BUBBLE_SIZE,
-            touchAction: "none",
-            cursor: dragging ? "grabbing" : "grab",
+            touchAction: isLanding ? "auto" : "none",
+            cursor: isLanding ? "pointer" : dragging ? "grabbing" : "grab",
             transition: dragging ? "none" : "bottom 120ms ease, right 120ms ease",
             borderRadius: "50%",
             background: "#111",

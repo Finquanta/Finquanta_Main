@@ -1525,7 +1525,9 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "tryTheDemo": "Try the Demo",
-    "compare": "Compare"
+    "compare": "Compare",
+    "backToTop": "Back to Top",
+    "emailUs": "Email Us"
   },
   "newsletter": {
     "description": "Sign up to Finquanta AI newsletter for all the latest news, trends and insights from our industry experts.",

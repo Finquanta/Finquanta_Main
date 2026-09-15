@@ -1525,7 +1525,9 @@
     "openMenu": "Открыть меню",
     "closeMenu": "Закрыть меню",
     "tryTheDemo": "Попробовать демо",
-    "compare": "Сравнение"
+    "compare": "Сравнение",
+    "backToTop": "Наверх",
+    "emailUs": "Написать нам"
   },
   "newsletter": {
     "description": "Подпишитесь на рассылку Finquanta AI.",

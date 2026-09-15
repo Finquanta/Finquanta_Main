@@ -1525,7 +1525,9 @@
     "openMenu": "メニューを開く",
     "closeMenu": "メニューを閉じる",
     "tryTheDemo": "デモを試す",
-    "compare": "比較"
+    "compare": "比較",
+    "backToTop": "ページの先頭へ",
+    "emailUs": "メールで問い合わせ"
   },
   "newsletter": {
     "description": "Finquanta AIニュースレターに登録して最新情報を取得。",
