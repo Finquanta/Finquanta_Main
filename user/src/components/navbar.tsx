@@ -8,15 +8,18 @@ import { useLanguage } from "@/hooks/context/LanguageContext";
 import { useSectionLink } from "@/hooks/useSectionLink";
 import { BetaBadge } from "./user_dashboard/BetaChip";
 
+/** Fades the tab row's edges so a phone shows there is more to swipe to. */
+const TAB_FADE = "linear-gradient(to right, transparent, black 10px, black calc(100% - 24px), transparent)";
+
 /**
  * The marketing nav: a floating pill with the F mark, the section links, Blog,
  * Try the Demo, a language pill, Log in and a green Get started.
  *
- * Below lg it is the mark and a menu button; the links, language and Log in
- * move into HamburgerMenu. The full row only shows from lg because, with the
- * demo link in it, it no longer fits a tablet held upright. Company Brain,
- * Compare and Pricing are homepage sections, so on any other marketing page
- * they open the homepage at that section (see useSectionLink).
+ * From lg the whole row fits. Below lg the tabs stay in the pill as a row you
+ * swipe left or right and tap, and language, Log in and Get started move into
+ * HamburgerMenu. Company Brain, Compare and Pricing are homepage sections, so
+ * on any other marketing page they open the homepage at that section (see
+ * useSectionLink).
  */
 export function NavBarComponent() {
   const { t } = useLanguage();
@@ -27,7 +30,19 @@ export function NavBarComponent() {
     { id: "compare", label: t("nav", "compare") },
     { id: "pricing", label: t("nav", "pricing") },
   ];
-  const linkClass = "rounded-lg px-3 py-1.5 text-sm text-fq-ink/70 transition-colors hover:text-fq-ink";
+  const linkClass = "shrink-0 snap-start whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-fq-ink/70 transition-colors hover:text-fq-ink";
+
+  const tabs = (
+    <>
+      {sections.map((section) => (
+        <button key={section.id} type="button" onClick={() => goTo(section.id)} className={linkClass}>
+          {section.label}
+        </button>
+      ))}
+      <Link href="/blog" className={linkClass}>{t("nav", "blog")}</Link>
+      <Link href="/demo" className={linkClass}>{t("nav", "tryTheDemo")}</Link>
+    </>
+  );
 
   return (
     <header
@@ -39,9 +54,9 @@ export function NavBarComponent() {
     >
       <nav
         aria-label="Main"
-        className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 rounded-2xl border border-fq-ink/10 bg-white/80 pl-2 pr-2 shadow-[0_10px_30px_-15px_rgba(15,18,16,0.25)] backdrop-blur-md"
+        className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 rounded-2xl border border-fq-ink/10 bg-white/80 pl-2 pr-2 shadow-[0_10px_30px_-15px_rgba(15,18,16,0.25)] backdrop-blur-md lg:gap-3"
       >
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Link href="/home" aria-label="Finquanta" className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-fq-card-alt">
             <Image src="/favicon.svg" width={28} height={29} alt="" className="h-7 w-auto" priority />
           </Link>
@@ -49,15 +64,16 @@ export function NavBarComponent() {
           <BetaBadge isDark={false} />
         </div>
 
-        <div className="hidden items-center lg:flex">
-          {sections.map((section) => (
-            <button key={section.id} type="button" onClick={() => goTo(section.id)} className={linkClass}>
-              {section.label}
-            </button>
-          ))}
-          <Link href="/blog" className={linkClass}>{t("nav", "blog")}</Link>
-          <Link href="/demo" className={linkClass}>{t("nav", "tryTheDemo")}</Link>
+        {/* Below lg: the same tabs in a row that scrolls sideways. `relative`
+            keeps the scroll box from widening a phone's layout. */}
+        <div
+          className="relative flex min-w-0 flex-1 snap-x items-center overflow-x-auto [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+          style={{ WebkitMaskImage: TAB_FADE, maskImage: TAB_FADE }}
+        >
+          {tabs}
         </div>
+
+        <div className="hidden items-center lg:flex">{tabs}</div>
 
         <div className="hidden items-center gap-2 lg:flex">
           <LanguagePill />
@@ -73,7 +89,7 @@ export function NavBarComponent() {
           </Link>
         </div>
 
-        <div className="lg:hidden">
+        <div className="shrink-0 lg:hidden">
           <HamburgerMenu />
         </div>
       </nav>

@@ -1527,7 +1527,8 @@
     "tryTheDemo": "Demo ausprobieren",
     "compare": "Vergleich",
     "backToTop": "Nach oben",
-    "emailUs": "Schreiben Sie uns"
+    "emailUs": "Schreiben Sie uns",
+    "socialLinks": "Soziale Netzwerke"
   },
   "newsletter": {
     "description": "Abonnieren Sie den Finquanta AI-Newsletter.",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "Nicht enthalten",
     "compareNote": "Laut der öffentlichen Website und dem App-Store-Eintrag des jeweiligen Unternehmens, Stand September 2026. Tendi ist ein KI-Finanzcoach für private Finanzen.",
     "compareFeaturesTitle": "Alle Funktionen vergleichen",
-    "compareFeaturesSub": "Alles, was jeder Plan enthält, im direkten Vergleich."
+    "compareFeaturesSub": "Alles, was jeder Plan enthält, im direkten Vergleich.",
+    "compareWith": "Vergleichen mit"
   }
 }

@@ -1527,7 +1527,8 @@
     "tryTheDemo": "Experimentar a demonstração",
     "compare": "Comparar",
     "backToTop": "Voltar ao topo",
-    "emailUs": "Envie um e-mail"
+    "emailUs": "Envie um e-mail",
+    "socialLinks": "Redes sociais"
   },
   "newsletter": {
     "description": "Inscreva-se na newsletter da Finquanta AI.",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "Não incluído",
     "compareNote": "Com base no site público e na página do app de cada empresa, setembro de 2026. A Tendi é uma coach financeira com IA para finanças pessoais.",
     "compareFeaturesTitle": "Comparar todos os recursos",
-    "compareFeaturesSub": "Tudo o que cada plano inclui, lado a lado."
+    "compareFeaturesSub": "Tudo o que cada plano inclui, lado a lado.",
+    "compareWith": "Comparar com"
   }
 }

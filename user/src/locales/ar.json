@@ -1527,7 +1527,8 @@
     "tryTheDemo": "جرّب النسخة التجريبية",
     "compare": "المقارنة",
     "backToTop": "العودة إلى الأعلى",
-    "emailUs": "راسلنا"
+    "emailUs": "راسلنا",
+    "socialLinks": "روابط التواصل"
   },
   "newsletter": {
     "description": "اشترك في نشرة Finquanta AI الإخبارية.",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "غير متاح",
     "compareNote": "استنادًا إلى الموقع الرسمي وصفحة التطبيق لكل شركة، سبتمبر 2026. Tendi مدرب مالي بالذكاء الاصطناعي للتمويل الشخصي.",
     "compareFeaturesTitle": "قارن جميع الميزات",
-    "compareFeaturesSub": "كل ما تتضمنه كل خطة، جنبًا إلى جنب."
+    "compareFeaturesSub": "كل ما تتضمنه كل خطة، جنبًا إلى جنب.",
+    "compareWith": "قارن مع"
   }
 }

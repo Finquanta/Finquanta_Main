@@ -1527,7 +1527,8 @@
     "tryTheDemo": "Попробовать демо",
     "compare": "Сравнение",
     "backToTop": "Наверх",
-    "emailUs": "Написать нам"
+    "emailUs": "Написать нам",
+    "socialLinks": "Соцсети"
   },
   "newsletter": {
     "description": "Подпишитесь на рассылку Finquanta AI.",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "Нет",
     "compareNote": "По данным публичного сайта и страницы приложения каждой компании, сентябрь 2026 года. Tendi — ИИ-коуч по личным финансам.",
     "compareFeaturesTitle": "Сравнить все возможности",
-    "compareFeaturesSub": "Всё, что входит в каждый тариф, рядом друг с другом."
+    "compareFeaturesSub": "Всё, что входит в каждый тариф, рядом друг с другом.",
+    "compareWith": "Сравнить с"
   }
 }

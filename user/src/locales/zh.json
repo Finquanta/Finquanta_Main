@@ -1527,7 +1527,8 @@
     "tryTheDemo": "试用演示",
     "compare": "对比",
     "backToTop": "返回顶部",
-    "emailUs": "给我们发邮件"
+    "emailUs": "给我们发邮件",
+    "socialLinks": "社交媒体"
   },
   "newsletter": {
     "description": "订阅Finquanta AI新闻通讯获取最新信息。",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "不支持",
     "compareNote": "依据各公司公开网站及应用商店页面，截至 2026 年 9 月。Tendi 是面向个人理财的 AI 理财教练。",
     "compareFeaturesTitle": "比较所有功能",
-    "compareFeaturesSub": "并排查看每个方案包含的全部内容。"
+    "compareFeaturesSub": "并排查看每个方案包含的全部内容。",
+    "compareWith": "对比对象"
   }
 }

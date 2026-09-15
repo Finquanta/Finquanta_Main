@@ -1527,7 +1527,8 @@
     "tryTheDemo": "デモを試す",
     "compare": "比較",
     "backToTop": "ページの先頭へ",
-    "emailUs": "メールで問い合わせ"
+    "emailUs": "メールで問い合わせ",
+    "socialLinks": "SNSリンク"
   },
   "newsletter": {
     "description": "Finquanta AIニュースレターに登録して最新情報を取得。",
@@ -1778,6 +1779,7 @@
     "compareNotIncluded": "なし",
     "compareNote": "各社の公式サイトとアプリストアの掲載情報に基づきます（2026年9月時点）。Tendiは個人の家計向けのAIマネーコーチです。",
     "compareFeaturesTitle": "すべての機能を比較",
-    "compareFeaturesSub": "各プランに含まれるものを並べて比較できます。"
+    "compareFeaturesSub": "各プランに含まれるものを並べて比較できます。",
+    "compareWith": "比較する相手"
   }
 }
