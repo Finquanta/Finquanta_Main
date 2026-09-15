@@ -6,6 +6,9 @@ import {
   AdminBusiness, checkAdmin, listAdminBusinesses, refreshAdminBusinessBeta, setAdminBusinessBeta,
 } from "@/lib/api/admin";
 import { openInBeta } from "@/lib/api/betaImport";
+import {
+  AdminBetaFeature, FeatureStage, listAdminBetaFeatures, setAdminBetaFeatureStage,
+} from "@/lib/api/betaFeatures";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 
 /**
@@ -22,9 +25,22 @@ export default function AdminBetaPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [features, setFeatures] = useState<AdminBetaFeature[]>([]);
+  const [savingFeature, setSavingFeature] = useState("");
+
+  const setStage = async (key: string, stage: FeatureStage) => {
+    setSavingFeature(key);
+    setError(null);
+    try { setFeatures(await setAdminBetaFeatureStage(key, stage)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not change the feature."); }
+    finally { setSavingFeature(""); }
+  };
 
   const load = () => {
     setLoading(true);
+    listAdminBetaFeatures()
+      .then(setFeatures)
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load beta features."));
     listAdminBusinesses()
       .then((list) => setRows(list.filter((b) => b.beta)))
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load beta workspaces."))
@@ -127,6 +143,51 @@ export default function AdminBetaPage() {
           </div>
 
           {error && <p style={{ color: "#dc2626", fontSize: 13, margin: "12px 0" }}>{error}</p>}
+
+          {/* Each new feature's stage. Beta: beta workspaces on the real site,
+              and everyone on beta.finquanta.ai. Everyone: the whole product. */}
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: "8px 0 4px" }}>Beta Features</h2>
+          <p style={{ fontSize: 12, color: c.muted, margin: "0 0 10px" }}>
+            Off hides a feature. Beta shows it to beta workspaces only. Everyone shows it to every workspace.
+          </p>
+          <div style={{ borderRadius: 12, border: `1px solid ${c.border}`, background: c.card, overflow: "hidden", marginBottom: 24 }}>
+            {features.length === 0 ? (
+              <p style={{ padding: 16, margin: 0, color: c.muted, fontSize: 13 }}>No beta features.</p>
+            ) : (
+              features.map((f, i) => (
+                <div key={f.key} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 14px",
+                  borderTop: i ? `1px solid ${c.border}` : "none", flexWrap: "wrap",
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{f.name}</div>
+                    <div style={{ fontSize: 12, color: c.muted }}>{f.description}</div>
+                  </div>
+                  <div style={{ display: "flex", border: `1px solid ${c.border}`, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                    {(["off", "beta", "all"] as FeatureStage[]).map((stage) => {
+                      const on = f.stage === stage;
+                      return (
+                        <button
+                          key={stage}
+                          disabled={savingFeature === f.key}
+                          onClick={() => { if (!on) setStage(f.key, stage); }}
+                          style={{
+                            padding: "6px 12px", fontSize: 12, fontWeight: 600, border: "none", cursor: on ? "default" : "pointer",
+                            background: on ? (stage === "off" ? "#6b7280" : "#16a34a") : c.card,
+                            color: on ? "#fff" : c.text, opacity: savingFeature === f.key ? 0.6 : 1,
+                          }}
+                        >
+                          {stage === "off" ? "Off" : stage === "beta" ? "Beta" : "Everyone"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px" }}>Beta Workspaces</h2>
 
           <div style={{ borderRadius: 12, border: `1px solid ${c.border}`, background: c.card, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

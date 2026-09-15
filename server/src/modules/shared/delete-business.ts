@@ -43,8 +43,17 @@ export async function deleteBusinessCascade(
   // One transaction, so a failure part-way cannot leave a business stripped of
   // its financial history but still standing — the split this guards against.
   return database.transaction(async (client) => {
+    // Recording the history of a workspace as it is erased would write a row
+    // per deleted record, only to delete them all a moment later.
+    await client.query(`SELECT set_config('app.history_off', 'on', true)`);
     await client.query('DELETE FROM journal_entries WHERE business_id = $1', [businessId]);
     const result = await client.query('DELETE FROM businesses WHERE id = $1', [businessId]);
+    // No foreign key (history keeps records of rows that no longer exist, by
+    // design), so the workspace's history goes by hand.
+    const history = await client.query(`SELECT to_regclass('public.books_history') AS t`);
+    if (history.rows[0]?.t) {
+      await client.query('DELETE FROM books_history WHERE business_id = $1', [businessId]);
+    }
     return (result.rowCount ?? 0) > 0;
   });
 }

@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { requestContext } from '../../infrastructure/request-context';
 
 export interface AuthenticatedUser {
   id: string;
@@ -21,6 +22,10 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     if (user?.userId && !user.id) {
       user.id = user.userId;
     }
+
+    // Who is making this request, for the books history (see request-context).
+    const context = requestContext.getStore();
+    if (context && user?.id) context.userId = user.id;
   } catch {
     reply.status(401).send({
       success: false,

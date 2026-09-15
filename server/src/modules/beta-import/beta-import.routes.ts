@@ -169,6 +169,8 @@ async function pullWorkspace(database: Database, base: string, code: string, log
 
   const { counts, fileKeys } = await database.transaction(async (client) => {
     const tx = client as unknown as Queryable;
+    // A copy is not a change anyone made to these books; keep it out of their history.
+    await tx.query(`SELECT set_config('app.history_off', 'on', true)`);
     const copy = await writeWorkspaceCopy(tx, data, businessId, owner.id, refreshing);
 
     await tx.query(

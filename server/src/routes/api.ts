@@ -46,6 +46,10 @@ import { FxRepository } from '../modules/fx/fx.repository';
 import { groupsRoutes } from '../modules/groups/groups.routes';
 import { exportsRoutes } from '../modules/exports/exports.routes';
 import { betaImportRoutes } from '../modules/beta-import/beta-import.routes';
+import { betaFeaturesRoutes } from '../modules/beta/beta-features.routes';
+import { historyRoutes } from '../modules/history/history.routes';
+import { ensureHistorySchema } from '../modules/history/history.schema';
+import { requestContext } from '../infrastructure/request-context';
 import { captureRoutes } from '../modules/capture/capture.routes';
 import { inboundRoutes } from '../modules/inbound/inbound.routes';
 import { inboundWebhookRoutes } from '../modules/inbound/inbound.webhook';
@@ -74,6 +78,12 @@ import { LifecycleRepository } from '../modules/lifecycle/lifecycle.repository';
 import { AiUsageRepository } from '../modules/ai-usage/ai-usage.repository';
 
 async function apiRoutes(fastify: FastifyInstance): Promise<void> {
+  // One context per request, so writes can say who made them (books history).
+  // Filled in by `authenticate`; see infrastructure/request-context.ts.
+  fastify.addHook('onRequest', (_request, _reply, done) => {
+    requestContext.run({}, done);
+  });
+
   // API information
   fastify.get('/', {
     schema: {
@@ -294,6 +304,9 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
   // Import my real books — both halves; BETA_SITE decides which one answers.
   // After businesses, because its tables reference businesses and users.
   await fastify.register(betaImportRoutes, { database });
+  // Beta feature switches (Off / Beta / Everyone). After businesses, whose
+  // beta flag decides who sees a feature in beta.
+  await fastify.register(betaFeaturesRoutes, { database });
 
   // Ledger tables (accounts / journal_entries / journal_lines). Must come after
   // businesses, since accounts are scoped to a business. Per-business chart of
@@ -377,6 +390,16 @@ async function apiRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.log.error({ error }, 'Failed to ensure groups schema');
   }
   await fastify.register(groupsRoutes, { database });
+
+  // Books history — triggers on transactions, invoices, loans, customers,
+  // groups and the ledger, so it registers after every one of them exists.
+  // Degrades: without it, the books work exactly as before, just unrecorded.
+  try {
+    await ensureHistorySchema(database);
+  } catch (error) {
+    fastify.log.error({ error }, 'Failed to ensure books history schema');
+  }
+  await fastify.register(historyRoutes, { database });
   // Document Capture — photograph or upload a bill and read it into the books.
   await fastify.register(captureRoutes, { database });
 

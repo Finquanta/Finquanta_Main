@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Building2, Bot, CreditCard, FlaskConical } from 'lucide-react';
+import { Building2, Bot, CreditCard, FlaskConical, History as HistoryIcon } from 'lucide-react';
 import BusinessProfileSettings from './BusinessProfileSettings';
 import FinnaSettings from './FinnaSettings';
 import BillingSettings from './BillingSettings';
 import BetaSettings from './BetaSettings';
+import HistorySettings from './HistorySettings';
+import { useBetaFeatureState } from '@/hooks/useBetaFeature';
 import { Business, listBusinesses } from '@/lib/api/businesses';
 
 /** Where apiFetch reads the workspace it scopes every request to. */
@@ -23,13 +25,15 @@ const ACTIVE_KEY = 'activeBusinessId';
  * carries X-Business-Id, so none of them needs to know a workspace exists.
  */
 
-export type WorkspaceTab = 'business-profile' | 'finna' | 'billing' | 'beta';
+export type WorkspaceTab = 'business-profile' | 'finna' | 'billing' | 'beta' | 'history';
 
 export const WORKSPACE_TABS: { id: WorkspaceTab; label: string; icon: typeof Building2 }[] = [
   { id: 'business-profile', label: 'Business Profile', icon: Building2 },
   { id: 'finna', label: 'Finna Overview', icon: Bot },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'beta', label: 'Beta', icon: FlaskConical },
+  // Beta feature `books_history`: shown only to workspaces that can use it.
+  { id: 'history', label: 'History', icon: HistoryIcon },
 ];
 
 export default function WorkspaceSettingsPanel({
@@ -40,10 +44,19 @@ export default function WorkspaceSettingsPanel({
   initialTab?: WorkspaceTab;
 }) {
   const [tab, setTab] = useState<WorkspaceTab>(initialTab);
+  // Follows workspace switches made here (the event switchTo dispatches).
+  const history = useBetaFeatureState('books_history');
+  const historyOn = history === 'on';
 
   // Follows the caller when it changes which tab it wants (the popup can be
   // reopened on a different tab without being remounted).
   useEffect(() => { setTab(initialTab); }, [initialTab]);
+
+  // ?tab=history, or a switch to a workspace without the feature: once it is
+  // known to be off, land on the first tab instead of an empty panel.
+  useEffect(() => {
+    if (tab === 'history' && history === 'off') setTab('business-profile');
+  }, [tab, history]);
 
   /**
    * Switch workspace WITHOUT leaving settings.
@@ -108,7 +121,7 @@ export default function WorkspaceSettingsPanel({
       )}
 
       <div className={`flex flex-wrap gap-1 border-b mb-6 ${line}`}>
-        {WORKSPACE_TABS.map((x) => {
+        {WORKSPACE_TABS.filter((x) => x.id !== 'history' || historyOn).map((x) => {
           const Icon = x.icon;
           const on = tab === x.id;
           return (
@@ -134,6 +147,7 @@ export default function WorkspaceSettingsPanel({
         {tab === 'finna' && <FinnaSettings isDark={isDark} />}
         {tab === 'billing' && <BillingSettings isDark={isDark} />}
         {tab === 'beta' && <BetaSettings isDark={isDark} />}
+        {tab === 'history' && historyOn && <HistorySettings isDark={isDark} />}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Pool, PoolClient, PoolConfig } from 'pg';
+import { currentActor } from './request-context';
 
 /** Host portion of a postgres URL, without leaking the credentials in it. */
 function dbHost(url: string | undefined): string | null {
@@ -66,6 +67,33 @@ function guardDevelopmentTarget(): void {
   }
 }
 
+/**
+ * Statements that can change rows: a plain write, or a WITH wrapping one. A
+ * read-only WITH (reports use them) must not count — tagging it costs extra
+ * round trips for an actor nothing reads.
+ */
+export const isWriteStatement = (text: string): boolean =>
+  /^\s*(insert|update|delete)\b/i.test(text) ||
+  (/^\s*with\b/i.test(text) && /\b(insert|update|delete)\b/i.test(text));
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * BEGIN, tagged with who is making the changes, in one round trip where it can
+ * be: a user id is a UUID, which is safe to inline, and a parameterless string
+ * may carry two statements. Anything else falls back to a bound parameter.
+ */
+async function beginAs(client: PoolClient, actor: string | undefined): Promise<void> {
+  if (!actor) {
+    await client.query('BEGIN');
+  } else if (UUID.test(actor)) {
+    await client.query(`BEGIN; SELECT set_config('app.actor_id', '${actor}', true)`);
+  } else {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.actor_id', $1, true)`, [actor]);
+  }
+}
+
 export class Database {
   private pool: Pool | null = null;
   private connected = false;
@@ -124,6 +152,29 @@ export class Database {
       throw new Error('Database pool not initialized');
     }
 
+    /**
+     * A write made while serving a signed-in request says who made it, so the
+     * books history can show it. The trigger reads `app.actor_id`, which is
+     * transaction-local, so the statement runs in a short transaction that sets
+     * it first. Reads, and anything outside a request (boot, cron), go straight
+     * through as before.
+     */
+    const actor = currentActor();
+    if (actor && isWriteStatement(text)) {
+      const client = await this.pool.connect();
+      try {
+        await beginAs(client, actor);
+        const result = await client.query(text, params);
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
     const result = await this.pool.query(text, params);
     return result;
   }
@@ -136,7 +187,8 @@ export class Database {
     const client = await this.pool.connect();
 
     try {
-      await client.query('BEGIN');
+      // Same as query(): changes inside the transaction carry who made them.
+      await beginAs(client, currentActor());
       const result = await callback(client);
       await client.query('COMMIT');
       return result;
