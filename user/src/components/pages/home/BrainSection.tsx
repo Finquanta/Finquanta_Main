@@ -64,7 +64,7 @@ export default function BrainSection() {
 
         <div className="relative mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold text-fq-green">{t("home", "brainEyebrow")}</p>
-          <h2 className="mt-3 text-4xl font-medium tracking-[-0.035em] sm:text-6xl">{t("home", "brainTitle")}</h2>
+          <h2 className="mt-3 text-4xl font-medium tracking-[-0.035em] [text-wrap:balance] sm:text-6xl">{t("home", "brainTitle")}</h2>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/65 sm:text-lg">{t("home", "brainSub")}</p>
         </div>
 

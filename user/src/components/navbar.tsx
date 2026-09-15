@@ -9,13 +9,14 @@ import { useSectionLink } from "@/hooks/useSectionLink";
 import { BetaBadge } from "./user_dashboard/BetaChip";
 
 /**
- * The marketing nav: a floating pill with the F mark, the section links, a
- * language pill, Log in and a green Get started.
+ * The marketing nav: a floating pill with the F mark, the section links, Blog,
+ * Try the Demo, a language pill, Log in and a green Get started.
  *
- * Below md it is the mark and a menu button; the links, language and Log in
- * move into HamburgerMenu. Company Brain, Compare and Pricing are homepage
- * sections, so on any other marketing page they open the homepage at that
- * section (see useSectionLink).
+ * Below lg it is the mark and a menu button; the links, language and Log in
+ * move into HamburgerMenu. The full row only shows from lg because, with the
+ * demo link in it, it no longer fits a tablet held upright. Company Brain,
+ * Compare and Pricing are homepage sections, so on any other marketing page
+ * they open the homepage at that section (see useSectionLink).
  */
 export function NavBarComponent() {
   const { t } = useLanguage();
@@ -48,16 +49,17 @@ export function NavBarComponent() {
           <BetaBadge isDark={false} />
         </div>
 
-        <div className="hidden items-center md:flex">
+        <div className="hidden items-center lg:flex">
           {sections.map((section) => (
             <button key={section.id} type="button" onClick={() => goTo(section.id)} className={linkClass}>
               {section.label}
             </button>
           ))}
           <Link href="/blog" className={linkClass}>{t("nav", "blog")}</Link>
+          <Link href="/demo" className={linkClass}>{t("nav", "tryTheDemo")}</Link>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <LanguagePill />
           <Link href="/login" className="px-2 text-sm font-medium text-fq-ink/80 transition-colors hover:text-fq-ink">
             {t("nav", "logIn")}
@@ -71,7 +73,7 @@ export function NavBarComponent() {
           </Link>
         </div>
 
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <HamburgerMenu />
         </div>
       </nav>

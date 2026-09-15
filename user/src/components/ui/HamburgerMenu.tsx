@@ -8,9 +8,9 @@ import { useLanguage, LANGUAGE_OPTIONS } from "@/hooks/context/LanguageContext";
 import { useSectionLink } from "@/hooks/useSectionLink";
 
 /**
- * The marketing nav below md: everything the desktop pill holds — the section
- * links, Blog, the language list, Log in and Get started — in a panel that
- * slides in from the right.
+ * The marketing nav below lg: everything the desktop pill holds — the section
+ * links, Blog, Try the Demo, the language list, Log in and Get started — in a
+ * panel that slides in from the right.
  *
  * The links used to point at /features, /faq, /newsletter and /community,
  * routes that never existed; they now go to the homepage sections the desktop
@@ -159,7 +159,7 @@ const HamburgerMenu = () => {
       <button
         aria-label={t("nav", "openMenu")}
         aria-expanded={open}
-        className="flex h-10 w-10 items-center justify-center rounded-xl text-fq-ink hover:bg-fq-card-alt md:hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-fq-ink hover:bg-fq-card-alt lg:hidden"
         onClick={() => setOpen(true)}
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
