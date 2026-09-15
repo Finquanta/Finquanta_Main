@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Mail, Share2, X } from "lucide-react";
+import { ArrowUp, Mail, Plus, X } from "lucide-react";
 import { SOCIAL_LINKS, CONTACT_EMAIL } from "@/components/SocialIcons";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
@@ -110,7 +110,7 @@ export default function SocialSidebar() {
         title={t("nav", "socialLinks")}
         className={`${circleClass} order-3 md:hidden`}
       >
-        {open ? <X className={iconClass} aria-hidden="true" /> : <Share2 className={iconClass} aria-hidden="true" />}
+        {open ? <X className={iconClass} aria-hidden="true" /> : <Plus className={iconClass} aria-hidden="true" />}
       </button>
 
       <span aria-hidden="true" className="order-4 mt-1 hidden h-6 w-px bg-fq-ink/20 md:block" />
