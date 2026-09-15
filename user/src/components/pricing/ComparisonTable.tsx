@@ -1,6 +1,6 @@
 'use client';
 
-import { Hourglass } from 'lucide-react';
+import { Check, Hourglass, X } from 'lucide-react';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { PRICING, limitCell, type PlanDisplay } from '@/lib/pricing';
 
@@ -124,16 +124,19 @@ const ROWS: Row[] = [
   { key: 'pfContracts', free: false, starter: false, entrepreneur: false, business: true, soon: true },
 ];
 
+/** Plan names are brand names, the same in every language — as on the plan cards above the table. */
+const PLAN_COLUMNS = ['Freemium', 'Starter', 'Entrepreneur', 'Business'];
+
 /**
- * Green tick, amber hourglass, red cross.
+ * Tick, hourglass, cross.
  *
  * Amber only where the feature is planned FOR THAT TIER — a tier that was never
- * getting it stays a red cross, so amber always reads as "you will get this"
- * rather than blurring into "maybe".
+ * getting it stays a cross, so amber always reads as "you will get this" rather
+ * than blurring into "maybe".
  *
- * A drawn icon, not the hourglass emoji: emoji render as full-colour glyphs
- * from the system font, so they ignore the text colour and look nothing like
- * the flat ticks beside them.
+ * Drawn icons, not emoji: emoji render as full-colour glyphs from the system
+ * font, so they ignore the text colour and look nothing like the marks beside
+ * them.
  */
 function Mark({ on, soon }: { on: boolean; soon?: boolean }) {
   if (on && soon) {
@@ -141,16 +144,20 @@ function Mark({ on, soon }: { on: boolean; soon?: boolean }) {
       <span
         aria-label="coming soon"
         title="In development"
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-600"
       >
-        <Hourglass className="h-3 w-3" strokeWidth={2.5} />
+        <Hourglass className="h-3.5 w-3.5" strokeWidth={2.5} />
       </span>
     );
   }
   return on ? (
-    <span aria-label="included" className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white text-xs font-bold">✓</span>
+    <span aria-label="included" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-fq-green/15 text-[#1E9E2A]">
+      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    </span>
   ) : (
-    <span aria-label="not included" className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">✕</span>
+    <span aria-label="not included" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-fq-card-alt text-fq-slate/60">
+      <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+    </span>
   );
 }
 
@@ -164,47 +171,53 @@ export default function ComparisonTable() {
     // Bare punctuation and digits are the same in every language; only real
     // words go through the translator.
     const text = /^[\d.,—-]+$/.test(value) ? value : t('pricing', value);
-    return <span className="text-sm font-semibold text-gray-800">{text}</span>;
+    return <span className="text-sm font-semibold text-fq-ink">{text}</span>;
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm text-center">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('pricing', 'pFeatures')}</th>
-            <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pFree')}</th>
-            <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pStarter')}</th>
-            <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pEntrepreneur')}</th>
-            <th className="px-4 py-3 font-semibold text-gray-700">{t('pricing', 'pBusiness')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map((row, i) =>
-            row.section ? (
-              // Section bands, like the reference charts — they break a long
-              // list into things you can actually scan.
-              <tr key={row.key} className="bg-gray-200/70">
-                <td colSpan={5} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
-                  {t('pricing', row.key)}
-                </td>
-              </tr>
-            ) : (
-              <tr key={row.key} className={row.soon ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-4 py-3 text-left text-gray-700">{t('pricing', row.key)}</td>
-                <td className="px-4 py-3">{renderCell(row.free, row.soon)}</td>
-                <td className="px-4 py-3">{renderCell(row.starter, row.soon)}</td>
-                <td className="px-4 py-3">{renderCell(row.entrepreneur, row.soon)}</td>
-                <td className="px-4 py-3">{renderCell(row.business, row.soon)}</td>
-              </tr>
-            )
-          )}
-        </tbody>
-      </table>
+    <div className="overflow-hidden rounded-3xl border border-fq-ink/10 bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="bg-fq-card-alt">
+              <th scope="col" className="sticky left-0 z-10 bg-fq-card-alt px-5 py-4 text-left text-[11px] font-semibold uppercase tracking-wider text-fq-slate">
+                {t('pricing', 'pFeatures')}
+              </th>
+              {PLAN_COLUMNS.map((name) => (
+                <th key={name} scope="col" className="px-4 py-4 text-center font-semibold text-fq-ink">
+                  {name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROWS.map((row) =>
+              row.section ? (
+                // Section bands break a long list into things you can scan.
+                <tr key={row.key}>
+                  <td colSpan={5} className="bg-fq-bg px-5 pb-2 pt-6 text-left text-[11px] font-semibold uppercase tracking-wider text-fq-slate">
+                    {t('pricing', row.key)}
+                  </td>
+                </tr>
+              ) : (
+                <tr key={row.key} className={`border-t border-fq-ink/[0.06] ${row.soon ? 'bg-amber-50/40' : ''}`}>
+                  <th scope="row" className={`sticky left-0 z-10 px-5 py-3.5 text-left font-normal text-fq-ink/80 ${row.soon ? 'bg-[#FFFCF3]' : 'bg-white'}`}>
+                    {t('pricing', row.key)}
+                  </th>
+                  <td className="px-4 py-3.5 text-center">{renderCell(row.free, row.soon)}</td>
+                  <td className="px-4 py-3.5 text-center">{renderCell(row.starter, row.soon)}</td>
+                  <td className="px-4 py-3.5 text-center">{renderCell(row.entrepreneur, row.soon)}</td>
+                  <td className="px-4 py-3.5 text-center">{renderCell(row.business, row.soon)}</td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Without this the amber is just an unexplained third colour. */}
-      <p className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-white">
+      <p className="flex items-center justify-center gap-2 border-t border-fq-ink/[0.06] px-5 py-4 text-xs text-fq-slate">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-100 text-amber-600">
           <Hourglass className="h-2.5 w-2.5" strokeWidth={2.5} />
         </span>
         {t('pricing', 'pfComingSoon')}

@@ -13,7 +13,7 @@ import { BetaBadge } from "./user_dashboard/BetaChip";
  * language pill, Log in and a green Get started.
  *
  * Below md it is the mark and a menu button; the links, language and Log in
- * move into HamburgerMenu. Features, Company Brain and Pricing are homepage
+ * move into HamburgerMenu. Company Brain, Compare and Pricing are homepage
  * sections, so on any other marketing page they open the homepage at that
  * section (see useSectionLink).
  */
@@ -22,8 +22,8 @@ export function NavBarComponent() {
   const goTo = useSectionLink();
 
   const sections = [
-    { id: "features", label: t("nav", "features") },
     { id: "brain", label: t("nav", "companyBrain") },
+    { id: "compare", label: t("nav", "compare") },
     { id: "pricing", label: t("nav", "pricing") },
   ];
   const linkClass = "rounded-lg px-3 py-1.5 text-sm text-fq-ink/70 transition-colors hover:text-fq-ink";

@@ -34,7 +34,7 @@ export interface SidebarNavItem {
   tour?: string;
 }
 
-const NAV: SidebarNavItem[] = [
+export const DASHBOARD_NAV: SidebarNavItem[] = [
   // `label` is the English fallback the renderer uses when labelKey is absent —
   // every item carries a key now, so the sidebar translates like the rest of the
   // dashboard instead of staying English in all ten languages.
@@ -68,7 +68,7 @@ const NAV: SidebarNavItem[] = [
  */
 export default function DashboardSidebar({
   isDark, isOpen, onClose,
-  items = NAV,
+  items = DASHBOARD_NAV,
   showAccount = true,
   footerAction,
 }: {
@@ -136,7 +136,8 @@ export default function DashboardSidebar({
 
       <div
         id="app-sidebar"
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 flex-shrink-0 ${colors.sidebar} border-r flex flex-col py-6 px-4 overflow-y-auto transform transition-transform duration-300 motion-reduce:transition-none ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 ${whenCollapsed("lg:w-[72px] lg:overflow-visible")} ${animate ? "lg:transition-[width] lg:duration-200" : ""}`}
+        data-nav-rail
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-56 sm:w-48 flex-shrink-0 ${colors.sidebar} border-r flex flex-col py-6 px-4 overflow-y-auto overscroll-contain transform transition-transform duration-300 motion-reduce:transition-none ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 ${whenCollapsed("lg:w-[72px]")} ${animate ? "lg:transition-[width] lg:duration-200" : ""}`}
       >
         <div className={`mb-8 flex items-start justify-between gap-2 ${whenCollapsed("lg:flex-col lg:items-center lg:gap-3")}`}>
           <div className={`flex flex-col items-start ${whenCollapsed("lg:items-center")}`}>

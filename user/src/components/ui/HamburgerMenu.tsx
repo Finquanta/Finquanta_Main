@@ -71,8 +71,8 @@ const HamburgerMenu = () => {
   };
 
   const sections = [
-    { id: "features", label: t("nav", "features") },
     { id: "brain", label: t("nav", "companyBrain") },
+    { id: "compare", label: t("nav", "compare") },
     { id: "pricing", label: t("nav", "pricing") },
   ];
   const rowClass = "block w-full py-2 text-left text-lg font-medium text-fq-ink hover:text-[#1E9E2A]";

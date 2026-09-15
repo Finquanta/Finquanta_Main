@@ -17,7 +17,15 @@ type PaidKey = "starter" | "entrepreneur" | "business";
  * server's plan catalogue. The "coming soon" lines are the ones ComparisonTable
  * marks amber for that tier.
  */
-export default function PricingSection() {
+export default function PricingSection({
+  showCompareLink = true,
+  titleAs: Title = "h2",
+}: {
+  /** Off on /pricing, where the full comparison is already on the page. */
+  showCompareLink?: boolean;
+  /** h1 when this is the page's main heading. */
+  titleAs?: "h1" | "h2";
+}) {
   const { t, language } = useLanguage();
   const [yearly, setYearly] = useState(false);
 
@@ -51,7 +59,7 @@ export default function PricingSection() {
     <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-20 sm:px-6 sm:py-28">
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold text-[#1E9E2A]">{t("home", "pricingEyebrow")}</p>
-        <h2 className="mt-3 text-3xl font-medium tracking-[-0.03em] text-fq-ink sm:text-5xl">{t("home", "pricingTitle")}</h2>
+        <Title className="mt-3 text-3xl font-medium tracking-[-0.03em] text-fq-ink sm:text-5xl">{t("home", "pricingTitle")}</Title>
         <p className="mt-4 text-base leading-relaxed text-fq-slate sm:text-lg">{t("home", "pricingSub")}</p>
       </div>
 
@@ -149,12 +157,14 @@ export default function PricingSection() {
         </a>
       </div>
 
-      <p className="mt-8 text-center">
-        <Link href="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-fq-ink underline-offset-4 hover:underline">
-          {t("home", "compareAll")}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </p>
+      {showCompareLink && (
+        <p className="mt-8 text-center">
+          <Link href="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-fq-ink underline-offset-4 hover:underline">
+            {t("home", "compareAll")}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </p>
+      )}
     </section>
   );
 }

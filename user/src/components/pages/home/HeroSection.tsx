@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import DashboardPreview from "./DashboardPreview";
 
 /**
- * "Run your [books]." renders the bracketed words in the muted tone. Each line
+ * "Meet your [Company Brain]." renders the bracketed words in the muted tone. Each line
  * is one whole translated sentence and translators move the brackets, so no
  * sentence is ever assembled from separately translated pieces.
  */
@@ -75,18 +75,18 @@ export default function HeroSection() {
       style={{ paddingTop: "calc(4.75rem + var(--maintenance-h, 0px))" }}
     >
       <HeroBackdrop />
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 text-center sm:px-6 sm:pt-20 lg:pt-24">
+      <div className="mx-auto max-w-6xl px-4 pb-6 pt-14 text-center sm:px-6 sm:pt-20 lg:pt-24">
         <p className="inline-flex items-center gap-2 rounded-full border border-fq-ink/10 bg-white/70 px-3 py-1 text-xs font-medium text-fq-slate backdrop-blur">
           <span className="h-1.5 w-1.5 rounded-full bg-fq-green" aria-hidden="true" />
           {t("home", "heroPill")}
         </p>
 
-        <h1 className="mx-auto mt-6 max-w-4xl text-[2.5rem] font-medium leading-[1.04] tracking-[-0.035em] text-fq-ink sm:text-6xl lg:text-7xl">
+        <h1 className="mx-auto mt-6 max-w-4xl text-[2.25rem] font-medium leading-[1.04] tracking-[-0.035em] text-fq-ink [text-wrap:balance] sm:text-6xl lg:text-7xl">
           <span className="block"><TwoTone text={t("home", "heroLine1")} /></span>
           <span className="block"><TwoTone text={t("home", "heroLine2")} /></span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-fq-slate sm:text-lg">
+        <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-fq-slate [text-wrap:pretty] sm:text-lg">
           {t("home", "heroSub")}
         </p>
 
@@ -121,25 +121,19 @@ export default function HeroSection() {
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
 
-        {/* The real product, from the demo, rather than an illustration of it. */}
-        <div className="relative mx-auto mt-14 max-w-5xl">
+        {/* The dashboard itself, live: its layout and the real Health Score card,
+            filled with sample data. See DashboardPreview. */}
+        <figure className="relative mx-auto mt-14 max-w-5xl">
           <div className="rounded-2xl border border-fq-ink/10 bg-white p-2 shadow-[0_40px_90px_-30px_rgba(15,18,16,0.35)]">
             <div className="flex gap-1.5 px-2 pb-2 pt-1" aria-hidden="true">
               <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
               <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
               <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
             </div>
-            <Image
-              src="/images/home/dashboard.webp"
-              alt={t("home", "heroShotAlt")}
-              width={2000}
-              height={1250}
-              priority
-              sizes="(min-width: 1024px) 1008px, 100vw"
-              className="h-auto w-full rounded-xl border border-fq-ink/5"
-            />
+            <DashboardPreview />
           </div>
-        </div>
+          <figcaption className="sr-only">{t("home", "previewLabel")}</figcaption>
+        </figure>
       </div>
     </section>
   );

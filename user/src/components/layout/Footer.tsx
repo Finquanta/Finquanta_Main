@@ -51,8 +51,8 @@ const Footer = ({ onContactClick }: FooterProps) => {
           </div>
 
           <Column title={t('footer', 'product')}>
-            <li><button type="button" onClick={() => goTo('features')} className={linkClass}>{t('nav', 'features')}</button></li>
             <li><button type="button" onClick={() => goTo('brain')} className={linkClass}>{t('nav', 'companyBrain')}</button></li>
+            <li><button type="button" onClick={() => goTo('compare')} className={linkClass}>{t('nav', 'compare')}</button></li>
             <li><Link href="/pricing" className={linkClass}>{t('nav', 'pricing')}</Link></li>
             <li><Link href="/demo" className={linkClass}>{t('nav', 'tryTheDemo')}</Link></li>
           </Column>

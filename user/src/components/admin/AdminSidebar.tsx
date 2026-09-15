@@ -74,10 +74,13 @@ export default function AdminSidebar({ active, dark, setDark }: { active: Tab; d
   return (
     <div
       id="admin-sidebar"
+      data-nav-rail
       className={`admin-nav${collapsed ? " collapsed" : ""}`}
       style={{
         width: collapsed ? 72 : 172, background: surface, borderRight: `0.5px solid ${border}`,
         display: "flex", flexDirection: "column", padding: "16px 0 10px", flexShrink: 0, height: "100vh",
+        // Scrolls on its own when the window is shorter than the list.
+        overflowY: "auto", overscrollBehavior: "contain",
         transition: animate ? "width .2s ease" : undefined,
       }}
     >

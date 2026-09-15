@@ -5,24 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
 import HeroSection from "@/components/pages/home/HeroSection";
-import FactsSection from "@/components/pages/home/FactsSection";
-import ShowcaseSection from "@/components/pages/home/ShowcaseSection";
-import FeatureTabsSection from "@/components/pages/home/FeatureTabsSection";
-import HowItWorksSection from "@/components/pages/home/HowItWorksSection";
-import SecuritySection from "@/components/pages/home/SecuritySection";
-import ExportTeaserSection from "@/components/pages/home/ExportTeaserSection";
+import BrainSection from "@/components/pages/home/BrainSection";
+import CompareSection from "@/components/pages/home/CompareSection";
 import PricingSection from "@/components/pages/home/PricingSection";
 import NewsletterSection from "@/components/pages/home/NewsletterSection";
-import BlogPreviewSection from "@/components/pages/home/BlogPreviewSection";
-import ClosingCtaSection from "@/components/pages/home/ClosingCtaSection";
-import FaqSection from "@/components/pages/home/FaqSection";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
 /**
- * The marketing homepage. The section order follows the reference design's
- * rhythm — hero, the problem, a showcase, feature tabs, how it works, security,
- * the export teaser, pricing, newsletter and blog, a closing call to action and
- * the FAQ — and everything on it is something the product does today.
+ * The marketing homepage, in the order the product is sold: the hero with a
+ * live view of the dashboard, Company Brain with Finna and the Finna Council,
+ * how Finquanta compares, pricing, then the newsletter. Kept short on purpose —
+ * the detail lives in the product and on /pricing.
  */
 export default function Home() {
   const { t } = useLanguage();
@@ -67,17 +60,10 @@ export default function Home() {
       style={{ marginTop: "calc(-4.75rem - var(--maintenance-h, 0px))" }}
     >
       <HeroSection />
-      <FactsSection />
-      <ShowcaseSection />
-      <FeatureTabsSection />
-      <HowItWorksSection />
-      <SecuritySection />
-      <ExportTeaserSection />
+      <BrainSection />
+      <CompareSection />
       <PricingSection />
       <NewsletterSection />
-      <BlogPreviewSection />
-      <ClosingCtaSection />
-      <FaqSection />
 
       {showCTA && (
         <div
