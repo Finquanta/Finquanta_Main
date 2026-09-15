@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, ChevronDown, Bell, Menu, LogOut } from 'lucide-react';
+import { Globe, ChevronDown, Bell, Menu, LayoutDashboard, FileText, Users, Activity, Layers, Gift, Settings } from 'lucide-react';
 import { useLanguage, LANGUAGE_OPTIONS as LANGUAGES } from '@/hooks/context/LanguageContext';
 import { useTheme } from '@/hooks/context/ThemeContext';
 import { useAsk } from '@/components/user_dashboard/ConfirmProvider';
@@ -34,13 +34,13 @@ import DemoFinna from './DemoFinna';
 const NAV: SidebarNavItem[] = [
   // labelKey mirrors the registered sidebar so the demo nav translates too;
   // `label` is only the English fallback the renderer uses when a key is absent.
-  { href: '/demo/dashboard', labelKey: 'title', label: 'Dashboard' },
-  { href: '/demo/invoices', labelKey: 'invoices', label: 'Invoices' },
-  { href: '/demo/customers', labelKey: 'customers', label: 'Customers' },
-  { href: '/signup?from=activity', labelKey: 'activity', label: 'Activity' },
-  { href: '/demo/groups', labelKey: 'groups', label: 'Groups' },
-  { href: '/signup?from=referrals', labelKey: 'referAB', label: 'Refer a Business' },
-  { href: '/signup?from=settings', labelKey: 'settings', label: 'Settings' },
+  { href: '/demo/dashboard', labelKey: 'title', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/demo/invoices', labelKey: 'invoices', label: 'Invoices', icon: FileText },
+  { href: '/demo/customers', labelKey: 'customers', label: 'Customers', icon: Users },
+  { href: '/signup?from=activity', labelKey: 'activity', label: 'Activity', icon: Activity },
+  { href: '/demo/groups', labelKey: 'groups', label: 'Groups', icon: Layers },
+  { href: '/signup?from=referrals', labelKey: 'referAB', label: 'Refer a Business', icon: Gift },
+  { href: '/signup?from=settings', labelKey: 'settings', label: 'Settings', icon: Settings },
 ];
 
 
@@ -79,17 +79,9 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
         onClose={() => setSidebarOpen(false)}
         items={NAV}
         showAccount={false}
-        footer={
-          // Sits in the Log Out slot and looks the same — a visitor has no
-          // session to end, so it clears the demo and returns them home.
-          <button
-            onClick={exitDemo}
-            className="flex items-center gap-1.5 text-left font-medium text-red-400 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {t('demo', 'exitDemo')}
-          </button>
-        }
+        // Sits in the Log Out slot and looks the same — a visitor has no
+        // session to end, so it clears the demo and returns them home.
+        footerAction={{ label: t('demo', 'exitDemo'), onClick: exitDemo }}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">

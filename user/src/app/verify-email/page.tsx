@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AlertTriangle, CheckCircle2, MailCheck } from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
 import { verifyEmail, resendVerification, VerifyError } from "@/lib/api/verify";
 
 type Status = "ready" | "confirming" | "done" | "error" | "no-token";
+
+const primary =
+  "inline-flex h-11 w-full items-center justify-center rounded-lg bg-fq-green px-5 text-sm font-semibold text-fq-dark transition hover:bg-fq-green/90 disabled:opacity-60";
 
 export default function VerifyEmailPage() {
   // We deliberately do NOT auto-confirm on load. Email link-scanners (Outlook
@@ -60,58 +65,52 @@ export default function VerifyEmailPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f5f7", fontFamily: "sans-serif", padding: 24 }}>
-      <div style={{ maxWidth: 440, width: "100%", background: "#fff", borderRadius: 16, padding: 32, boxShadow: "0 6px 24px rgba(0,0,0,0.06)", textAlign: "center" }}>
-        <img src="/images/finquanta_logo.svg" alt="Finquanta" style={{ height: 36, margin: "0 auto 20px" }} />
-
+    <AuthShell>
+      <div className="grid gap-3 text-center">
         {status === "ready" && (
           <>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>✉️</div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Confirm your email</h1>
-            <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 20px" }}>Click below to finish confirming your Finquanta email address.</p>
-            <button onClick={confirm} style={{ background: "#22c55e", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-              Confirm my email
-            </button>
+            <MailCheck className="mx-auto h-10 w-10 text-fq-green" aria-hidden="true" />
+            <h1 className="text-2xl font-semibold tracking-tight text-fq-ink">Confirm your email</h1>
+            <p className="mb-2 text-sm text-fq-slate">Click below to finish confirming your Finquanta email address.</p>
+            <button onClick={confirm} className={primary}>Confirm my email</button>
           </>
         )}
 
-        {status === "confirming" && <p style={{ color: "#6b7280" }}>Confirming your email…</p>}
+        {status === "confirming" && <p className="text-sm text-fq-slate">Confirming your email…</p>}
 
         {status === "no-token" && (
           <>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Missing link</h1>
-            <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 20px" }}>This verification link is missing its token. Open the link straight from your email, or request a new one below.</p>
+            <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" aria-hidden="true" />
+            <h1 className="text-2xl font-semibold tracking-tight text-fq-ink">Missing link</h1>
+            <p className="mb-2 text-sm text-fq-slate">
+              This verification link is missing its token. Open the link straight from your email, or request a new one below.
+            </p>
             <ResendForm resendEmail={resendEmail} setResendEmail={setResendEmail} resendMsg={resendMsg} resending={resending} onSubmit={handleResend} />
           </>
         )}
 
         {status === "done" && (
           <>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Email confirmed</h1>
-            <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 20px" }}>{message}</p>
-            <Link href="/dashboard" style={{ display: "inline-block", background: "#22c55e", color: "#fff", textDecoration: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
-              Go to dashboard
-            </Link>
+            <CheckCircle2 className="mx-auto h-10 w-10 text-fq-green" aria-hidden="true" />
+            <h1 className="text-2xl font-semibold tracking-tight text-fq-ink">Email confirmed</h1>
+            <p className="mb-2 text-sm text-fq-slate">{message}</p>
+            <Link href="/dashboard" className={primary}>Go to dashboard</Link>
           </>
         )}
 
         {status === "error" && (
           <>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Couldn&apos;t confirm</h1>
-            <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 20px" }}>
+            <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" aria-hidden="true" />
+            <h1 className="text-2xl font-semibold tracking-tight text-fq-ink">Couldn&apos;t confirm</h1>
+            <p className="mb-2 text-sm text-fq-slate">
               {message}{expired ? " Enter your email to get a fresh link." : ""}
             </p>
             <ResendForm resendEmail={resendEmail} setResendEmail={setResendEmail} resendMsg={resendMsg} resending={resending} onSubmit={handleResend} />
-            <p style={{ marginTop: 16 }}>
-              <Link href="/login" style={{ color: "#2563eb", fontSize: 13, textDecoration: "none" }}>Back to login</Link>
-            </p>
+            <Link href="/login" className="mt-2 text-sm text-fq-slate hover:text-fq-ink hover:underline">Back to login</Link>
           </>
         )}
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -128,17 +127,19 @@ function ResendForm({
   resending: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }) {
-  if (resendMsg) return <p style={{ color: "#16a34a", fontSize: 14 }}>{resendMsg}</p>;
+  if (resendMsg) return <p className="text-sm text-green-700">{resendMsg}</p>;
   return (
-    <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <form onSubmit={onSubmit} className="grid gap-3 text-left">
+      <label htmlFor="resend-email" className="sr-only">Email</label>
       <input
+        id="resend-email"
         type="email"
         value={resendEmail}
         onChange={(e) => setResendEmail(e.target.value)}
         placeholder="you@example.com"
-        style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 14 }}
+        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-fq-ink outline-none transition focus:border-fq-green focus:ring-2 focus:ring-fq-green/30"
       />
-      <button type="submit" disabled={resending} style={{ background: "#22c55e", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: resending ? "default" : "pointer", opacity: resending ? 0.7 : 1 }}>
+      <button type="submit" disabled={resending} className={primary}>
         {resending ? "Sending…" : "Resend verification email"}
       </button>
     </form>

@@ -3,20 +3,22 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import { ArrowRight, Menu, X } from "lucide-react";
+import { useLanguage, LANGUAGE_OPTIONS } from "@/hooks/context/LanguageContext";
+import { useSectionLink } from "@/hooks/useSectionLink";
 
-const navLinks = [
-  { href: "/features", label: "Features" },
-  { href: "/faq", label: "FAQs" },
-  { href: "/newsletter", label: "Newsletter" },
-  { href: "/community", label: "Community" },
-  // Kept in step with the desktop nav in components/navbar.tsx — this list is
-  // separate, so a link added there is invisible on mobile until it is added
-  // here too.
-  { href: "/pricing", label: "Pricing" },
-  { href: "/blog", label: "Blog" },
-];
-
+/**
+ * The marketing nav below lg: everything the desktop pill holds — the section
+ * links, Blog, Try the Demo, the language list, Log in and Get started — in a
+ * panel that slides in from the right.
+ *
+ * The links used to point at /features, /faq, /newsletter and /community,
+ * routes that never existed; they now go to the homepage sections the desktop
+ * nav scrolls to.
+ */
 const HamburgerMenu = () => {
+  const { t, language, setLanguage } = useLanguage();
+  const goTo = useSectionLink();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -27,10 +29,9 @@ const HamburgerMenu = () => {
     setMounted(true);
   }, []);
 
-  // Open menu with animation
+  // Open with a transition: wait a tick so the panel starts off-screen.
   useEffect(() => {
     if (open && !closing) {
-      // Wait a tick to trigger the transition
       const timer = setTimeout(() => setMenuVisible(true), 10);
       return () => clearTimeout(timer);
     } else {
@@ -38,95 +39,113 @@ const HamburgerMenu = () => {
     }
   }, [open, closing]);
 
-  // Close menu on outside click
+  // Close on a click outside the panel.
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         handleClose();
       }
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Trap focus inside menu when open
+  // Move focus into the panel when it opens.
   useEffect(() => {
     if (!open) return;
-    const focusableEls = menuRef.current?.querySelectorAll<HTMLElement>(
-      'a, button, [tabindex]:not([tabindex="-1"])'
-    );
-    focusableEls?.[0]?.focus();
+    menuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
   }, [open]);
 
-  // Handle smooth close
   const handleClose = () => {
     setMenuVisible(false);
     setClosing(true);
     setTimeout(() => {
       setOpen(false);
       setClosing(false);
-    }, 300); // match duration-300
+    }, 300); // matches duration-300
   };
 
-  // Portal content for overlay and drawer
+  const openSection = (id: string) => {
+    handleClose();
+    goTo(id);
+  };
+
+  const sections = [
+    { id: "brain", label: t("nav", "companyBrain") },
+    { id: "compare", label: t("nav", "compare") },
+    { id: "pricing", label: t("nav", "pricing") },
+  ];
+  const rowClass = "block w-full py-2 text-left text-lg font-medium text-fq-ink hover:text-[#1E9E2A]";
+
   const portalContent = (
     <>
-      {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-40 z-[9999] transition-opacity duration-300"
+        className="fixed inset-0 z-[9999] bg-fq-dark/40 transition-opacity duration-300"
         aria-hidden="true"
         onClick={handleClose}
-      ></div>
-      {/* Slide-in Menu */}
+      />
       <nav
         ref={menuRef}
-        className={`fixed top-0 right-0 h-[100vh] w-64 bg-white shadow-lg z-[9999] transform transition-transform duration-300 ease-in-out overflow-x-hidden
-          ${menuVisible ? "translate-x-0" : "translate-x-full"}`}
-        aria-label="Mobile navigation menu"
+        className={`fixed right-0 top-0 z-[9999] h-[100dvh] w-72 max-w-[85vw] transform overflow-x-hidden bg-white shadow-lg transition-transform duration-300 ease-in-out motion-reduce:transition-none ${menuVisible ? "translate-x-0" : "translate-x-full"}`}
         tabIndex={-1}
       >
-        {/* Close Icon */}
         <button
-          aria-label="Close navigation menu"
-          className="absolute top-4 right-4 text-2xl text-gray-700 focus:outline-none"
+          aria-label={t("nav", "closeMenu")}
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl text-fq-ink hover:bg-fq-card-alt"
           onClick={handleClose}
         >
-          &times;
+          <X className="h-5 w-5" aria-hidden="true" />
         </button>
-        {/* Scrollable column so nothing gets cut off on short screens.
-            Auth buttons sit at the TOP for easy reach, nav links below. */}
-        <div className="flex flex-col h-full pt-16 pb-8 overflow-y-auto">
-          {/* Sign Up and Login at the top */}
-          <div className="flex flex-col px-4 space-y-3">
-            <Link href="/signup" className="w-full" onClick={handleClose}>
-              <button className="w-full bg-[#4CAF50] hover:bg-[#45a049] text-white rounded-lg px-5 py-3 font-semibold text-base transition-colors">
-                Sign Up
-              </button>
+
+        <div className="flex h-full flex-col overflow-y-auto px-5 pb-8 pt-16">
+          {/* Account actions at the top, where a thumb reaches first. */}
+          <div className="flex flex-col gap-2">
+            <Link
+              href="/signup"
+              onClick={handleClose}
+              className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-fq-green text-base font-semibold text-fq-dark"
+            >
+              {t("nav", "getStarted")}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/login" className="w-full" onClick={handleClose}>
-              <button className="w-full bg-gray-50 hover:bg-gray-100 text-[#4CAF50] rounded-lg px-5 py-3 font-semibold text-base border border-[#4CAF50] transition-colors">
-                Login
-              </button>
+            <Link
+              href="/login"
+              onClick={handleClose}
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-fq-ink/15 text-base font-semibold text-fq-ink"
+            >
+              {t("nav", "logIn")}
             </Link>
           </div>
-          {/* Divider */}
-          <div className="border-t border-gray-200 mx-4 my-5" />
-          <ul className="flex flex-col space-y-6 px-4">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="text-lg text-gray-800 hover:text-green-600 font-medium"
-                  onClick={handleClose}
+
+          <div className="my-5 border-t border-fq-ink/10" />
+
+          <ul className="flex flex-col">
+            {sections.map((section) => (
+              <li key={section.id}>
+                <button type="button" onClick={() => openSection(section.id)} className={rowClass}>
+                  {section.label}
+                </button>
+              </li>
+            ))}
+            <li><Link href="/blog" onClick={handleClose} className={rowClass}>{t("nav", "blog")}</Link></li>
+            <li><Link href="/demo" onClick={handleClose} className={rowClass}>{t("nav", "tryTheDemo")}</Link></li>
+          </ul>
+
+          <div className="my-5 border-t border-fq-ink/10" />
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-fq-slate">{t("nav", "language")}</p>
+          <ul className="mt-3 grid grid-cols-2 gap-2">
+            {LANGUAGE_OPTIONS.map((option) => (
+              <li key={option.code}>
+                <button
+                  type="button"
+                  lang={option.code}
+                  aria-current={option.code === language ? "true" : undefined}
+                  onClick={() => setLanguage(option.code)}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm ${option.code === language ? "bg-fq-ink font-semibold text-white" : "bg-fq-card-alt text-fq-ink"}`}
                 >
-                  {link.label}
-                </Link>
+                  {option.label}
+                </button>
               </li>
             ))}
           </ul>
@@ -136,16 +155,14 @@ const HamburgerMenu = () => {
   );
 
   return (
-    <div className="relative bg-white">
-      {/* Hamburger Icon */}
+    <div className="relative">
       <button
-        aria-label="Open navigation menu"
-        className="md:hidden flex flex-col justify-center items-center w-10 h-10 focus:outline-none z-50"
+        aria-label={t("nav", "openMenu")}
+        aria-expanded={open}
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-fq-ink hover:bg-fq-card-alt lg:hidden"
         onClick={() => setOpen(true)}
       >
-        <span className="block w-7 h-1 bg-gray-800 rounded mb-1 transition-all" />
-        <span className="block w-7 h-1 bg-gray-800 rounded mb-1 transition-all" />
-        <span className="block w-7 h-1 bg-gray-800 rounded transition-all" />
+        <Menu className="h-5 w-5" aria-hidden="true" />
       </button>
       {mounted && (open || closing) && typeof window !== "undefined"
         ? createPortal(portalContent, document.body)
@@ -154,4 +171,4 @@ const HamburgerMenu = () => {
   );
 };
 
-export default HamburgerMenu; 
+export default HamburgerMenu;

@@ -327,3 +327,49 @@
   #invoice-print-area tr { break-inside: avoid; }
   @page { margin: 12mm; }
 }
+
+/* ---- Scrollbars -------------------------------------------------------------
+   Thin and quiet everywhere, the sidebars included: a rounded thumb with no
+   track, a touch darker on hover. The grey is mid-tone on purpose, so the same
+   thumb reads on white pages and on the dark theme's panels alike.
+
+   Chromium and Safari draw these from the ::-webkit-scrollbar rules. Firefox
+   ignores those and takes scrollbar-width/scrollbar-color instead — which are
+   scoped to Firefox here, because Chromium also honours them and, when they
+   are set, throws the ::-webkit rules (and the rounded thumb) away. */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(120 128 124 / 0.5) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgb(120 128 124 / 0.4);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(120 128 124 / 0.7);
+}
+
+/* The homepage's dashboard preview is laid out at desktop width and scaled
+   down as one piece. The phone rules above cap every element at 100vw, which
+   would squeeze that layout into a phone-width column before it is scaled —
+   so the preview is exempt. Unlayered, so it wins over those utilities. */
+.fq-preview,
+.fq-preview * {
+  max-width: none;
+}

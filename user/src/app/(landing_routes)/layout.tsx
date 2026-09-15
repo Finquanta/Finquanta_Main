@@ -33,9 +33,10 @@ export default function RootLayout({
         <NavBarComponent />
         <main
           className="w-full"
-          // 4rem clears the fixed navbar; the variable clears the maintenance
-          // banner above it, and is 0px when there is no banner.
-          style={{ paddingTop: "calc(4rem + var(--maintenance-h, 0px))" }}
+          // 4.75rem clears the floating navbar (a 0.75rem gap and a 3.5rem
+          // pill); the variable clears the maintenance banner above it, and is
+          // 0px when there is no banner.
+          style={{ paddingTop: "calc(4.75rem + var(--maintenance-h, 0px))" }}
         >{children}</main>
         <Footer onContactClick={() => setContactModalOpen(true)} />
       </div>
@@ -52,9 +53,10 @@ export default function RootLayout({
       <ClientOnly>
         <ChatbotWidget variant="landing" />
       </ClientOnly>
-      {/* Socials, email and back-to-top. Mounted here rather than globally so
-          it is scoped to the marketing pages by construction — the dashboard
-          never renders this layout. Sits bottom-LEFT; Finna owns the right. */}
+      {/* Instagram, X and LinkedIn in a column on the right, with Finna's
+          bubble docked beneath it. Mounted here rather than globally so it is
+          scoped to the marketing pages by construction — the dashboard never
+          renders this layout. */}
       <ClientOnly>
         <SocialSidebar />
       </ClientOnly>

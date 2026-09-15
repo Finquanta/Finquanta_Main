@@ -1,8 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Mail } from 'lucide-react';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import { subscribeNewsletter } from '@/lib/api/newsletter';
 
@@ -37,28 +35,41 @@ const NewsletterSection = () => {
   };
 
   return (
-    <section id="newsletter" className="min-h-screen flex items-center bg-white">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
-        <Image src="/images/getInTouch.svg" alt="Envelope icon for newsletter signup" width={180} height={180} className="mb-10" />
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-8">{t("newsletter", "title")}</h2>
-        <p className="text-gray-600 mb-8 max-w-lg text-base sm:text-lg">{t("newsletter", "description")}</p>
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch justify-center gap-3 w-full max-w-md px-4">
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); if (status !== 'idle') { setStatus('idle'); setMessage(''); } }}
-            placeholder={t("newsletter", "emailPlaceholder")}
-            className="flex-grow w-full sm:w-auto border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-200 focus:border-green-500"
-          />
-          <Button type="submit" disabled={status === 'loading'} variant="outline" className="w-full sm:w-auto text-green-600 border-2 border-green-600 hover:bg-green-50 rounded-lg px-6 py-3 text-sm sm:text-base font-medium disabled:opacity-60">
-            {status === 'loading' ? '…' : t("newsletter", "subscribe")}
-          </Button>
-        </form>
-        {message && (
-          <p className={`mt-4 text-sm ${status === 'error' ? 'text-red-600' : 'text-green-600'}`} role="status">
-            {message}
-          </p>
-        )}
+    <section id="newsletter" className="scroll-mt-24 px-4 pb-20 sm:px-6 sm:pb-28">
+      <div className="mx-auto grid max-w-6xl gap-8 rounded-3xl border border-fq-ink/10 bg-white px-6 py-10 sm:px-10 md:grid-cols-2 md:items-center">
+        <div>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-fq-green/15 text-[#1E9E2A]">
+            <Mail className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h2 className="mt-5 text-2xl font-medium tracking-[-0.02em] text-fq-ink sm:text-3xl">{t("newsletter", "title")}</h2>
+          <p className="mt-3 max-w-md text-fq-slate">{t("newsletter", "description")}</p>
+        </div>
+        <div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:rounded-full sm:border sm:border-fq-ink/10 sm:bg-fq-bg sm:p-1.5">
+            <label htmlFor="newsletter-email" className="sr-only">{t("newsletter", "emailPlaceholder")}</label>
+            <input
+              id="newsletter-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (status !== 'idle') { setStatus('idle'); setMessage(''); } }}
+              placeholder={t("newsletter", "emailPlaceholder")}
+              className="h-12 w-full rounded-full border border-fq-ink/10 bg-white px-5 text-sm text-fq-ink placeholder:text-fq-slate/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-fq-green sm:h-10 sm:border-0 sm:bg-transparent sm:px-4"
+            />
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-fq-ink px-6 text-sm font-semibold text-white transition-colors hover:bg-fq-ink/90 disabled:opacity-60 sm:h-10"
+            >
+              {status === 'loading' ? '…' : t("newsletter", "subscribe")}
+            </button>
+          </form>
+          {message && (
+            <p className={`mt-3 text-sm ${status === 'error' ? 'text-red-600' : 'text-[#1E9E2A]'}`} role="status">
+              {message}
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );

@@ -257,7 +257,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 id="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="pl-10 py-2 bg-white text-black border border-gray-300"
+                className="pl-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green"
                 placeholder="First name"
                 disabled={isLoading}
                 required
@@ -269,7 +269,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 id="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="py-2 bg-white text-black border border-gray-300"
+                className="h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green"
                 placeholder="Last name"
                 disabled={isLoading}
               />
@@ -282,7 +282,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             </div>
             {emailValid && (
               <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                <CheckIcon className="h-5 w-5 text-green-500" />
+                <CheckIcon className="h-5 w-5 text-fq-green" />
               </div>
             )}
             <Input
@@ -290,7 +290,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="signup-email"
               value={email}
               onChange={handleEmailChange}
-              className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", emailValid ? "border-green-500 focus:border-green-500" : "")}
+              className={cn("pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green", emailValid ? "border-fq-green focus:border-fq-green" : "")}
               placeholder={t("auth", "email")}
               autoCapitalize="none"
               autoComplete="email"
@@ -312,7 +312,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 setPassword(e.target.value);
                 if (confirmPassword) setPasswordMismatch(confirmPassword !== e.target.value);
               }}
-              className="pl-10 pr-10 py-2 bg-white text-black border border-gray-300"
+              className="pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green"
               placeholder="Password"
               autoCapitalize="none"
               autoComplete="new-password"
@@ -373,7 +373,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="confirm-password"
               value={confirmPassword}
               onChange={handleConfirmPasswordChange}
-              className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", passwordMismatch ? "border-red-500" : confirmPassword && !passwordMismatch ? "border-green-500" : "")}
+              className={cn("pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green", passwordMismatch ? "border-red-500" : confirmPassword && !passwordMismatch ? "border-fq-green" : "")}
               placeholder="Confirm password"
               autoCapitalize="none"
               autoComplete="new-password"
@@ -397,14 +397,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 
           {/* Date of birth — enforces the 16+ age requirement */}
           <div>
-            <label htmlFor="dob" className="block text-xs font-medium text-gray-600 mb-1">Date of birth</label>
+            <label htmlFor="dob" className="block text-xs font-medium text-fq-slate mb-1">Date of birth</label>
             <Input
               type="date"
               id="dob"
               value={dateOfBirth}
               max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => setDateOfBirth(e.target.value)}
-              className={cn("py-2 bg-white text-black border border-gray-300", dateOfBirth && !ageValid ? "border-red-500" : dateOfBirth && ageValid ? "border-green-500" : "")}
+              className={cn("h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green", dateOfBirth && !ageValid ? "border-red-500" : dateOfBirth && ageValid ? "border-fq-green" : "")}
               disabled={isLoading}
               required
             />
@@ -416,16 +416,16 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           {/* Required legal agreements */}
           <div className="grid gap-2 text-xs text-gray-600">
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
-              <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Terms &amp; Conditions</a></span>
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-fq-green" />
+              <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-fq-ink underline">Terms &amp; Conditions</a></span>
             </label>
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
-              <span>I agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Privacy Policy</a></span>
+              <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-fq-green" />
+              <span>I agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-fq-ink underline">Privacy Policy</a></span>
             </label>
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="checkbox" checked={acceptedRisk} onChange={(e) => setAcceptedRisk(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-500" />
-              <span>I acknowledge the <a href="/ai-risk-disclosure" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Risk Disclosure</a></span>
+              <input type="checkbox" checked={acceptedRisk} onChange={(e) => setAcceptedRisk(e.target.checked)} disabled={isLoading} className="mt-0.5 h-4 w-4 shrink-0 accent-fq-green" />
+              <span>I acknowledge the <a href="/ai-risk-disclosure" target="_blank" rel="noopener noreferrer" className="font-medium text-fq-ink underline">Risk Disclosure</a></span>
             </label>
           </div>
 
@@ -444,7 +444,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           <Button
             type="submit"
             disabled={isLoading || !canSubmit}
-            className={cn("bg-blue-500 hover:bg-blue-600 text-white", !canSubmit ? "opacity-70" : "")}>
+            className={cn("h-11 bg-fq-green font-semibold text-fq-dark hover:bg-fq-green/90", !canSubmit ? "opacity-70" : "")}>
             {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
             {t("auth", "signUp") || "Create Account"}
           </Button>

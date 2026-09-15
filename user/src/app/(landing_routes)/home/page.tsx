@@ -2,18 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import AiFocusSection from "@/components/pages/home/AiFocusSection";
-import FaqSection from "@/components/pages/home/FaqSection";
-import HeroSection from "@/components/pages/home/HeroSection";
-import MobilePromoSection from "@/components/pages/home/MobilePromoSection";
-import NewsletterSection from "@/components/pages/home/NewsletterSection";
-import SocialConnectSection from "@/components/pages/home/SocialConnectSection";
-import BlogPreviewSection from "@/components/pages/home/BlogPreviewSection";
 import Link from "next/link";
-import { useLanguage } from "@/hooks/context/LanguageContext"; // ← ADD THIS
+import { X } from "lucide-react";
+import HeroSection from "@/components/pages/home/HeroSection";
+import BrainSection from "@/components/pages/home/BrainSection";
+import CompareSection from "@/components/pages/home/CompareSection";
+import PricingSection from "@/components/pages/home/PricingSection";
+import NewsletterSection from "@/components/pages/home/NewsletterSection";
+import { useLanguage } from "@/hooks/context/LanguageContext";
 
+/**
+ * The marketing homepage, in the order the product is sold: the hero with a
+ * live view of the dashboard, Company Brain with Finna and the Finna Council,
+ * how Finquanta compares, pricing, then the newsletter. Kept short on purpose —
+ * the detail lives in the product and on /pricing.
+ */
 export default function Home() {
-  const { t } = useLanguage(); // ← ADD THIS
+  const { t } = useLanguage();
   const router = useRouter();
   const [showCTA, setShowCTA] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -31,11 +36,7 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => {
       if (dismissed) return;
-      const scrollY = window.scrollY;
-      const triggerPoint = window.innerHeight * 1.5;
-      if (scrollY > triggerPoint) {
-        setShowCTA(true);
-      }
+      if (window.scrollY > window.innerHeight * 1.5) setShowCTA(true);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -50,41 +51,47 @@ export default function Home() {
   if (redirecting) return null;
 
   return (
-    <main>
+    <div
+      className="bg-fq-bg text-fq-ink"
+      // The layout clears the floating nav with padding on a white page. Pulling
+      // this back up by the same amount lets the hero's own background, dot grid
+      // included, run underneath the nav instead of a white strip. HeroSection
+      // adds the clearance back inside itself.
+      style={{ marginTop: "calc(-4.75rem - var(--maintenance-h, 0px))" }}
+    >
       <HeroSection />
-      <AiFocusSection />
-      <MobilePromoSection />
-      <FaqSection />
-      <BlogPreviewSection />
+      <BrainSection />
+      <CompareSection />
+      <PricingSection />
       <NewsletterSection />
-      <SocialConnectSection />
 
-      {/* CTA Popup */}
       {showCTA && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-fq-dark/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-cta-title"
+        >
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
             <button
               onClick={handleDismiss}
-              className="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold"
+              aria-label={t("home", "close")}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-fq-slate hover:bg-fq-card-alt hover:text-fq-ink"
             >
-              x
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              {t('cta', 'title')}       {/* ← WAS: "Start saving today!" */}
-            </h2>
-            <p className="text-sm text-gray-500 mb-6">
-              {t('cta', 'description')} {/* ← WAS: "Experience the future..." */}
-            </p>
+            <h2 id="home-cta-title" className="text-xl font-semibold text-fq-ink">{t("cta", "title")}</h2>
+            <p className="mb-6 mt-2 text-sm text-fq-slate">{t("cta", "description")}</p>
             <Link
               href="/signup"
               onClick={handleDismiss}
-              className="inline-block bg-green-500 hover:bg-green-600 text-white font-medium px-6 py-3 rounded-lg text-sm"
+              className="inline-flex h-11 items-center rounded-full bg-fq-green px-6 text-sm font-semibold text-fq-dark hover:bg-fq-green/90"
             >
-              {t('cta', 'button')}      {/* ← WAS: "Sign up now" */}
+              {t("cta", "button")}
             </Link>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

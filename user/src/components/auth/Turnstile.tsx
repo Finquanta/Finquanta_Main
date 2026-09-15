@@ -28,7 +28,8 @@ declare global {
           sitekey: string;
           callback: (token: string) => void;
           "expired-callback"?: () => void;
-          "error-callback"?: () => void;
+          /** Return a truthy value to mark the error handled; otherwise Turnstile throws. */
+          "error-callback"?: (errorCode: string) => boolean | void;
         }
       ) => string;
       reset: (widgetId?: string) => void;
@@ -94,6 +95,18 @@ export function Turnstile({
         sitekey,
         callback: onVerify,
         "expired-callback": onExpire,
+        // Without this, Turnstile THROWS on any client-side failure — a 300xxx
+        // "challenge failed" from an ad blocker, a VPN or a slow machine — and in
+        // development that uncaught exception takes over the page as Next's error
+        // overlay. Handled here, the widget keeps retrying on its own (retry is
+        // "auto" by default) and the form stays usable. Whatever token the form
+        // held is no longer good, so it is cleared. A warning, not console.error:
+        // Next's overlay reports those too.
+        "error-callback": (errorCode) => {
+          console.warn(`[Turnstile] challenge error ${errorCode}; retrying`);
+          onExpire?.();
+          return true;
+        },
       });
     });
 

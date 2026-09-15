@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, MailIcon, LockIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, MailIcon, LockIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAuth, useUI } from "@/hooks/context/SimpleAppProvider";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 import { Turnstile } from "@/components/auth/Turnstile";
@@ -188,8 +188,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     return (
       <div className={cn("grid gap-6", className)} {...props}>
         <div className="grid gap-1">
-          <h3 className="font-semibold text-lg text-black">Two-Factor Authentication</h3>
-          <p className="text-sm text-gray-600">{t('auth', 'a2faHint')}</p>
+          <h3 className="text-xl font-semibold tracking-tight text-fq-ink">Two-Factor Authentication</h3>
+          <p className="text-sm text-fq-slate">{t('auth', 'a2faHint')}</p>
         </div>
         <form onSubmit={handleTwoFactorSubmit}>
           <div className="grid gap-4">
@@ -199,7 +199,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               autoFocus
               value={twoFactorCode}
               onChange={(e) => setTwoFactorCode(e.target.value)}
-              className="py-2 bg-white text-black border border-gray-300 text-center tracking-widest text-lg"
+              className="h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green text-center tracking-widest text-lg"
               placeholder="123456"
               disabled={verifyingTwoFactor}
             />
@@ -209,14 +209,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             <Button
               type="submit"
               disabled={verifyingTwoFactor || !twoFactorCode.trim()}
-              className="bg-blue-500 hover:bg-blue-600 text-white">
+              className="h-11 bg-fq-green font-semibold text-fq-dark hover:bg-fq-green/90">
               {verifyingTwoFactor && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
               Verify
             </Button>
             <button
               type="button"
               onClick={() => { setTwoFactorChallenge(null); setTwoFactorCode(''); setTwoFactorError(null); }}
-              className="text-sm text-gray-600 hover:underline text-center">
+              className="text-sm text-fq-slate hover:underline text-center">
               Back to sign in
             </button>
           </div>
@@ -232,10 +232,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         {resetSent ? (
           <div className="grid gap-4 text-center">
             <div className="flex justify-center">
-              <CheckIcon className="h-10 w-10 text-green-500" />
+              <CheckIcon className="h-10 w-10 text-fq-green" />
             </div>
-            <h3 className="font-semibold text-lg text-black">{t("auth", "checkEmail")}</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-xl font-semibold tracking-tight text-fq-ink">{t("auth", "checkEmail")}</h3>
+            <p className="text-sm text-fq-slate">
               {t("auth", "resetLinkSent")} <strong>{email}</strong>
             </p>
             <Button
@@ -246,9 +246,17 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </div>
         ) : (
           <>
+            {/* The draft puts the way back ABOVE the heading, not under the button. */}
+            <button
+              type="button"
+              onClick={() => setForgotPassword(false)}
+              className="-mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-fq-slate hover:text-fq-ink">
+              <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
+              {t("auth", "backToSignIn")}
+            </button>
             <div className="grid gap-1">
-              <h3 className="font-semibold text-lg text-black">{t("auth", "resetPassword")}</h3>
-              <p className="text-sm text-gray-600">{t("auth", "resetPasswordDesc")}</p>
+              <h3 className="text-xl font-semibold tracking-tight text-fq-ink">{t("auth", "resetPassword")}</h3>
+              <p className="text-sm text-fq-slate">{t("auth", "resetPasswordDesc")}</p>
             </div>
             <form onSubmit={handleReset}>
               <div className="grid gap-4">
@@ -258,14 +266,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                   </div>
                   {emailValid && (
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                      <CheckIcon className="h-5 w-5 text-green-500" />
+                      <CheckIcon className="h-5 w-5 text-fq-green" />
                     </div>
                   )}
                   <Input
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
-                    className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", emailValid ? "border-green-500" : "")}
+                    className={cn("pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green", emailValid ? "border-fq-green" : "")}
                     placeholder={t("auth", "email")}
                     disabled={isLoading}
                   />
@@ -274,16 +282,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 <Button
                   type="submit"
                   disabled={isLoading || !emailValid || !turnstileToken}
-                  className="bg-blue-500 hover:bg-blue-600 text-white">
+                  className="h-11 bg-fq-green font-semibold text-fq-dark hover:bg-fq-green/90">
                   {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                   {t("auth", "sendResetLink")}
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => setForgotPassword(false)}
-                  className="text-sm text-gray-600 hover:underline text-center">
-                  {t("auth", "backToSignIn")}
-                </button>
               </div>
             </form>
           </>
@@ -303,7 +305,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             </div>
             {emailValid && (
               <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                <CheckIcon className="h-5 w-5 text-green-500" />
+                <CheckIcon className="h-5 w-5 text-fq-green" />
               </div>
             )}
             <Input
@@ -311,7 +313,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="email"
               value={email}
               onChange={handleEmailChange}
-              className={cn("pl-10 pr-10 py-2 bg-white text-black border border-gray-300", emailValid ? "border-green-500 focus:border-green-500" : "")}
+              className={cn("pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green", emailValid ? "border-fq-green focus:border-fq-green" : "")}
               placeholder={t("auth", "email")}
               autoCapitalize="none"
               autoComplete="email"
@@ -329,7 +331,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               id="password"
               value={password}
               onChange={handlePasswordChange}
-              className="pl-10 pr-10 py-2 bg-white text-black border border-gray-300"
+              className="pl-10 pr-10 h-11 rounded-lg bg-white text-fq-ink border border-gray-200 focus-visible:ring-fq-green"
               placeholder={t("auth", "password")}
               autoCapitalize="none"
               autoComplete="current-password"
@@ -350,7 +352,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             <button
               type="button"
               onClick={() => setForgotPassword(true)}
-              className="text-sm text-gray-600 hover:underline">
+              className="text-sm text-fq-slate hover:underline">
               {t("auth", "forgotPassword")}
             </button>
           </div>
@@ -360,7 +362,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           <Button
             type="submit"
             disabled={isLoading || !emailValid || !password || !turnstileToken}
-            className={cn("bg-blue-500 hover:bg-blue-600 text-white", (!emailValid || !password || isLoading) ? "opacity-70" : "")}>
+            className={cn("h-11 bg-fq-green font-semibold text-fq-dark hover:bg-fq-green/90", (!emailValid || !password || isLoading) ? "opacity-70" : "")}>
             {isLoading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
             {t("auth", "loginButton")}
           </Button>
