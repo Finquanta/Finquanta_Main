@@ -18,7 +18,7 @@ function Banner({ title, body, stat, statLabel, tone, cta }: {
 }) {
   const green = tone === "green";
   return (
-    <div className={`flex flex-1 flex-col rounded-3xl p-7 sm:p-8 ${green ? "bg-gradient-to-br from-[#3AD542] to-[#1E9E2A] text-fq-dark" : "bg-fq-ink text-white"}`}>
+    <div className={`flex flex-col rounded-3xl p-7 sm:p-8 ${green ? "bg-gradient-to-br from-[#3AD542] to-[#1E9E2A] text-fq-dark" : "bg-fq-ink text-white"}`}>
       <h3 className="text-2xl font-medium tracking-[-0.02em]">{title}</h3>
       <p className={`mt-3 text-sm leading-relaxed ${green ? "text-fq-dark/75" : "text-white/65"}`}>{body}</p>
       <div className="mt-auto flex flex-wrap items-end justify-between gap-4 pt-8">
@@ -38,39 +38,42 @@ function Banner({ title, body, stat, statLabel, tone, cta }: {
   );
 }
 
+/**
+ * A wide product screenshot with two stat banners beneath it. The screenshot is
+ * cropped to where the invoice list ends, so it runs full width rather than
+ * sitting beside the banners in a column of empty space.
+ */
 export default function ShowcaseSection() {
   const { t } = useLanguage();
   return (
     <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 sm:pb-16">
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="rounded-3xl border border-fq-ink/10 bg-white p-2 lg:col-span-3 lg:self-center">
-          <Image
-            src="/images/home/invoices.webp"
-            alt={t("home", "invoicesShotAlt")}
-            width={2000}
-            height={800}
-            sizes="(min-width: 1024px) 660px, 100vw"
-            className="h-auto w-full rounded-2xl"
-          />
-        </div>
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          <Banner
-            tone="green"
-            title={t("home", "showDashTitle")}
-            body={t("home", "showDashBody")}
-            stat={String(HEALTH_RATIOS)}
-            statLabel={t("home", "showDashStat")}
-            cta={t("nav", "tryTheDemo")}
-          />
-          <Banner
-            tone="dark"
-            title={t("home", "showInvTitle")}
-            body={t("home", "showInvBody")}
-            stat="0"
-            statLabel={t("home", "showInvStat")}
-            cta={t("nav", "tryTheDemo")}
-          />
-        </div>
+      <div className="rounded-3xl border border-fq-ink/10 bg-white p-2 shadow-[0_30px_70px_-40px_rgba(15,18,16,0.3)]">
+        <Image
+          src="/images/home/invoices.webp"
+          alt={t("home", "invoicesShotAlt")}
+          width={2000}
+          height={800}
+          sizes="(min-width: 1152px) 1104px, 100vw"
+          className="h-auto w-full rounded-2xl"
+        />
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <Banner
+          tone="green"
+          title={t("home", "showDashTitle")}
+          body={t("home", "showDashBody")}
+          stat={String(HEALTH_RATIOS)}
+          statLabel={t("home", "showDashStat")}
+          cta={t("nav", "tryTheDemo")}
+        />
+        <Banner
+          tone="dark"
+          title={t("home", "showInvTitle")}
+          body={t("home", "showInvBody")}
+          stat="0"
+          statLabel={t("home", "showInvStat")}
+          cta={t("nav", "tryTheDemo")}
+        />
       </div>
     </section>
   );
