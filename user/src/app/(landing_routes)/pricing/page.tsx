@@ -3,25 +3,9 @@
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/context/LanguageContext';
 import ComparisonTable from '@/components/pricing/ComparisonTable';
+import { CORPORATE_ENQUIRY, PRICING, formatPrice } from '@/lib/pricing';
 
 
-/**
- * Corporate is not being sold yet — the paid plans only just launched, and it
- * is revisited around November 2026. The button asks a question rather than
- * starting a sale, which is also why it is still worth having: what people ask
- * for over the next few months is the cheapest input into what the tier should
- * contain.
- *
- * It previously had no click handler at all, so the marketing site advertised
- * Corporate with a button that did nothing.
- */
-const CORPORATE_ENQUIRY =
-  'mailto:jeeordahnoh@gmail.com' +
-  '?subject=' + encodeURIComponent('Finquanta — Inquiry about the Corporate plan') +
-  '&body=' + encodeURIComponent(
-    'I would like to know more about the Corporate plan.' + String.fromCharCode(10) + String.fromCharCode(10) +
-    'What we are looking for:' + String.fromCharCode(10)
-  );
 
 export default function Pricing() {
   const { t } = useLanguage();
@@ -74,7 +58,7 @@ export default function Pricing() {
               key: 'starter',
               name: t('pricing', 'pStarter'),
               desc: t('pricing', 'pStarterDesc'),
-              price: '$19.99',
+              price: formatPrice(PRICING.starter.monthly),
               yearly: t('pricing', 'pStarterYear'),
               border: 'border-yellow-400',
               button: 'bg-yellow-400 text-white hover:bg-yellow-500',
@@ -85,7 +69,7 @@ export default function Pricing() {
               key: 'entrepreneur',
               name: t('pricing', 'pEntrepreneur'),
               desc: t('pricing', 'pEntDesc'),
-              price: '$49.99',
+              price: formatPrice(PRICING.entrepreneur.monthly),
               yearly: t('pricing', 'pEntYear'),
               border: 'border-blue-400',
               button: 'bg-blue-500 text-white hover:bg-blue-600',
@@ -96,7 +80,7 @@ export default function Pricing() {
               key: 'business',
               name: t('pricing', 'pBusiness'),
               desc: t('pricing', 'pBizDesc'),
-              price: '$99.99',
+              price: formatPrice(PRICING.business.monthly),
               yearly: t('pricing', 'pBizYear'),
               border: 'border-red-500',
               button: 'bg-red-500 text-white hover:bg-red-600',

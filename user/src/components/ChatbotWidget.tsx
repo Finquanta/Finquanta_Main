@@ -57,6 +57,12 @@ const VOTE_COLOR: Record<Vote, string> = {
 const BUBBLE_POS_KEY = "finna_bubble_pos";
 /** The bubble's resting spot when it has never been dragged. */
 const BUBBLE_DEFAULT = { right: 16, bottom: 96 };
+/**
+ * On the marketing site the bubble rests lower, directly under the social
+ * column (SocialSidebar), so the two read as one fixed column on the right.
+ * Its centre lines up with the column's: 20 + 48/2 = 24 + 40/2 from the edge.
+ */
+const LANDING_BUBBLE_DEFAULT = { right: 20, bottom: 24 };
 const BUBBLE_SIZE = 48;
 
 /**
@@ -196,6 +202,8 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
    * the variant is what separates them.
    */
   const isLanding = variant === "landing";
+  /** Where the bubble rests until someone drags it. */
+  const bubbleDefault = isLanding ? LANDING_BUBBLE_DEFAULT : BUBBLE_DEFAULT;
   const isDashboard = !isLanding && !isHidden;
   const isSettings = isHidden;
   /** Anywhere the launcher bubble should appear at all. */
@@ -233,6 +241,17 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
       .then((o) => { setQuota(o.quota); setPastCouncil(o.sessions); })
       .catch(() => setQuota(null));
   }, [mode, isDashboard]);
+
+  /**
+   * Tells SocialSidebar whether the bubble is docked under it, which decides
+   * whether the short line joining the two is drawn.
+   */
+  useEffect(() => {
+    if (!isLanding) return;
+    const root = document.documentElement;
+    root.dataset.finnaDocked = bubblePos ? "0" : "1";
+    return () => { delete root.dataset.finnaDocked; };
+  }, [isLanding, bubblePos]);
 
   /** Restore a dragged position, clamped in case the window has since shrunk. */
   useEffect(() => {
@@ -596,11 +615,11 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
           // and clamped so dragging the bubble into a corner doesn't push the
           // panel off the edge.
           bottom: Math.min(
-            bubblePos?.bottom ?? BUBBLE_DEFAULT.bottom,
+            bubblePos?.bottom ?? bubbleDefault.bottom,
             typeof window !== "undefined" ? Math.max(0, window.innerHeight - 480) : 96
           ),
           right: Math.min(
-            (bubblePos?.right ?? BUBBLE_DEFAULT.right) + (isDashboard ? 64 : 56),
+            (bubblePos?.right ?? bubbleDefault.right) + (isDashboard ? 64 : 56),
             typeof window !== "undefined" ? Math.max(0, window.innerWidth - 316) : 80
           ),
           zIndex: 9998,
@@ -979,8 +998,8 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
       {isDashboard && nudge && !open && (
         <div style={{
           position: "fixed",
-          bottom: (bubblePos?.bottom ?? BUBBLE_DEFAULT.bottom) + BUBBLE_SIZE + 10,
-          right: bubblePos?.right ?? BUBBLE_DEFAULT.right,
+          bottom: (bubblePos?.bottom ?? bubbleDefault.bottom) + BUBBLE_SIZE + 10,
+          right: bubblePos?.right ?? bubbleDefault.right,
           zIndex: 9998,
           // The three actions are equal thirds of this row, so the width is set
           // by the LONGEST label: "Ask the Council" needs ~92px with its
@@ -1076,8 +1095,8 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
           title="Drag to move"
           style={{
             position: "fixed",
-            bottom: bubblePos?.bottom ?? BUBBLE_DEFAULT.bottom,
-            right: bubblePos?.right ?? BUBBLE_DEFAULT.right,
+            bottom: bubblePos?.bottom ?? bubbleDefault.bottom,
+            right: bubblePos?.right ?? bubbleDefault.right,
             zIndex: 9999,
             width: BUBBLE_SIZE,
             height: BUBBLE_SIZE,
@@ -1091,6 +1110,10 @@ export default function ChatbotWidget({ variant = "product" }: { variant?: Varia
             alignItems: "center",
             justifyContent: "center",
           }}>
+          {/* A pulsing ring while it sits docked on the marketing site. */}
+          {isLanding && !bubblePos && (
+            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border-2 border-fq-green animate-pulse-ring motion-reduce:hidden" />
+          )}
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="15" x2="8" y2="17"/><line x1="16" y1="15" x2="16" y2="17"/></svg>
         </button>
       )}

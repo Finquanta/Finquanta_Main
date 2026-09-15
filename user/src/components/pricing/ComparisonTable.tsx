@@ -2,6 +2,7 @@
 
 import { Hourglass } from 'lucide-react';
 import { useLanguage } from '@/hooks/context/LanguageContext';
+import { PRICING, limitCell, type PlanDisplay } from '@/lib/pricing';
 
 /**
  * The feature comparison grid.
@@ -13,7 +14,9 @@ import { useLanguage } from '@/hooks/context/LanguageContext';
  * this list, so a literal string here is a string no language can reach.
  *
  * ---------------------------------------------------------------------------
- * THESE VALUES MIRROR `server/src/modules/billing/plans.ts` AND MUST MATCH IT.
+ * THE ALLOWANCE ROWS READ `lib/pricing.ts`, which mirrors
+ * `server/src/modules/billing/plans.ts` and is held to it by pricing.test.ts.
+ * THE TICKS AND CROSSES BELOW ARE STILL TYPED OUT HERE, and must match plans.ts.
  *
  * The server is what actually gates a feature and counts an allowance; this is
  * only what the page claims. They have already drifted twice — Council and
@@ -40,6 +43,15 @@ interface Row {
   soon?: boolean;
 }
 
+/** A row of numbers read from the plan catalogue, so the table cannot advertise a limit the server doesn't enforce. */
+const limitRow = (key: string, pick: (plan: PlanDisplay) => number | null): Row => ({
+  key,
+  free: limitCell(pick(PRICING.freemium)),
+  starter: limitCell(pick(PRICING.starter)),
+  entrepreneur: limitCell(pick(PRICING.entrepreneur)),
+  business: limitCell(pick(PRICING.business)),
+});
+
 const ROWS: Row[] = [
   { key: 'pfSecCore', section: true },
   { key: 'pfBookkeeping', free: true, starter: true, entrepreneur: true, business: true },
@@ -60,12 +72,12 @@ const ROWS: Row[] = [
   { key: 'pfSecLimits', section: true },
   // Numbers, not ticks — the tiers mostly differ by how much, not whether.
   { key: 'pfSeats', free: '1', starter: 'pfPerSeatCell', entrepreneur: 'pfPerSeatCell', business: 'pfPerSeatCell' },
-  { key: 'pfFinnaMsgs', free: '50', starter: '200', entrepreneur: '500', business: '2,000' },
-  { key: 'pfCouncilSessions', free: '—', starter: '—', entrepreneur: '10', business: '30' },
-  { key: 'pfGroups', free: '3', starter: '10', entrepreneur: 'pfUnlimited', business: 'pfUnlimited' },
-  { key: 'pfScans', free: '5', starter: '25', entrepreneur: '100', business: '500' },
-  // Books Export. Must match exportsPerMonth in server plans.ts exactly.
-  { key: 'pfExports', free: '1', starter: '5', entrepreneur: '10', business: 'pfUnlimited' },
+  limitRow('pfFinnaMsgs', (p) => p.finnaMessagesPerMonth),
+  limitRow('pfCouncilSessions', (p) => p.councilSessionsPerMonth),
+  limitRow('pfGroups', (p) => p.groups),
+  limitRow('pfScans', (p) => p.scansPerMonth),
+  // Books Export.
+  limitRow('pfExports', (p) => p.exportsPerMonth),
   /**
    * NO WORKSPACES ROW, deliberately.
    *

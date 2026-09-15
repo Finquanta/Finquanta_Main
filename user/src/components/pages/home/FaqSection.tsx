@@ -1,33 +1,36 @@
 "use client";
-import React from 'react';
-import { useLanguage } from '@/hooks/context/LanguageContext';
 
-const FaqSection = () => {
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useLanguage } from "@/hooks/context/LanguageContext";
+import { PRICING, formatPrice } from "@/lib/pricing";
+
+export default function FaqSection() {
   const { t } = useLanguage();
 
-  const faqData = [
-    { id: "item-1", question: t("faq", "q1"), answer: t("faq", "a1") },
-    { id: "item-2", question: t("faq", "q2"), answer: t("faq", "a2") },
-    { id: "item-3", question: t("faq", "q3"), answer: t("faq", "a3") },
-  ];
+  // The starting price is read from the plan catalogue. The old answer had
+  // "$49.99" typed into all ten translations, and went stale the day Starter
+  // launched at $19.99.
+  const items = [1, 2, 3, 4, 5, 6].map((n) => ({
+    question: t("home", `faq${n}Q`),
+    answer: t("home", `faq${n}A`).replace("{price}", formatPrice(PRICING.starter.monthly)),
+  }));
 
   return (
-    <section id="faq" className="container py-20 bg-white">
-      <div className="mx-auto pb-4 sm:px-6 lg:px-36">
-        <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold mb-12 text-center">
-          {t("faq", "title")}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 sm:px-6 lg:px-10 w-full max-w-full">
-          {faqData.map((item) => (
-            <div key={item.id} className="bg-[#33B736] p-6 sm:p-8 rounded-lg text-white text-center flex flex-col h-full">
-              <h3 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4">{item.question}</h3>
-              <p className="text-sm sm:text-base">{item.answer}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-24 px-4 py-20 sm:px-6 sm:py-28">
+      <h2 className="text-center text-3xl font-medium tracking-[-0.03em] text-fq-ink sm:text-5xl">{t("faq", "title")}</h2>
+      <p className="mt-4 text-center text-base text-fq-slate sm:text-lg">{t("home", "faqSub")}</p>
+      <Accordion type="single" collapsible className="mt-10 overflow-hidden rounded-2xl border border-fq-ink/10 bg-white">
+        {items.map((item, i) => (
+          <AccordionItem key={i} value={`faq-${i + 1}`} className="border-b border-fq-ink/10 px-5 last:border-b-0">
+            <AccordionTrigger className="py-5 text-left text-base font-medium text-fq-ink hover:no-underline">
+              {item.question}
+            </AccordionTrigger>
+            <AccordionContent className="pb-5 text-[15px] leading-relaxed text-fq-slate">
+              {item.answer}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </section>
   );
-};
-
-export default FaqSection;
+}

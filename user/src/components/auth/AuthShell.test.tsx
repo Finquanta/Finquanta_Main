@@ -26,7 +26,7 @@ describe('AuthShell', () => {
 
   it('shows the brand tagline', () => {
     renderShell();
-    expect(screen.getByText('Transform your finances with AI power')).toBeTruthy();
+    expect(screen.getByText('One brain for your business')).toBeTruthy();
   });
 
   it('hides the animated blobs from assistive technology', () => {

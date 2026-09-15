@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { listBlogPosts, BlogPost } from "@/lib/api/blog";
 import { useLanguage } from '@/hooks/context/LanguageContext';
 
@@ -17,41 +18,42 @@ export default function BlogPreviewSection() {
   if (posts.length === 0) return null;
 
   return (
-    <section className="py-20 bg-white">
-      <div className="container mx-auto px-4">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">{t('pricing', 'pBlogTitle')}</h2>
-            <p className="text-gray-600 mt-2">{t('pricing', 'pBlogSub')}</p>
-          </div>
-          <Link href="/blog" className="hidden sm:inline text-[#4CAF50] font-medium hover:underline">{t('pricing', 'pBlogAll')} →</Link>
+    <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
+      <div className="mb-10 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-medium tracking-[-0.03em] text-fq-ink sm:text-4xl">{t('pricing', 'pBlogTitle')}</h2>
+          <p className="mt-2 text-fq-slate">{t('pricing', 'pBlogSub')}</p>
         </div>
+        <Link href="/blog" className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-fq-ink underline-offset-4 hover:underline">
+          {t('pricing', 'pBlogAll')}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {posts.map((post) => (
-            <Link key={post.id} href={`/blog/${post.slug}`} className="flex flex-col rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
-              <div className="h-44 bg-gray-100 overflow-hidden">
-                {post.coverImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.coverImageUrl} alt={post.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 font-semibold">Finquanta</div>
-                )}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {posts.map((post) => (
+          <Link
+            key={post.id}
+            href={`/blog/${post.slug}`}
+            className="group flex flex-col overflow-hidden rounded-2xl border border-fq-ink/10 bg-white transition-shadow hover:shadow-[0_20px_50px_-25px_rgba(15,18,16,0.35)]"
+          >
+            <div className="h-44 overflow-hidden bg-fq-card-alt">
+              {post.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.coverImageUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center font-semibold text-fq-slate/60">Finquanta</div>
+              )}
+            </div>
+            <div className="p-5">
+              <div className="mb-2 text-xs font-medium text-[#1E9E2A]">
+                {new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               </div>
-              <div className="p-5">
-                <div className="text-xs text-[#4CAF50] font-medium mb-2">
-                  {new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                </div>
-                <h3 className="font-semibold text-gray-900 line-clamp-2">{post.title}</h3>
-                <p className="text-gray-600 text-sm line-clamp-2 mt-2">{post.excerpt}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="mt-8 sm:hidden text-center">
-          <Link href="/blog" className="text-[#4CAF50] font-medium hover:underline">View all →</Link>
-        </div>
+              <h3 className="line-clamp-2 font-semibold text-fq-ink">{post.title}</h3>
+              <p className="mt-2 line-clamp-2 text-sm text-fq-slate">{post.excerpt}</p>
+            </div>
+          </Link>
+        ))}
       </div>
     </section>
   );

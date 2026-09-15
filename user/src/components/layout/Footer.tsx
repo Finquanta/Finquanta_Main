@@ -1,30 +1,77 @@
+"use client";
+
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
+import { useLanguage } from '@/hooks/context/LanguageContext';
+import { useSectionLink } from '@/hooks/useSectionLink';
+import { SOCIAL_LINKS } from '@/components/SocialIcons';
 
 type FooterProps = {
   onContactClick: () => void;
 };
 
-const Footer = ({ onContactClick }: FooterProps) => {
+const linkClass = 'text-sm text-white/60 transition-colors hover:text-white';
+
+function Column({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <footer className="bg-white py-8 mt-4">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top links */}
-        <div className="flex flex-row justify-center items-center gap-16 mb-6">
-          <Link href="/terms" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
-            terms of service
-          </Link>
-          <Link href="/privacy" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
-            privacy notice
-          </Link>
-          <Link href="/ai-risk-disclosure" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
-            ai risk disclosure
-          </Link>
+    <div>
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <ul className="mt-4 space-y-3">{children}</ul>
+    </div>
+  );
+}
+
+const Footer = ({ onContactClick }: FooterProps) => {
+  const { t } = useLanguage();
+  const goTo = useSectionLink();
+
+  return (
+    <footer className="bg-fq-ink text-white">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          <div>
+            <Image src="/images/finquanta_logo.svg" width={150} height={36} alt="Finquanta" className="h-8 w-auto brightness-0 invert" />
+            <p className="mt-4 max-w-xs text-sm text-white/60">{t('auth', 'shellTagline')}</p>
+            <ul className="mt-6 flex gap-2">
+              {SOCIAL_LINKS.map(({ name, href, Icon }) => (
+                <li key={name}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={name}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white/80 transition-colors hover:bg-white hover:text-fq-ink"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <Column title={t('footer', 'product')}>
+            <li><button type="button" onClick={() => goTo('features')} className={linkClass}>{t('nav', 'features')}</button></li>
+            <li><button type="button" onClick={() => goTo('brain')} className={linkClass}>{t('nav', 'companyBrain')}</button></li>
+            <li><Link href="/pricing" className={linkClass}>{t('nav', 'pricing')}</Link></li>
+            <li><Link href="/demo" className={linkClass}>{t('nav', 'tryTheDemo')}</Link></li>
+          </Column>
+
+          <Column title={t('footer', 'company')}>
+            <li><Link href="/blog" className={linkClass}>{t('nav', 'blog')}</Link></li>
+            <li><button type="button" onClick={() => goTo('newsletter')} className={linkClass}>{t('nav', 'newsletter')}</button></li>
+            <li><button type="button" onClick={onContactClick} className={linkClass}>{t('footer', 'contactUs')}</button></li>
+          </Column>
+
+          <Column title={t('footer', 'legal')}>
+            <li><Link href="/terms" className={linkClass}>{t('footer', 'termsOfService')}</Link></li>
+            <li><Link href="/privacy" className={linkClass}>{t('footer', 'privacyNotice')}</Link></li>
+            <li><Link href="/ai-risk-disclosure" className={linkClass}>{t('footer', 'aiRiskDisclosure')}</Link></li>
+          </Column>
         </div>
 
-        {/* Copyright */}
-        <p className="text-sm text-gray-500 text-center">
-          Finquanta Financial Group {new Date().getFullYear()} ©. All rights reserved.
+        <p className="mt-12 border-t border-white/10 pt-6 text-xs text-white/45">
+          {t('footer', 'rights').replace('{year}', String(new Date().getFullYear()))}
         </p>
       </div>
     </footer>

@@ -1,18 +1,66 @@
 "use client";
+
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/hooks/context/LanguageContext";
 
-const HeroSection = () => {
+/**
+ * "Run your [books]." renders the bracketed words in the muted tone. Each line
+ * is one whole translated sentence and translators move the brackets, so no
+ * sentence is ever assembled from separately translated pieces.
+ */
+export function TwoTone({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\[[^\]]+\])/g).filter(Boolean).map((part, i) =>
+        part.startsWith("[") ? (
+          <span key={i} className="text-fq-slate/40">{part.slice(1, -1)}</span>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
+/**
+ * A green dot grid that drifts one cell on a loop (so the loop point can't be
+ * seen) under a fade that stays put, and a glow breathing behind the headline.
+ * Transform and opacity only, hidden from assistive technology, and still for
+ * anyone who asks for reduced motion.
+ */
+function HeroBackdrop() {
+  const fade = "radial-gradient(ellipse 70% 60% at 50% 32%, black 25%, transparent 78%)";
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0" style={{ WebkitMaskImage: fade, maskImage: fade }}>
+        <div
+          className="absolute -inset-6 animate-dot-drift motion-reduce:animate-none"
+          style={{
+            backgroundImage: "radial-gradient(rgba(58,213,66,0.38) 1.2px, transparent 1.7px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+      </div>
+      <div className="absolute left-1/2 top-16 h-[440px] w-[880px] max-w-[150%] -translate-x-1/2">
+        <div
+          className="h-full w-full rounded-full animate-glow-breathe motion-reduce:animate-none"
+          style={{ background: "radial-gradient(closest-side, rgba(58,213,66,0.22), rgba(58,213,66,0))" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function HeroSection() {
   const { t } = useLanguage();
   const router = useRouter();
   const [email, setEmail] = useState("");
 
-  // Carry whatever they typed straight into signup (pre-filled email).
+  // Whatever they typed goes straight into sign-up as a pre-filled email.
   const goToSignup = (e: React.FormEvent) => {
     e.preventDefault();
     const value = email.trim();
@@ -20,72 +68,79 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12 sm:pb-16">
-      <div>
-        <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 sm:gap-8 max-w-[1200px] mx-auto">
-          {/* Left column: Content */}
-          <div className="w-full md:w-1/2 h-full flex flex-col space-y-8 sm:space-y-14 text-center md:text-left">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight text-gray-900">
-              {t("hero", "title")}
-            </h1>
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 leading-relaxed">
-              {t("hero", "description")}
-            </p>
-          </div>
-          {/* Right column: Image */}
-          <div className="w-full md:w-1/2 flex flex-col justify-center items-center">
-            <Image
-              src="/images/hero-flower-pot.png"
-              alt="Potted plant symbolizing financial growth"
-              width={300}
-              height={300}
-              className="object-contain w-56 sm:w-72 md:w-80 h-auto max-h-80"
-              priority
-            />
-          </div>
-        </div>
-        <form onSubmit={goToSignup} className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 w-full mt-8 sm:mt-10 max-w-[1200px] mx-auto">
-          <div className="flex-1 flex justify-center items-center relative">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("hero", "emailPlaceholder")}
-              className="w-full h-12 bg-gray-200 border border-gray-300 rounded-lg pl-10 pr-4 text-gray-700 text-sm sm:text-base"
-            />
-            <Image
-              src="/images/mail_icon.png"
-              alt="Email icon"
-              width={20}
-              height={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 sm:w-6 h-3 sm:h-4"
-            />
-          </div>
-          <div className="flex justify-center items-center">
-            <Button
-              type="submit"
-              variant="outline"
-              className="h-12 w-full sm:w-auto sm:min-w-[200px] text-white border-2 rounded-lg px-6 font-bold text-sm sm:text-base"
-              style={{backgroundColor: '#4CAF50', borderColor: '#4CAF50'}}
-            >
-              {t("nav", "signUp")}
-            </Button>
-          </div>
-        </form>
-        <div className="text-center md:text-left mt-4 max-w-[1200px] mx-auto">
-          <Link href="/demo" className="text-sm sm:text-base font-medium text-green-600 hover:text-green-700 hover:underline">
-            {t("hero", "tryDemoLink")} →
-          </Link>
-        </div>
-      </div>
-      {/* Email signup */}
-      <div className="flex flex-col w-full items-stretch space-y-3 pt-4 mt-4 sm:mt-6 max-w-[1200px] mx-auto">
-        <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-500 text-center sm:text-left px-4 sm:px-0">
-          {t("hero", "notice")}
+    <section
+      className="relative isolate overflow-hidden"
+      // Clears the floating nav and the maintenance banner; the homepage pulls
+      // itself up under the nav so this backdrop can sit behind it.
+      style={{ paddingTop: "calc(4.75rem + var(--maintenance-h, 0px))" }}
+    >
+      <HeroBackdrop />
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 text-center sm:px-6 sm:pt-20 lg:pt-24">
+        <p className="inline-flex items-center gap-2 rounded-full border border-fq-ink/10 bg-white/70 px-3 py-1 text-xs font-medium text-fq-slate backdrop-blur">
+          <span className="h-1.5 w-1.5 rounded-full bg-fq-green" aria-hidden="true" />
+          {t("home", "heroPill")}
         </p>
+
+        <h1 className="mx-auto mt-6 max-w-4xl text-[2.5rem] font-medium leading-[1.04] tracking-[-0.035em] text-fq-ink sm:text-6xl lg:text-7xl">
+          <span className="block"><TwoTone text={t("home", "heroLine1")} /></span>
+          <span className="block"><TwoTone text={t("home", "heroLine2")} /></span>
+        </h1>
+
+        <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-fq-slate sm:text-lg">
+          {t("home", "heroSub")}
+        </p>
+
+        <form
+          onSubmit={goToSignup}
+          className="mx-auto mt-8 flex max-w-md flex-col gap-2 sm:flex-row sm:rounded-full sm:border sm:border-fq-ink/10 sm:bg-white sm:p-1.5 sm:shadow-sm"
+        >
+          <label htmlFor="hero-email" className="sr-only">{t("hero", "emailPlaceholder")}</label>
+          <input
+            id="hero-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t("hero", "emailPlaceholder")}
+            className="h-12 w-full rounded-full border border-fq-ink/10 bg-white px-5 text-sm text-fq-ink placeholder:text-fq-slate/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-fq-green sm:h-10 sm:border-0 sm:bg-transparent sm:px-4"
+          />
+          <button
+            type="submit"
+            className="inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-full bg-fq-green px-6 text-sm font-semibold text-fq-dark transition-colors hover:bg-fq-green/90 sm:h-10"
+          >
+            {t("nav", "getStarted")}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </form>
+
+        <Link
+          href="/demo"
+          className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-fq-ink/70 underline-offset-4 hover:text-fq-ink hover:underline"
+        >
+          {t("hero", "tryDemoLink")}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+
+        {/* The real product, from the demo, rather than an illustration of it. */}
+        <div className="relative mx-auto mt-14 max-w-5xl">
+          <div className="rounded-2xl border border-fq-ink/10 bg-white p-2 shadow-[0_40px_90px_-30px_rgba(15,18,16,0.35)]">
+            <div className="flex gap-1.5 px-2 pb-2 pt-1" aria-hidden="true">
+              <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-fq-ink/10" />
+            </div>
+            <Image
+              src="/images/home/dashboard.webp"
+              alt={t("home", "heroShotAlt")}
+              width={2000}
+              height={1250}
+              priority
+              sizes="(min-width: 1024px) 1008px, 100vw"
+              className="h-auto w-full rounded-xl border border-fq-ink/5"
+            />
+          </div>
+        </div>
       </div>
     </section>
   );
-};
-
-export default HeroSection;
+}
