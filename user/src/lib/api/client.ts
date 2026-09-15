@@ -90,6 +90,9 @@ async function refreshAccessToken(): Promise<boolean> {
     if (!res.ok) return false;
 
     const data = await res.json();
+    // The user logged out while this request was in flight. Writing the new
+    // tokens now would silently sign them back in.
+    if (!localStorage.getItem('refreshToken')) return false;
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     return true;
