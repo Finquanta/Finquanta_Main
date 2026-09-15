@@ -10,6 +10,7 @@ import CompareSection from "@/components/pages/home/CompareSection";
 import PricingSection from "@/components/pages/home/PricingSection";
 import NewsletterSection from "@/components/pages/home/NewsletterSection";
 import { useLanguage } from "@/hooks/context/LanguageContext";
+import { clearSession, SIGNED_OUT_PARAM } from "@/lib/auth";
 
 /**
  * The marketing homepage, in the order the product is sold: the hero with a
@@ -27,7 +28,17 @@ export default function Home() {
   // Already logged in? Skip the marketing homepage and go straight to the
   // dashboard. The session is "saved" via the access token in localStorage.
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("accessToken")) {
+    if (typeof window === "undefined") return;
+    // Just logged out from another address (app.): this address keeps its own
+    // storage, so clear it here too rather than trusting a leftover token.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has(SIGNED_OUT_PARAM)) {
+      clearSession();
+      url.searchParams.delete(SIGNED_OUT_PARAM);
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+      return;
+    }
+    if (localStorage.getItem("accessToken")) {
       setRedirecting(true);
       router.replace("/dashboard");
     }

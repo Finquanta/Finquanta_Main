@@ -1,3 +1,5 @@
+import { pathKind } from '../hosts';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export function serverApiUrl(path: string): string {
@@ -167,6 +169,16 @@ function unwrapEnvelope<T>(json: unknown): T {
   return json as T;
 }
 
+/** App-address pages that are meant to work without a session. */
+const SIGNED_OUT_SEGMENTS = new Set([
+  'login', 'signup', 'demo', 'join', 'capture', 'sso', 'verify-email', 'reset-password',
+]);
+
+/** True on pages that only make sense signed in — the dashboard and friends. */
+function needsSession(pathname: string): boolean {
+  return pathKind(pathname) === 'app' && !SIGNED_OUT_SEGMENTS.has(pathname.split('/')[1] ?? '');
+}
+
 /**
  * Clear stored auth tokens and redirect to login page.
  */
@@ -252,6 +264,16 @@ export async function apiFetch<T>(
     // Refresh failed — force re-login
     clearAuthAndRedirect();
     throw new Error('Session expired. Please log in again.');
+  }
+
+  // No session at all on a signed-in page (the dashboard reached after a
+  // logout, or from another address's leftover token): send them to log in
+  // instead of leaving the page up showing "Authentication required".
+  // Marketing pages, and app pages built to work signed out (a wrong 2FA code
+  // is a 401 too), are left alone — a 401 there isn't a lost session.
+  if (res.status === 401 && typeof window !== 'undefined' && needsSession(window.location.pathname)) {
+    clearAuthAndRedirect();
+    throw new Error('Please log in to continue.');
   }
 
   if (!res.ok) {
