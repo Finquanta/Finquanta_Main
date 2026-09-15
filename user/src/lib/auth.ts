@@ -53,5 +53,15 @@ export function logoutAndRedirect(destination = '/login'): void {
     }
   }
   clearSession();
-  if (typeof window !== 'undefined') window.location.replace(destination);
+  if (typeof window === 'undefined') return;
+  // With the domain split live, /home is served from finquanta.ai while this
+  // page is on app.finquanta.ai — and localStorage is per address. clearSession()
+  // can't reach the homepage's storage, where a session from before the split
+  // may still sit and send the homepage straight back to /dashboard. The flag
+  // tells the homepage to clear its own copy. The cross-address redirect keeps
+  // the query string (see lib/hosts.ts).
+  window.location.replace(destination === '/home' ? `/home?${SIGNED_OUT_PARAM}=1` : destination);
 }
+
+/** Set on the homepage URL by logoutAndRedirect('/home'). */
+export const SIGNED_OUT_PARAM = 'signedOut';
