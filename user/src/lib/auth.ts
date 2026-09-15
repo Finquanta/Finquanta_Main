@@ -1,4 +1,5 @@
 import { serverApiUrl } from './api/client';
+import { useAppState } from '@/hooks/context/useAppState';
 
 /**
  * Auth/session helpers.
@@ -16,6 +17,11 @@ const ZUSTAND_PERSIST_KEY = 'Finquanta-ai-app-state';
 /** Remove every trace of the signed-in session from the browser. */
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
+  // Sign the in-memory store out FIRST. Removing the persist key alone isn't
+  // enough: the store still holds the token, and any update to it before the
+  // page unloads (a toast, a loading flag) writes the whole session straight
+  // back to localStorage. After this, a late write can only persist logged-out.
+  useAppState.setState({ isAuthenticated: false, accessToken: null, refreshToken: null, user: null });
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
@@ -27,6 +33,9 @@ export function clearSession(): void {
  * Clear the session and hard-navigate to `destination`. A full page load (not a
  * client-side router push) guarantees the in-memory store re-initialises empty,
  * so nothing can re-persist the token after we've cleared it.
+ *
+ * `replace`, not `href`: the page being left was reached while signed in, so
+ * keeping it in history would let the Back button walk straight back into it.
  */
 export function logoutAndRedirect(destination = '/login'): void {
   if (typeof window !== 'undefined') {
@@ -44,5 +53,5 @@ export function logoutAndRedirect(destination = '/login'): void {
     }
   }
   clearSession();
-  if (typeof window !== 'undefined') window.location.href = destination;
+  if (typeof window !== 'undefined') window.location.replace(destination);
 }
