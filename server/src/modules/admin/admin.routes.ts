@@ -695,6 +695,47 @@ export async function adminRoutes(fastify: FastifyInstance, options: { database:
   }) as any);
 
   /**
+   * End a running trial now.
+   *
+   * Its own route rather than a flag on the grandfather one: "stop this trial"
+   * is a decision in its own right, it is worth its own line in the audit log,
+   * and comping a workspace should not be the only way to reach it.
+   *
+   * The trial stays on the workspace's record — the owner has still used their
+   * one trial, and this is not a way to hand out a second.
+   */
+  fastify.delete('/v1/admin/businesses/:id/trial', { preHandler: pre }, (async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const target = await repo.getBusinessById(id);
+      if (!target) return reply.status(404).send({ success: false, error: 'Business not found' });
+
+      let sub;
+      try {
+        sub = await billing.endTrial(id);
+      } catch (e) {
+        // "No running trial" is the caller's mistake, not a server fault.
+        return reply.status(400).send({
+          success: false,
+          error: e instanceof Error ? e.message : 'Could not end that trial.',
+        });
+      }
+
+      await repo.addAuditLog({
+        actorId: request.user!.id,
+        actorEmail: request.user!.email,
+        action: `Ended the running trial for "${target.name}"`,
+        targetId: id,
+        targetEmail: target.ownerEmail,
+      });
+      return reply.send({ success: true, data: sub });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Could not end that trial.' });
+    }
+  }) as any);
+
+  /**
    * Grant or revoke early access (the grandfather window).
    *
    * Separate from plan and trial because it is a different promise: not "you

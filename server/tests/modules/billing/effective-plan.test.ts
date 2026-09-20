@@ -1,4 +1,4 @@
-import { effectivePlan, effectivePlanFromRow } from '../../../src/modules/billing/effective-plan';
+import { effectivePlan, effectivePlanFromRow, planBadgeFor } from '../../../src/modules/billing/effective-plan';
 
 /**
  * This helper exists because three surfaces answered the same question
@@ -82,5 +82,53 @@ describe('effectivePlan', () => {
       plan: 'freemium', status: 'none', trialEndsAt: future(10), grandfatheredUntil: null,
     });
     expect(e.key).toBe('freemium');
+  });
+
+  /**
+   * A trial and a grandfather window grant the same plan, so they tie — and the
+   * tie used to go to the trial because it was pushed onto the list first.
+   * Grandfathering a workspace mid-trial therefore looked like it had failed:
+   * the badge still said "Trial" and the admin panel counted down to the
+   * trial's end, while the window it had just written went unmentioned.
+   */
+  describe('when a trial and a free-access window overlap', () => {
+    it('names the window that outlasts the other', () => {
+      const e = effectivePlan({
+        plan: 'freemium', status: 'trialing', trialEndsAt: future(10), grandfatheredUntil: future(180),
+      });
+      expect(e.reason).toBe('grandfathered');
+      expect(planBadgeFor({
+        plan: 'freemium', status: 'trialing', trialEndsAt: future(10), grandfatheredUntil: future(180),
+      }).label).toBe('Grandfathered');
+    });
+
+    it('still names the trial while the trial is the longer one', () => {
+      const e = effectivePlan({
+        plan: 'freemium', status: 'trialing', trialEndsAt: future(30), grandfatheredUntil: future(5),
+      });
+      expect(e.reason).toBe('trial');
+      expect(planBadgeFor({
+        plan: 'freemium', status: 'trialing', trialEndsAt: future(30), grandfatheredUntil: future(5),
+      }).label).toBe('Trial');
+    });
+
+    it('grants the same access either way', () => {
+      // The label is the only thing in question here: both windows unlock the
+      // same plan, so nobody gains or loses anything when the tie flips.
+      const e = effectivePlan({
+        plan: 'freemium', status: 'trialing', trialEndsAt: future(10), grandfatheredUntil: future(180),
+      });
+      expect(e.key).toBe('business');
+      expect(e.onFreeWindow).toBe(true);
+    });
+
+    it('leaves a paying customer labelled by what they pay for', () => {
+      // A billed plan never expires, so it outlasts every window by definition.
+      const e = effectivePlan({
+        plan: 'business', status: 'active', trialEndsAt: null, grandfatheredUntil: future(180),
+      });
+      expect(e.reason).toBe('plan');
+      expect(e.onFreeWindow).toBe(false);
+    });
   });
 });

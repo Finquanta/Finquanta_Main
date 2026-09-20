@@ -49,15 +49,34 @@ export const planRank = (plan: PlanKey): number => PLAN_KEYS.indexOf(plan);
  * finishing must not take away what a grandfather window still grants.
  */
 export function effectivePlan(w: PlanWindow, trialPlan: PlanKey = 'business'): EffectivePlan {
-  const candidates: { key: PlanKey; reason: EffectivePlan['reason'] }[] = [
-    { key: w.plan, reason: 'plan' },
+  const candidates: { key: PlanKey; reason: EffectivePlan['reason']; until: string | Date | null }[] = [
+    { key: w.plan, reason: 'plan', until: null },
   ];
 
   const trialing = w.status === 'trialing' && inFuture(w.trialEndsAt);
-  if (trialing) candidates.push({ key: trialPlan, reason: 'trial' });
-  if (inFuture(w.grandfatheredUntil)) candidates.push({ key: trialPlan, reason: 'grandfathered' });
+  if (trialing) candidates.push({ key: trialPlan, reason: 'trial', until: w.trialEndsAt });
+  if (inFuture(w.grandfatheredUntil)) {
+    candidates.push({ key: trialPlan, reason: 'grandfathered', until: w.grandfatheredUntil });
+  }
 
-  const best = candidates.reduce((a, b) => (planRank(b.key) > planRank(a.key) ? b : a));
+  /**
+   * Ties are broken by whichever lasts LONGER, and a billed plan outlasts every
+   * window by definition — it does not expire.
+   *
+   * A trial and a grandfather window grant exactly the same thing, so before
+   * this they tied and the trial won by being pushed first. Grandfathering a
+   * workspace mid-trial therefore changed nothing anybody could see: the badge
+   * still read "Trial", the admin panel still counted down to the trial's end,
+   * and the grant looked like it had failed. The window that outlives the other
+   * is the one that describes what the workspace actually keeps.
+   */
+  const lasts = (c: (typeof candidates)[number]) =>
+    c.reason === 'plan' ? Infinity : new Date(c.until as string | Date).getTime();
+
+  const best = candidates.reduce((a, b) => {
+    if (planRank(b.key) !== planRank(a.key)) return planRank(b.key) > planRank(a.key) ? b : a;
+    return lasts(b) > lasts(a) ? b : a;
+  });
   return {
     key: best.key,
     name: (PLANS[best.key] ?? PLANS.freemium).name,

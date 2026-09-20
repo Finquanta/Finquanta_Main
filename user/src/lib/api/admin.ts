@@ -91,6 +91,14 @@ export async function extendAdminBusinessTrial(id: string, days: number): Promis
   });
 }
 
+/**
+ * Stop a running trial now. The owner has still used their one trial — this
+ * ends the countdown, it does not hand out another.
+ */
+export async function endAdminBusinessTrial(id: string): Promise<void> {
+  await apiFetch(`/v1/admin/businesses/${id}/trial`, { method: 'DELETE' });
+}
+
 /** Grant early access for `months`, or pass null to remove it. */
 export async function setAdminBusinessGrandfather(id: string, months: number | null): Promise<void> {
   await apiFetch(`/v1/admin/businesses/${id}/grandfather`, {

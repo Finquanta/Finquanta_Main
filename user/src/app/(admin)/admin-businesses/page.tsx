@@ -5,7 +5,7 @@ import {
   AdminBusiness, AdminBillingOverview, checkAdmin, deleteAdminBusiness,
   extendAdminBusinessTrial, adjustAdminBusinessGrandfather, getAdminBillingOverview, listAdminBusinesses,
   assignAdminBusinessOwner, setAdminBusinessGrandfather, setAdminBusinessPlan, setAdminBusinessStatus,
-  startAdminBusinessTrial, updateAdminBusiness, setAdminBusinessBeta, refreshAdminBusinessBeta,
+  startAdminBusinessTrial, endAdminBusinessTrial, updateAdminBusiness, setAdminBusinessBeta, refreshAdminBusinessBeta,
 } from "@/lib/api/admin";
 import AdminSidebar, { readAdminDark } from "@/components/admin/AdminSidebar";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -219,6 +219,23 @@ export default function AdminBusinessesPage() {
     return null;
   };
 
+  /** A trial that is actually running — a past end date is just history. */
+  const trialLive = (b: AdminBusiness) =>
+    b.subscriptionStatus === "trialing" && !!b.trialEndsAt && new Date(b.trialEndsAt) > new Date();
+
+  /**
+   * Offered whenever a trial is still running, because grandfathering settles
+   * what the workspace gets and a countdown underneath it no longer describes
+   * anything. Off by default: it is a second decision, not a side effect.
+   */
+  const endTrialCheckbox = (b: AdminBusiness) =>
+    trialLive(b)
+      ? {
+          label: "Also end the running trial now",
+          hint: `Their trial runs to ${fmtDate(b.trialEndsAt)}. Ending it changes nothing they can use — free access grants the same features — and they cannot be given a second trial either way.`,
+        }
+      : undefined;
+
   const askMonths = (b: AdminBusiness, paid: boolean) => askFor({
     title: `Grandfather "${b.name}"`,
     body: (
@@ -233,13 +250,17 @@ export default function AdminBusinessesPage() {
     confirmLabel: "Grandfather",
     cancelLabel: "Cancel",
     validate: monthsValidator,
-    onSubmit: (raw) => {
+    checkbox: endTrialCheckbox(b),
+    onSubmit: (raw, endTrialToo) => {
       const months = Number(raw);
       act(async () => {
         // Clear the paid plan first: grandfathered is a state of NOT paying, and
         // leaving the old plan behind is what made this look like a no-op.
         if (paid && months > 0) await setAdminBusinessPlan(b.id, "freemium");
         await setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months));
+        // Only alongside a window: ending a trial and granting nothing would
+        // take access away, which is the opposite of what this dialog is for.
+        if (endTrialToo && months > 0) await endAdminBusinessTrial(b.id);
       }, b.id);
     },
   });
@@ -272,10 +293,37 @@ export default function AdminBusinessesPage() {
       confirmLabel: "Grandfather",
       cancelLabel: "Cancel",
       validate: monthsValidator,
-      onSubmit: (raw) => {
+      checkbox: endTrialCheckbox(b),
+      onSubmit: (raw, endTrialToo) => {
         const months = Number(raw);
-        act(() => setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months)), b.id);
+        act(async () => {
+          await setAdminBusinessGrandfather(b.id, months === 0 ? null : Math.round(months));
+          if (endTrialToo && months > 0) await endAdminBusinessTrial(b.id);
+        }, b.id);
       },
+    });
+  };
+
+  const endTrial = (b: AdminBusiness) => {
+    setOpenMenuId("");
+    ask({
+      title: `End the trial for ${b.name}?`,
+      body: (
+        <>
+          <p>Their trial runs to {fmtDate(b.trialEndsAt)}. Ending it now stops the countdown.</p>
+          {!b.grandfatheredUntil && b.planKey === "freemium" && (
+            <p className="mt-2">
+              <strong>They are not grandfathered and not on a paid plan</strong>, so this drops
+              them to Freemium straight away.
+            </p>
+          )}
+          <p className="mt-2">Their one trial stays used — this does not offer them another.</p>
+        </>
+      ),
+      tone: "warning",
+      confirmLabel: "End trial",
+      cancelLabel: "Cancel",
+      onConfirm: () => act(() => endAdminBusinessTrial(b.id), b.id),
     });
   };
 
@@ -508,7 +556,16 @@ export default function AdminBusinessesPage() {
                             opening Stripe. The badge above names the window, so
                             this line carries the plan it grants. */}
                         {b.onFreeWindow && (() => {
-                          const until = b.subscriptionStatus === "trialing" ? b.trialEndsAt : b.grandfatheredUntil;
+                          /* The window that lasts LONGEST is the one worth a
+                             date, and it is what the badge above already names.
+                             Reading the trial first hid a grandfather window
+                             granted mid-trial: the row counted down to a trial
+                             end while the workspace was comped for months. */
+                          const trialUntil = trialLive(b) ? b.trialEndsAt : null;
+                          const gfUntil = b.grandfatheredUntil;
+                          const later = (x: string | null, y: string | null) =>
+                            !x ? y : !y ? x : new Date(x) > new Date(y) ? x : y;
+                          const until = later(trialUntil, gfUntil);
                           const left = daysLeft(until);
                           return (
                             <div style={{ fontSize: 11, color: d.muted, marginTop: 3 }}>
@@ -558,6 +615,7 @@ export default function AdminBusinessesPage() {
                                       paying workspace can be granted free days. */}
                                   <MenuItem label="Adjust dates" onClick={() => openTrial(b)} />
                                   {!b.trialEndsAt && <MenuItem label="Start trial" onClick={() => startTrial(b)} />}
+                                  {trialLive(b) && <MenuItem label="End trial now" onClick={() => endTrial(b)} />}
                                   {/* Named "Grandfather", not "Grant early
                                       access". They were always the same
                                       action, but the badge on the row says
@@ -786,7 +844,11 @@ export default function AdminBusinessesPage() {
                   workspace back on early access looked impossible from the one
                   screen built for changing what it is on. */}
               {(() => {
-                const isGrandfathered = planFor.onFreeWindow && planFor.subscriptionStatus !== "trialing";
+                /* A live window, whatever else is running. This used to exclude
+                   trialing workspaces, so grandfathering one left the tile
+                   looking untouched and the date it had just set invisible. */
+                const isGrandfathered =
+                  !!planFor.grandfatheredUntil && new Date(planFor.grandfatheredUntil) > new Date();
                 const c = planToneColors("grandfathered", dark);
                 return (
                   <button

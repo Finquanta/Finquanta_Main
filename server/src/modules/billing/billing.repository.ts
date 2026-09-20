@@ -619,6 +619,40 @@ export class BillingRepository {
   }
 
   /**
+   * End a running trial NOW, without pretending it never happened.
+   *
+   * For comping a workspace: an admin grandfathering somebody mid-trial has
+   * decided what that workspace gets, and leaving a trial ticking underneath
+   * means a countdown that no longer describes anything.
+   *
+   * What it deliberately does NOT do:
+   *  - clear `users.trial_used_at`, so this can never hand out a second trial
+   *  - move `status` off 'trialing', because nothing else in the product does
+   *    that either; a lapsed trial is told apart from a live one by its DATE,
+   *    and inventing a second convention here would leave the "your trial
+   *    ended" prompt unable to recognise this one (see billing.routes).
+   *
+   * That prompt stays quiet anyway for anyone inside a live grandfather
+   * window: they have lost nothing, and nothing to buy back.
+   */
+  async endTrial(businessId: string): Promise<Subscription> {
+    await this.ensureFor(businessId);
+    const current = await this.get(businessId);
+    if (!current?.trialEndsAt || new Date(current.trialEndsAt) <= new Date()) {
+      throw new Error('There is no running trial on this workspace.');
+    }
+    await this.database.query(
+      `UPDATE business_subscriptions
+          SET trial_ends_at = NOW(), updated_at = NOW()
+        WHERE business_id = $1`,
+      [businessId]
+    );
+    const s = await this.get(businessId);
+    if (!s) throw new Error('Subscription row vanished');
+    return s;
+  }
+
+  /**
    * Mark the current free-access end date as "they have been told".
    *
    * Writes today's `grandfathered_until` into `access_notice_until` rather than

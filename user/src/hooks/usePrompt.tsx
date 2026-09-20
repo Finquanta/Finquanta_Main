@@ -52,18 +52,29 @@ export interface PromptRequest {
   isDark?: boolean;
   /** Return an error message to keep the dialog open, or null to accept. */
   validate?: (value: string) => string | null;
-  onSubmit: (value: string) => void | Promise<void>;
+  /**
+   * An optional yes/no that belongs WITH the value rather than after it.
+   *
+   * Grandfathering a workspace mid-trial is the case it exists for: "for how
+   * many months?" and "and stop the trial?" are one decision, and asking them
+   * in two dialogs made the second look like a separate action an admin could
+   * skip without consequence.
+   */
+  checkbox?: { label: string; defaultChecked?: boolean; hint?: ReactNode };
+  onSubmit: (value: string, checked: boolean) => void | Promise<void>;
 }
 
 export function usePrompt(isDark: boolean) {
   const { t } = useLanguage();
   const [request, setRequest] = useState<PromptRequest | null>(null);
   const [value, setValue] = useState("");
+  const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const fieldId = useId();
+  const checkboxId = useId();
 
   /**
    * The request currently on screen, tracked synchronously.
@@ -84,6 +95,7 @@ export function usePrompt(isDark: boolean) {
     latest.current = next;
     setRequest(next);
     setValue(next.defaultValue ?? "");
+    setChecked(next.checkbox?.defaultChecked ?? false);
     setError(null);
     setBusy(false);
   }, []);
@@ -92,6 +104,7 @@ export function usePrompt(isDark: boolean) {
     latest.current = null;
     setRequest(null);
     setValue("");
+    setChecked(false);
     setError(null);
     setBusy(false);
   }, []);
@@ -111,7 +124,7 @@ export function usePrompt(isDark: boolean) {
     const current = request;
     setBusy(true);
     try {
-      await current.onSubmit(value);
+      await current.onSubmit(value, checked);
       // Only close if `onSubmit` did not chain another question onto this one.
       if (latest.current === current) close();
     } catch (e) {
@@ -156,6 +169,27 @@ export function usePrompt(isDark: boolean) {
         }}
         className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none disabled:opacity-60 ${field}`}
       />
+
+      {request?.checkbox && (
+        <div className="mt-3">
+          <label htmlFor={checkboxId} className="flex items-start gap-2 text-sm">
+            <input
+              id={checkboxId}
+              type="checkbox"
+              checked={checked}
+              disabled={busy}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 disabled:opacity-60"
+            />
+            <span>{request.checkbox.label}</span>
+          </label>
+          {request.checkbox.hint && (
+            <p className={`mt-1 pl-6 text-xs ${dark ? "text-gray-400" : "text-gray-500"}`}>
+              {request.checkbox.hint}
+            </p>
+          )}
+        </div>
+      )}
 
       {error && <p id={`${fieldId}-error`} className="mt-2 text-xs text-red-500">{error}</p>}
 
